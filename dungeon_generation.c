@@ -17,6 +17,7 @@ void printDungeon() {
     }
 }
 
+
 void emptyDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -126,4 +127,28 @@ void placePlayer() {
     player_x = playerRoom.x + rand() % playerRoom.width;
     player_y = playerRoom.y + rand() % playerRoom.height;
     dungeon[player_y][player_x] = '@';
+}
+
+void initializeHardness() {
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            if (x == 0 || x == WIDTH - 1 || y == 0 || y == HEIGHT - 1) {
+                hardness[y][x] = 255;
+            } else if (dungeon[y][x] == '.' || dungeon[y][x] == '#' || dungeon[y][x] == '@' 
+            || dungeon[y][x] == '<' || dungeon[y][x] == '>') {
+                hardness[y][x] = 0;
+            } else {
+                hardness[y][x] = (rand() % 254) + 1;
+            }
+        }
+    }
+}
+
+void printHardness() {
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            printf("%3d ", hardness[y][x]);
+        }
+        printf("\n");
+    }
 }
