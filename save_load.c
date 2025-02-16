@@ -181,7 +181,7 @@ void loadDungeon(char *nameOfFile) {
     }
 
     //Set player position
-    dungeon[player_y][player_x].type = '@';
+    dungeon[player_y][player_x] = '@';
 
     printf("Dungeon loaded from %s\n", dungeonFile);
     fclose(file);
