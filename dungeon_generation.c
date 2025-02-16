@@ -1,7 +1,7 @@
 #include "dungeon_generation.h"
 
 char dungeon[HEIGHT][WIDTH];                 
-unsigned char hardness[HEIGHT][WIDTH];       
+unsigned char hardness[HEIGHT][WIDTH];     
 struct Room rooms[MAX_ROOMS];                
 
 int player_x;
