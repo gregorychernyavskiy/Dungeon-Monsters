@@ -1,0 +1,17 @@
+02/02/2025
+1. Added basic function implementation.
+2. Defined global variables.
+3. Implemented printing an empty dungeon.
+4. Created small foundational classes like emptyDungeon.
+
+02/03/2025
+1. Finalized dungeon generation.
+2. Implemented room placement with randomized sizes.
+3. Ensured proper spacing between rooms
+4. Connected rooms with pathways (corridors) to avoid dead ends.
+5. Implemented randomized stair placement.
+6. Created a Makefile for easy compilation
+7. Created a Readme file for description of the project.
+
+02/10/2025
+1. 
