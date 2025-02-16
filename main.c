@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
     }
 
     printDungeon();
+    printHardness();
 
     if (save) {
         if (saveFileName) {
