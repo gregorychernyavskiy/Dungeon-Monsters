@@ -6,89 +6,43 @@
 
 #include "dungeon_generation.h"
 
-void saveDungeon() {
-    FILE *file = fopen("dungeon", "w");
+char *dungeonFile;
+
+void setupDungeonFile(char *nameOfFile) {
+    char *home = getenv("HOME");
+    int fileLength = strlen(home) + strlen("/.rlg327/") + strlen(nameOfFile) + 1;
+
+    dungeonFile = malloc(fileLength * sizeof(*fileLength));
+    if (!dungeonFile) {
+        perror("Memory allocation failed...");
+        exit(EXIT_FAILURE);
+    }
+
+    strcpy(dungeonFile, home);
+    strcat(dungeonFile, "/.rlg327/");
+    strcat(dungeonFile, nameOfFile);
+}
+
+void loadDungeon(char *nameOfFile) {
+
+}
+
+void saveDungeon(char *nameOfFile) {
+    setupDungeonFile(nameOfFile);
+    FILE *file = fopen(dungeonFile, "w");
+
     if (!file) {
-        perror("Error opening file for saving");
+        perror("Error! Cannot open the file...");
         exit(EXIT_FAILURE);
     }
 
     fwrite("RLG327-S2025", 1, 12, file);
+    
+    uint32_t versionMaker = htobe32(0);
+    fwrite(&versionMaker, 4, 1, file);
 
-    uint32_t version = htobe32(0);
-    fwrite(&version, 4, 1, file);
-
-    uint32_t size = htobe32(1712 + num_rooms * 4);
+    uint32_t size = htobe32(sizeof(1712 + num_rooms * 4));
     fwrite(&size, 4, 1, file);
 
-    uint8_t pos[2] = {(uint8_t) player_x, (uint8_t) player_y};
-    fwrite(pos, 2, 1, file);
-
-    fwrite(hardness, sizeof(hardness), 1, file);
-    
-    uint16_t r = htobe16(num_rooms);
-    fwrite(&r, 2, 1, file);
-    fwrite(rooms, sizeof(struct Room), num_rooms, file);
-
-    uint16_t u = htobe16(upStairsCount);
-    fwrite(&u, 2, 1, file);
-    fwrite(upStairs, sizeof(upStairs), upStairsCount, file);
-
-    uint16_t d = htobe16(downStairsCount);
-    fwrite(&d, 2, 1, file);
-    fwrite(downStairs, sizeof(downStairs), downStairsCount, file);
-
-    printf("Dungeon saved successfully.\n");
-    fclose(file);
-}
-
-void loadDungeon() {
-    FILE *file = fopen("dungeon", "r");
-    if (!file) {
-        perror("Error opening file for loading");
-        exit(EXIT_FAILURE);
-    }
-
-    char marker[12];
-    fread(marker, 1, 12, file);
-
-    uint32_t version;
-    fread(&version, 4, 1, file);
-    version = be32toh(version);
-
-    uint32_t size;
-    fread(&size, 4, 1, file);
-    size = be32toh(size);
-
-    uint8_t pos[2];
-    fread(pos, 2, 1, file);
-    player_x = (int) pos[0];
-    player_y = (int) pos[1];
-
-    for (int i = 0; i < HEIGHT; i++) {
-        for (int j = 0; j < WIDTH; j++) {
-            fread(&hardness[i][j], 1, 1, file);
-            dungeon[i][j] = (hardness[i][j] == 0) ? '#' : ' ';
-        }
-    }
-    
-    uint16_t r;
-    fread(&r, 2, 1, file);
-    num_rooms = be16toh(r);
-    fread(rooms, sizeof(struct Room), num_rooms, file);
-    
-    uint16_t u;
-    fread(&u, 2, 1, file);
-    upStairsCount = be16toh(u);
-    fread(upStairs, sizeof(upStairs), upStairsCount, file);
-    
-    uint16_t d;
-    fread(&d, 2, 1, file);
-    downStairsCount = be16toh(d);
-    fread(downStairs, sizeof(downStairs), downStairsCount, file);
-    
-    dungeon[player_y][player_x] = '@';
-
-    printf("Dungeon loaded successfully.\n");
     fclose(file);
 }

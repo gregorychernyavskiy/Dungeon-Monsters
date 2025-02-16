@@ -1,27 +1,26 @@
 #include "dungeon_generation.h"
 
-int player_x, player_y;
+char dungeon[HEIGHT][WIDTH];                 
+unsigned char hardness[HEIGHT][WIDTH];       
+struct Room rooms[MAX_ROOMS];                
+
+int player_x;
+int player_y;
 int num_rooms = 0;
 
-char dungeon[HEIGHT][WIDTH];
-unsigned char hardness[HEIGHT][WIDTH];
-struct Room rooms[MAX_ROOMS];
-
-
 void printDungeon() {
-    for(int y = 0; y < HEIGHT; y++) {
-        for(int x = 0; x < WIDTH; x++) {
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
             printf("%c", dungeon[y][x]);
         }
         printf("\n");
     }
 }
 
-
 void emptyDungeon() {
-    for(int y = 0; y < HEIGHT; y++) {
-        for(int x = 0; x < WIDTH; x++) {
-            if(x == 0 || x == WIDTH - 1 || y == 0 || y == HEIGHT - 1) {
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            if (x == 0 || x == WIDTH - 1 || y == 0 || y == HEIGHT - 1) {
                 dungeon[y][x] = '+';
             } else {
                 dungeon[y][x] = ' ';
@@ -30,22 +29,20 @@ void emptyDungeon() {
     }
 }
 
-
 int overlapCheck(struct Room r1, struct Room r2) {
-    if(r1.x + r1.width < r2.x || r2.x + r2.width < r1.x || r1.y + r1.height < r2.y || r2.y + r2.height < r1.y) {
+    if (r1.x + r1.width < r2.x || r2.x + r2.width < r1.x || r1.y + r1.height < r2.y || r2.y + r2.height < r1.y) {
         return 0;
     } else {
         return 1;
     }
 }
 
-
-int createRooms() {
-    int countRooms = 0;
+void createRooms() {
+    num_rooms = 0;
     int attempts = 0;
     int randRoomNum = MIN_ROOMS + rand() % (MAX_ROOMS - MIN_ROOMS + 1);
 
-    while(countRooms < randRoomNum && attempts < 1000) {
+    while (num_rooms < randRoomNum && attempts < 1000) {
         attempts++;
         int overlap = 0;
         struct Room newRoom;
@@ -55,48 +52,46 @@ int createRooms() {
         newRoom.x = 1 + rand() % (WIDTH - newRoom.width - 2);
         newRoom.y = 1 + rand() % (HEIGHT - newRoom.height - 2);
 
-        for(int i = 0; i < countRooms; i++) {
-            if(overlapCheck(newRoom, rooms[i])) {
+        for (int i = 0; i < num_rooms; i++) {
+            if (overlapCheck(newRoom, rooms[i])) {
                 overlap = 1;
                 break;
             }
         }
 
-        if(!overlap) {
-            rooms[countRooms++] = newRoom;
-            for(int y = newRoom.y; y < newRoom.y + newRoom.height; y++) {
-                for(int x = newRoom.x; x < newRoom.x + newRoom.width; x++) {
+        if (!overlap) {
+            rooms[num_rooms++] = newRoom;
+            for (int y = newRoom.y; y < newRoom.y + newRoom.height; y++) {
+                for (int x = newRoom.x; x < newRoom.x + newRoom.width; x++) {
                     dungeon[y][x] = '.';
                 }
             }
         }
     }
-    return countRooms;
 }
 
-
-void connectRooms(int countRooms) {
-    for(int i = 0; i < countRooms - 1; i++) {
+void connectRooms() {
+    for (int i = 0; i < num_rooms - 1; i++) {
         int x1 = rooms[i].x + rooms[i].width / 2;
         int y1 = rooms[i].y + rooms[i].height / 2;
         int x2 = rooms[i + 1].x + rooms[i + 1].width / 2;
         int y2 = rooms[i + 1].y + rooms[i + 1].height / 2;
 
-        while(x1 != x2 || y1 != y2) {
-            if(dungeon[y1][x1] == ' ') {
+        while (x1 != x2 || y1 != y2) {
+            if (dungeon[y1][x1] == ' ') {
                 dungeon[y1][x1] = '#';
             }
 
-            if(rand() % 2) {
-                if(x1 < x2) {
+            if (rand() % 2) {
+                if (x1 < x2) {
                     x1++;
-                } else if(x1 > x2) {
+                } else if (x1 > x2) {
                     x1--;
                 }
             } else {
-                if(y1 < y2) {
+                if (y1 < y2) {
                     y1++;
-                } else if(y1 > y2) {
+                } else if (y1 > y2) {
                     y1--;
                 }
             }
@@ -104,13 +99,12 @@ void connectRooms(int countRooms) {
     }
 }
 
-
-void placeStairs(int countRooms) {
-    int upIndex = rand() % countRooms;
-    int downIndex = rand() % countRooms;
+void placeStairs() {
+    int upIndex = rand() % num_rooms;
+    int downIndex = rand() % num_rooms;
 
     while (downIndex == upIndex) {
-        downIndex = rand() % countRooms;
+        downIndex = rand() % num_rooms;
     }
 
     struct Room upRoom = rooms[upIndex];
@@ -125,9 +119,8 @@ void placeStairs(int countRooms) {
     dungeon[downY][downX] = '>';
 }
 
-
-void placePlayer(int countRooms) {
-    int index = rand() % countRooms;
+void placePlayer() {
+    int index = rand() % num_rooms;
     struct Room playerRoom = rooms[index];
 
     player_x = playerRoom.x + rand() % playerRoom.width;

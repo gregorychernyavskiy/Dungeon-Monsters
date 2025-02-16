@@ -16,10 +16,10 @@ int main(int argc, char *argv[]) {
         loadDungeon();
     } else {
         emptyDungeon();
-        int countRooms = createRooms();
-        connectRooms(countRooms);
-        placeStairs(countRooms);
-        placePlayer(countRooms);
+        createRooms();
+        connectRooms();
+        placeStairs();
+        placePlayer();
     }
 
     printDungeon();
