@@ -25,6 +25,7 @@
 
 extern char dungeon[HEIGHT][WIDTH];         
 extern unsigned char hardness[HEIGHT][WIDTH]; 
+unsigned char hardness[HEIGHT][WIDTH];
 
 struct Room {
     int x;
@@ -49,5 +50,7 @@ void initializeHardness();
 void printHardness();
 void saveDungeon();
 void loadDungeon();
+void initializeHardness();
+void printHardness();
 
 #endif

@@ -20,9 +20,11 @@ int main(int argc, char *argv[]) {
         connectRooms();
         placeStairs();
         placePlayer();
+        initializeHardness();
     }
 
     printDungeon();
+    printHardness();
 
     if (save) {
         saveDungeon();
