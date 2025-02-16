@@ -26,16 +26,27 @@
 extern char dungeon[HEIGHT][WIDTH];         
 extern unsigned char hardness[HEIGHT][WIDTH]; 
 extern struct Room rooms[MAX_ROOMS];
-extern int player_x, player_y;
+
+extern int player_x;
+extern int player_y;
 extern int num_rooms; 
 extern int randRoomNum;
+extern int upStairsCount;
+extern int downStairsCount;
 
+struct Stairs upStairs[MAX_ROOMS];
+struct Stairs downStairs[MAX_ROOMS];
 
 struct Room {
     int x;
     int y;
     int height;
     int width;
+};
+
+struct Stairs {
+    int x;
+    int y;
 };
 
 

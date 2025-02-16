@@ -8,6 +8,12 @@ int player_x;
 int player_y;
 int num_rooms = 0;
 int randRoomNum = 0;
+int upStairsCount = 0;
+int downStairsCount = 0;
+
+struct Stairs upStairs[MAX_ROOMS];
+struct Stairs downStairs[MAX_ROOMS];
+
 
 void printDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
@@ -102,6 +108,9 @@ void connectRooms() {
 }
 
 void placeStairs() {
+    upStairsCount = 1;
+    downStairsCount = 1;
+
     int upIndex = rand() % num_rooms;
     int downIndex = rand() % num_rooms;
 
@@ -112,14 +121,15 @@ void placeStairs() {
     struct Room upRoom = rooms[upIndex];
     struct Room downRoom = rooms[downIndex];
 
-    int upX = upRoom.x + rand() % upRoom.width;
-    int upY = upRoom.y + rand() % upRoom.height;
-    dungeon[upY][upX] = '<';
+    upStairs[0].x = upRoom.x + rand() % upRoom.width;
+    upStairs[0].y = upRoom.y + rand() % upRoom.height;
+    dungeon[upStairs[0].y][upStairs[0].x] = '<';
 
-    int downX = downRoom.x + rand() % downRoom.width;
-    int downY = downRoom.y + rand() % downRoom.height;
-    dungeon[downY][downX] = '>';
+    downStairs[0].x = downRoom.x + rand() % downRoom.width;
+    downStairs[0].y = downRoom.y + rand() % downRoom.height;
+    dungeon[downStairs[0].y][downStairs[0].x] = '>';
 }
+
 
 void placePlayer() {
     int index = rand() % num_rooms;
