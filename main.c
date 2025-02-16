@@ -24,10 +24,13 @@ int main(int argc, char *argv[]) {
     }
 
     printDungeon();
-    
+
     printHardness();
 
     if (save) {
+        char filename[256];
+        strncpy(filename, argv[argc - 1], sizeof(filename) - 1);
+        filename[sizeof(filename) - 1] = '\0';
         saveDungeon();
     }
 
