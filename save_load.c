@@ -64,11 +64,26 @@ void saveDungeon(char *nameOfFile) {
     //Offset 1704
     for (int i = 0; i < num_rooms; i++) {
         uint8_t room[4] = {rooms[i].x, rooms[i].y, rooms[i].width, rooms[i].height};
-        fwrite(&room, 4, 1, file);
+        fwrite(room, 4, 1, file);
     }
 
     //Offset 1704 + r × 4
+    uint16_t upstairs = htobe16(upStairsCount);
+    fwrite(&upstairs, 2, 1, file);
 
+    for (int i = 0; i < upStairsCount; i++) {
+        uint8_t upStairsNum[2] = {(uint8_t) upStairs[i].x, (uint8_t) upStairs[i].y};
+        fwrite(upStairsNum, 2, 1, file);
+    }
+
+    //Offset 1704 + r × 4 + u × 2
+    uint16_t downstairs = htobe16(downStairsCount);
+    fwrite(&downstairs, 2, 1, file);
+
+    for (int i = 0; i < downStairsCount; i++) {
+        uint8_t downPos[2] = {(uint8_t) downStairs[i].x, (uint8_t) downStairs[i].y};
+        fwrite(downPos, 2, 1, file);
+    }
 
     fclose(file);
 }
