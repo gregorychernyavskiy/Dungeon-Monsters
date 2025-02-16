@@ -23,7 +23,7 @@ void setupDungeonFile(char *nameOfFile) {
     strcat(dungeonFile, nameOfFile);
 }
 
-void loadDungeon(char *nameOfFile) {
+void loadDungeon() {
 
 }
 
@@ -68,9 +68,6 @@ void saveDungeon(char *nameOfFile) {
     }
 
     //Offset 1704 + r × 4
-    uint16_t sizeOfTheFile = htobe32(1712 + randRoomNum * 4);
-    fwrite(&sizeOfTheFile, 4, 1, file);
-
 
 
     fclose(file);
