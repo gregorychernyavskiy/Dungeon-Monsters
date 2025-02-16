@@ -12,7 +12,7 @@ void setupDungeonFile(char *nameOfFile) {
     char *home = getenv("HOME");
     int fileLength = strlen(home) + strlen("/.rlg327/") + strlen(nameOfFile) + 1;
 
-    dungeonFile = malloc(fileLength * sizeof(char));
+    dungeonFile = malloc(fileLength);
     if (!dungeonFile) {
         perror("Memory allocation failed...");
         exit(EXIT_FAILURE);
