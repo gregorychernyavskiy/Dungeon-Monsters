@@ -7,6 +7,8 @@
 #include "dungeon_generation.h"
 
 char *dungeon_file;
+int upStairsCount, downStairsCount;
+struct Room *upStairs, *downStairs;
 
 void setupDungeonFile(char *filename) {
     char *home = getenv("HOME");
@@ -65,15 +67,15 @@ void loadDungeon(char *filename) {
     fread(&u, 2, 1, file);
     u = be16toh(u);
     upStairsCount = u;
-    
-    fread(&upStairs, sizeof(upStairs), u, file);
+    upStairs = malloc(u * sizeof(struct Room));
+    fread(upStairs, sizeof(struct Room), u, file);
     
     uint16_t d;
     fread(&d, 2, 1, file);
     d = be16toh(d);
     downStairsCount = d;
-    
-    fread(&downStairs, sizeof(downStairs), d, file);
+    downStairs = malloc(d * sizeof(struct Room));
+    fread(downStairs, sizeof(struct Room), d, file);
     
     dungeon[player_y][player_x] = '@';
 
@@ -109,11 +111,11 @@ void saveDungeon(char *filename) {
 
     uint16_t u = htobe16(upStairsCount);
     fwrite(&u, 2, 1, file);
-    fwrite(upStairs, sizeof(upStairs), upStairsCount, file);
+    fwrite(upStairs, sizeof(struct Room), upStairsCount, file);
 
     uint16_t d = htobe16(downStairsCount);
     fwrite(&d, 2, 1, file);
-    fwrite(downStairs, sizeof(downStairs), downStairsCount, file);
+    fwrite(downStairs, sizeof(struct Room), downStairsCount, file);
 
     printf("Dungeon saved to %s\n", dungeon_file);
     fclose(file);
