@@ -85,5 +85,7 @@ void saveDungeon(char *nameOfFile) {
         fwrite(downPos, 2, 1, file);
     }
 
+    printf("Dungeon saved to %s\n", dungeonFile);
     fclose(file);
+    free(dungeonFile);
 }
