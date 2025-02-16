@@ -23,20 +23,6 @@
 #define MAX_HARDNESS 255
 #define MIN_HARDNESS 1
 
-extern char dungeon[HEIGHT][WIDTH];         
-extern unsigned char hardness[HEIGHT][WIDTH]; 
-extern struct Room rooms[MAX_ROOMS];
-
-extern int player_x;
-extern int player_y;
-extern int num_rooms; 
-extern int randRoomNum;
-extern int upStairsCount;
-extern int downStairsCount;
-
-struct Stairs upStairs[MAX_ROOMS];
-struct Stairs downStairs[MAX_ROOMS];
-
 struct Room {
     int x;
     int y;
@@ -49,6 +35,19 @@ struct Stairs {
     int y;
 };
 
+extern char dungeon[HEIGHT][WIDTH];         
+extern unsigned char hardness[HEIGHT][WIDTH]; 
+extern struct Room rooms[MAX_ROOMS];
+
+extern int player_x;
+extern int player_y;
+extern int num_rooms; 
+extern int randRoomNum;
+extern int upStairsCount;
+extern int downStairsCount;
+
+extern struct Stairs upStairs[MAX_ROOMS];
+extern struct Stairs downStairs[MAX_ROOMS];
 
 void printDungeon();
 void emptyDungeon();
@@ -61,7 +60,5 @@ void initializeHardness();
 void printHardness();
 void saveDungeon();
 void loadDungeon();
-void initializeHardness();
-void printHardness();
 
 #endif
