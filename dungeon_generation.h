@@ -25,7 +25,11 @@
 
 extern char dungeon[HEIGHT][WIDTH];         
 extern unsigned char hardness[HEIGHT][WIDTH]; 
-extern unsigned char hardness[HEIGHT][WIDTH];
+extern struct Room rooms[MAX_ROOMS];
+extern int player_x, player_y;
+extern int num_rooms; 
+extern int randRoomNum;
+
 
 struct Room {
     int x;
@@ -33,11 +37,7 @@ struct Room {
     int height;
     int width;
 };
-extern struct Room rooms[MAX_ROOMS];
 
-extern int player_x, player_y;
-
-extern int num_rooms; 
 
 void printDungeon();
 void emptyDungeon();

@@ -7,6 +7,7 @@ struct Room rooms[MAX_ROOMS];
 int player_x;
 int player_y;
 int num_rooms = 0;
+int randRoomNum = 0;
 
 void printDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
@@ -41,7 +42,7 @@ int overlapCheck(struct Room r1, struct Room r2) {
 void createRooms() {
     num_rooms = 0;
     int attempts = 0;
-    int randRoomNum = MIN_ROOMS + rand() % (MAX_ROOMS - MIN_ROOMS + 1);
+    randRoomNum = MIN_ROOMS + rand() % (MAX_ROOMS - MIN_ROOMS + 1);
 
     while (num_rooms < randRoomNum && attempts < 1000) {
         attempts++;

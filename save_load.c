@@ -35,14 +35,43 @@ void saveDungeon(char *nameOfFile) {
         perror("Error! Cannot open the file...");
         exit(EXIT_FAILURE);
     }
-
+    //Offset 0
     fwrite("RLG327-S2025", 1, 12, file);
     
+    //Offset 12
     uint32_t versionMaker = htobe32(0);
     fwrite(&versionMaker, 4, 1, file);
 
-    uint32_t size = htobe32(sizeof(1712 + num_rooms * 4));
-    fwrite(&size, 4, 1, file);
+    //Offset 16
+    uint32_t sizeOfTheFile = htobe32(1712 + num_rooms * 4);
+    fwrite(&sizeOfTheFile, 4, 1, file);
+
+    //Offset 20
+    uint8_t position[2] = {(uint8_t) player_x, (uint8_t) player_y};
+    fwrite(&position, 2, 1, file);
+
+    //Offset 22
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            fwrite(&hardness[y][x], 1, 1, file);
+        }
+    }
+
+    //Offset 1702
+    uint16_t r = htobe16(num_rooms);
+    fwrite(&r, 2, 1, file);
+
+    //Offset 1704
+    for (int i = 0; i < num_rooms; i++) {
+        uint8_t room[4] = {rooms[i].x, rooms[i].y, rooms[i].width, rooms[i].height};
+        fwrite(&room, 4, 1, file);
+    }
+
+    //Offset 1704 + r × 4
+    uint16_t sizeOfTheFile = htobe32(1712 + randRoomNum * 4);
+    fwrite(&sizeOfTheFile, 4, 1, file);
+
+
 
     fclose(file);
 }
