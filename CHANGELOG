@@ -14,4 +14,21 @@
 7. Created a Readme file for description of the project.
 
 02/10/2025
-1. 
+1. Refactored the main files by properly organizing extern variable declarations.
+2. Ensured all global variables were correctly defined in dungeon_generation.c and declared in dungeon_generation.h.
+3. Improved code structure by separating concerns between dungeon generation and save/load functionality.
+4. Fixed several compilation errors related to incomplete struct definitions.
+5. Validated successful compilation and functionality of dungeon generation after refactoring.
+
+02/15/2025
+1. Successfully implemented the dungeon-saving functionality.
+2. Ensured that dungeon data, including rooms, staircases, and player position, were correctly written to the save file.
+3. Fixed issues with incorrect file paths by properly constructing the .rlg327 directory path.
+4. Verified that the save function writes dungeon data in the correct format, following the required specifications.
+
+02/16/2025
+1. Successfully implemented and debugged the dungeon-loading functionality.
+2. Ensured that dungeon data was correctly read from the save file and reconstructed in memory.
+3. Updated main.c to correctly handle the --load flag and pass the specified filename to loadDungeon().
+4. Verified that loading restores the dungeon exactly as it was saved, including rooms, corridors, stairs, and player position.
+5. Fully tested --save and --load functionality, ensuring the game state persists across runs.

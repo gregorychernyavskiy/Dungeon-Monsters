@@ -140,6 +140,7 @@ void placePlayer() {
     dungeon[player_y][player_x] = '@';
 }
 
+
 void initializeHardness() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -154,6 +155,7 @@ void initializeHardness() {
         }
     }
 }
+
 
 void printHardness() {
     for (int y = 0; y < HEIGHT; y++) {

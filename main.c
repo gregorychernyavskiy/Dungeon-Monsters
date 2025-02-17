@@ -9,18 +9,18 @@ int main(int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--save") == 0) {
             save = 1;
-            if (i + 1 < argc) { // Ensure there is a filename after --save
+            if (i + 1 < argc) {
                 saveFileName = argv[i + 1];
-                i++; // Skip the filename
+                i++;
             } else {
                 printf("Error: Missing filename for --save\n");
                 return 1;
             }
         } else if (strcmp(argv[i], "--load") == 0) {
             load = 1;
-            if (i + 1 < argc) { // Ensure there is a filename after --load
+            if (i + 1 < argc) {
                 loadFileName = argv[i + 1];
-                i++; // Skip the filename
+                i++;
             } else {
                 printf("Error: Missing filename for --load\n");
                 return 1;

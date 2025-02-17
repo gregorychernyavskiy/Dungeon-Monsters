@@ -1,6 +1,12 @@
-Dungeon Generation:
+Dungeon Generation
 
-This project generates a randomized dungeon layout in a terminal environment. 
-It follows specific rules to create and connect rooms. 
-The dungeon features randomized room placement, stairs and spacing, with loops (corridors) to prevent dead ends. 
-The program is compiled using make and launched with ./dungeon_generation. 
+This project generates a randomized dungeon layout in a terminal environment, following specific rules for room placement, spacing, and connectivity. The dungeon includes rooms, corridors, and staircases (< for upstairs, > for downstairs) while ensuring all areas are accessible.
+
+# Compile the project:
+make         
+# Generate a new dungeon:         
+./dungeon
+# Save the dungeon:
+./dungeon_generation --save "file name"
+# Load a saved dungeon:
+./dungeon_generation --load "file name"
