@@ -1,4 +1,5 @@
 #include "dungeon_generation.h"
+#include "pathfinding.h"
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
@@ -44,8 +45,21 @@ int main(int argc, char *argv[]) {
         initializeHardness();
     }
 
+    // Standard dungeon view
+    printf("Standard Dungeon View:\n");
     printDungeon();
-    printHardness();
+
+    // Non-tunneling distance map
+    uint32_t non_tunneling_distances[HEIGHT][WIDTH];
+    dijkstra_non_tunneling(non_tunneling_distances, player_x, player_y);
+    printf("\nNon-Tunneling Monster Distance Map:\n");
+    print_distance_map(non_tunneling_distances);
+
+    // Tunneling distance map
+    uint32_t tunneling_distances[HEIGHT][WIDTH];
+    dijkstra_tunneling(tunneling_distances, player_x, player_y);
+    printf("\nTunneling Monster Distance Map:\n");
+    print_distance_map(tunneling_distances);
 
     if (save) {
         if (saveFileName) {
