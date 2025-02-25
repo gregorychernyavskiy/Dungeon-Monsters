@@ -75,10 +75,7 @@ HeapNode heapPop(MinHeap* heap) {
     return root;
 }
 
-// Dijkstra's algorithm for non-tunneling monsters
-
 void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
-    // Initialize distances to infinity
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             dist[y][x] = INFINITY;
@@ -86,55 +83,37 @@ void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
     }
     dist[player_y][player_x] = 0;
 
-    // Simple array-based queue (since weight is uniform, this is effectively BFS)
-    int queue[HEIGHT * WIDTH][3]; // [x, y, dist]
-    int q_size = 0;
+    int queue[HEIGHT * WIDTH][2]; // [x, y]
+    int front = 0, rear = 0;
     int visited[HEIGHT][WIDTH] = {0};
 
-    // Add player position
-    queue[q_size][0] = player_x;
-    queue[q_size][1] = player_y;
-    queue[q_size][2] = 0;
-    q_size++;
+    queue[rear][0] = player_x;
+    queue[rear][1] = player_y;
+    rear++;
 
-    // 8-way connectivity
     int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
     int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-    while (q_size > 0) {
-        // Extract the first element (FIFO for BFS-like behavior)
-        int x = queue[0][0];
-        int y = queue[0][1];
-        int curr_dist = queue[0][2];
-
-        // Remove from queue
-        for (int i = 0; i < q_size - 1; i++) {
-            queue[i][0] = queue[i + 1][0];
-            queue[i][1] = queue[i + 1][1];
-            queue[i][2] = queue[i + 1][2];
-        }
-        q_size--;
+    while (front < rear) {
+        int x = queue[front][0];
+        int y = queue[front][1];
+        front++;
 
         if (visited[y][x]) continue;
         visited[y][x] = 1;
 
-        // Process neighbors
         for (int i = 0; i < 8; i++) {
             int nx = x + dx[i];
             int ny = y + dy[i];
 
             if (nx < 0 || nx >= WIDTH || ny < 0 || ny >= HEIGHT) continue;
-            if (visited[ny][nx]) continue;
-            if (hardness[ny][nx] != 0) continue; // Only move through hardness 0 (floor)
+            if (visited[ny][nx] || hardness[ny][nx] != 0) continue;
 
-            int new_dist = curr_dist + 1; // Uniform weight of 1
-            if (new_dist < dist[ny][nx]) {
-                dist[ny][nx] = new_dist;
-                // Add to queue
-                queue[q_size][0] = nx;
-                queue[q_size][1] = ny;
-                queue[q_size][2] = new_dist;
-                q_size++;
+            if (dist[ny][nx] == INFINITY) {
+                dist[ny][nx] = dist[y][x] + 1;
+                queue[rear][0] = nx;
+                queue[rear][1] = ny;
+                rear++;
             }
         }
     }
@@ -161,9 +140,7 @@ void printNonTunnelingMap() {
 
 
 
-// Dijkstra's algorithm for tunneling monsters
 void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
-    // Initialize distances to infinity
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             dist[y][x] = INFINITY;
@@ -171,72 +148,45 @@ void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
     }
     dist[player_y][player_x] = 0;
 
-    // Simple array-based priority queue (for simplicity; replace with your own if needed)
+    MinHeap* heap = createMinHeap(HEIGHT * WIDTH);
     int visited[HEIGHT][WIDTH] = {0};
-    int queue[HEIGHT * WIDTH][3]; // [x, y, dist]
-    int q_size = 0;
 
-    // Add player position
-    queue[q_size][0] = player_x;
-    queue[q_size][1] = player_y;
-    queue[q_size][2] = 0;
-    q_size++;
+    HeapNode start = {player_x, player_y, 0};
+    insertHeap(heap, start);
 
-    // 8-way connectivity
     int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
     int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-    while (q_size > 0) {
-        // Find node with minimum distance (naive approach for simplicity)
-        int min_idx = 0;
-        for (int i = 1; i < q_size; i++) {
-            if (queue[i][2] < queue[min_idx][2]) {
-                min_idx = i;
-            }
-        }
-
-        int x = queue[min_idx][0];
-        int y = queue[min_idx][1];
-        int curr_dist = queue[min_idx][2];
-
-        // Remove min node from queue
-        queue[min_idx][0] = queue[q_size - 1][0];
-        queue[min_idx][1] = queue[q_size - 1][1];
-        queue[min_idx][2] = queue[q_size - 1][2];
-        q_size--;
+    while (heap->size > 0) {
+        HeapNode curr = extractMin(heap);
+        int x = curr.x;
+        int y = curr.y;
+        int curr_dist = curr.distance;
 
         if (visited[y][x]) continue;
         visited[y][x] = 1;
 
-        // Process neighbors
         for (int i = 0; i < 8; i++) {
             int nx = x + dx[i];
             int ny = y + dy[i];
 
             if (nx < 0 || nx >= WIDTH || ny < 0 || ny >= HEIGHT) continue;
             if (visited[ny][nx]) continue;
+            if (hardness[ny][nx] == 255) continue; // Infinite weight
 
-            // Calculate weight
-            int weight;
-            if (hardness[ny][nx] == 0) {
-                weight = 1;
-            } else if (hardness[ny][nx] == 255) {
-                continue; // Infinite weight
-            } else {
-                weight = 1 + hardness[ny][nx] / 85; // Integer division as per spec
-            }
-
+            int weight = (hardness[ny][nx] == 0) ? 1 : 1 + hardness[ny][nx] / 85;
             int new_dist = curr_dist + weight;
+
             if (new_dist < dist[ny][nx]) {
                 dist[ny][nx] = new_dist;
-                // Add to queue
-                queue[q_size][0] = nx;
-                queue[q_size][1] = ny;
-                queue[q_size][2] = new_dist;
-                q_size++;
+                HeapNode next = {nx, ny, new_dist};
+                insertHeap(heap, next);
             }
         }
     }
+
+    free(heap->nodes);
+    free(heap);
 }
 
 // Print tunneling distance map
