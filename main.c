@@ -9,21 +9,19 @@ int main(int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--save") == 0) {
             save = 1;
-            if (i + 1 < argc) {
+            if (i + 1 < argc && argv[i+1][0] != '-') {
                 saveFileName = argv[i + 1];
                 i++;
             } else {
-                printf("Error: Missing filename for --save\n");
-                return 1;
+                saveFileName = "dungeon.rlg327";
             }
         } else if (strcmp(argv[i], "--load") == 0) {
             load = 1;
-            if (i + 1 < argc) {
+            if (i + 1 < argc && argv[i+1][0] != '-') {
                 loadFileName = argv[i + 1];
                 i++;
             } else {
-                printf("Error: Missing filename for --load\n");
-                return 1;
+                loadFileName = "dungeon.rlg327";
             }
         }
     }
@@ -44,8 +42,16 @@ int main(int argc, char *argv[]) {
         initializeHardness();
     }
 
+    // Print original dungeon
+    printf("\nOriginal Dungeon:\n");
     printDungeon();
-    printHardness();
+    
+    // Calculate and print the distance maps
+    calculate_non_tunneling_distances();
+    calculate_tunneling_distances();
+    
+    print_non_tunneling_distance_map();
+    print_tunneling_distance_map();
 
     if (save) {
         if (saveFileName) {

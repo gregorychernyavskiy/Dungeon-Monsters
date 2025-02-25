@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <endian.h>
+#include <limits.h>
 
 #define WIDTH 80
 #define HEIGHT 21
@@ -49,6 +50,7 @@ extern int downStairsCount;
 extern struct Stairs upStairs[MAX_ROOMS];
 extern struct Stairs downStairs[MAX_ROOMS];
 
+// Dungeon generation functions
 void printDungeon();
 void emptyDungeon();
 int overlapCheck(struct Room r1, struct Room r2);
@@ -58,7 +60,15 @@ void placeStairs(void);
 void placePlayer(void);
 void initializeHardness();
 void printHardness();
-void saveDungeon();
-void loadDungeon();
+
+// Save/load functions
+void saveDungeon(char *nameOfFile);
+void loadDungeon(char *nameOfFile);
+
+// Pathfinding functions
+void calculate_tunneling_distances();
+void calculate_non_tunneling_distances();
+void print_tunneling_distance_map();
+void print_non_tunneling_distance_map();
 
 #endif
