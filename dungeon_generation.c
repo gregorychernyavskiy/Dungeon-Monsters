@@ -162,7 +162,7 @@ void initializeHardness() {
 void printHardness() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
-            printf("%3d ", hardness[y][x]);
+            printf("%d ", hardness[y][x]);
         }
         printf("\n");
     }
