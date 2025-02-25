@@ -3,6 +3,8 @@
 char dungeon[HEIGHT][WIDTH];                 
 unsigned char hardness[HEIGHT][WIDTH];     
 struct Room rooms[MAX_ROOMS];                
+int distance_non_tunnel[HEIGHT][WIDTH];
+int distance_tunnel[HEIGHT][WIDTH];
 
 int player_x;
 int player_y;
@@ -164,4 +166,156 @@ void printHardness() {
         }
         printf("\n");
     }
+}
+
+
+
+
+// Min Heap Implementation
+MinHeap* createMinHeap(int capacity) {
+    MinHeap* heap = malloc(sizeof(MinHeap));
+    heap->nodes = malloc(sizeof(HeapNode) * capacity);
+    heap->size = 0;
+    heap->capacity = capacity;
+    return heap;
+}
+
+void heapify(MinHeap* heap, int idx) {
+    int smallest = idx;
+    int left = 2 * idx + 1;
+    int right = 2 * idx + 2;
+
+    if (left < heap->size && heap->nodes[left].distance < heap->nodes[smallest].distance)
+        smallest = left;
+    if (right < heap->size && heap->nodes[right].distance < heap->nodes[smallest].distance)
+        smallest = right;
+
+    if (smallest != idx) {
+        HeapNode temp = heap->nodes[idx];
+        heap->nodes[idx] = heap->nodes[smallest];
+        heap->nodes[smallest] = temp;
+        heapify(heap, smallest);
+    }
+}
+
+void insertHeap(MinHeap* heap, HeapNode node) {
+    if (heap->size == heap->capacity) return;
+
+    int i = heap->size++;
+    heap->nodes[i] = node;
+
+    while (i != 0 && heap->nodes[(i-1)/2].distance > heap->nodes[i].distance) {
+        HeapNode temp = heap->nodes[i];
+        heap->nodes[i] = heap->nodes[(i-1)/2];
+        heap->nodes[(i-1)/2] = temp;
+        i = (i-1)/2;
+    }
+}
+
+HeapNode extractMin(MinHeap* heap) {
+    if (heap->size <= 0) {
+        HeapNode empty = {-1, -1, -1};
+        return empty;
+    }
+    
+    HeapNode root = heap->nodes[0];
+    heap->nodes[0] = heap->nodes[--heap->size];
+    heapify(heap, 0);
+    return root;
+}
+
+void dijkstraNonTunneling() {
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            distance_non_tunnel[y][x] = INT_MAX;
+        }
+    }
+    
+    MinHeap* heap = createMinHeap(HEIGHT * WIDTH);
+    distance_non_tunnel[player_y][player_x] = 0;
+    HeapNode start = {player_x, player_y, 0};
+    insertHeap(heap, start);
+
+    int dx[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+    int dy[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+
+    while (heap->size > 0) {
+        HeapNode current = extractMin(heap);
+        
+        for (int i = 0; i < 8; i++) {
+            int new_x = current.x + dx[i];
+            int new_y = current.y + dy[i];
+            
+            if (new_x >= 0 && new_x < WIDTH && new_y >= 0 && new_y < HEIGHT) {
+                if (hardness[new_y][new_x] == 255) continue; // Skip walls
+                
+                int weight = 1;
+                int alt = current.distance + weight;
+                
+                if (alt < distance_non_tunnel[new_y][new_x]) {
+                    distance_non_tunnel[new_y][new_x] = alt;
+                    HeapNode next = {new_x, new_y, alt};
+                    insertHeap(heap, next);
+                }
+            }
+        }
+    }
+    free(heap->nodes);
+    free(heap);
+}
+
+void dijkstraTunneling() {
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            distance_tunnel[y][x] = INT_MAX;
+        }
+    }
+    
+    MinHeap* heap = createMinHeap(HEIGHT * WIDTH);
+    distance_tunnel[player_y][player_x] = 0;
+    HeapNode start = {player_x, player_y, 0};
+    insertHeap(heap, start);
+
+    int dx[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+    int dy[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+
+    while (heap->size > 0) {
+        HeapNode current = extractMin(heap);
+        
+        for (int i = 0; i < 8; i++) {
+            int new_x = current.x + dx[i];
+            int new_y = current.y + dy[i];
+            
+            if (new_x >= 0 && new_x < WIDTH && new_y >= 0 && new_y < HEIGHT) {
+                if (hardness[new_y][new_x] == 255) continue; // Skip unbreakable walls
+                
+                int weight = (hardness[new_y][new_x] == 0) ? 1 : 1 + (hardness[new_y][new_x] / 85);
+                int alt = current.distance + weight;
+                
+                if (alt < distance_tunnel[new_y][new_x]) {
+                    distance_tunnel[new_y][new_x] = alt;
+                    HeapNode next = {new_x, new_y, alt};
+                    insertHeap(heap, next);
+                }
+            }
+        }
+    }
+    free(heap->nodes);
+    free(heap);
+}
+
+void printDistanceMap(int distance[HEIGHT][WIDTH]) {
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            if (x == player_x && y == player_y) {
+                printf("@");
+            } else if (distance[y][x] == INT_MAX) {
+                printf(" ");
+            } else {
+                printf("%d", distance[y][x] % 10);
+            }
+        }
+        printf("\n");
+    }
+    printf("\n");
 }

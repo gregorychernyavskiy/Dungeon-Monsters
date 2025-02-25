@@ -1,27 +1,12 @@
-CC = gcc
-CFLAGS = -Wall -Werror -ggdb -funroll-loops
-LDFLAGS = 
+Dungeon Generation
 
-OBJS = main.o dungeon_generation.o save_load.o pathfinding.o
+This project generates a randomized dungeon layout in a terminal environment, following specific rules for room placement, spacing, and connectivity. The dungeon includes rooms, corridors, and staircases (< for upstairs, > for downstairs) while ensuring all areas are accessible.
 
-all: rlg327
-
-rlg327: $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o rlg327 $(LDFLAGS)
-
-main.o: main.c dungeon_generation.h
-	$(CC) $(CFLAGS) -c main.c
-
-dungeon_generation.o: dungeon_generation.c dungeon_generation.h
-	$(CC) $(CFLAGS) -c dungeon_generation.c
-
-save_load.o: save_load.c dungeon_generation.h
-	$(CC) $(CFLAGS) -c save_load.c
-
-pathfinding.o: pathfinding.c dungeon_generation.h priority_queue.h
-	$(CC) $(CFLAGS) -c pathfinding.c
-
-clean:
-	rm -f *.o rlg327 *~
-
-.PHONY: clean
+# Compile the project:
+make         
+# Generate a new dungeon:         
+./dungeon
+# Save the dungeon:
+./dungeon_generation --save "file name"
+# Load a saved dungeon:
+./dungeon_generation --load "file name"
