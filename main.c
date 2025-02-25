@@ -1,4 +1,3 @@
-// main.c
 #include "dungeon_generation.h"
 
 int main(int argc, char *argv[]) {
@@ -45,17 +44,14 @@ int main(int argc, char *argv[]) {
         initializeHardness();
     }
 
-    // Calculate distance maps
-    dijkstraNonTunneling();
-    dijkstraTunneling();
-
-    // Print all views
-    printf("Standard Dungeon View:\n");
+    printf("Dungeon:\n");
     printDungeon();
+    printf("\nHardness:\n");
+    printHardness();
     printf("\nNon-Tunneling Distance Map:\n");
-    printDistanceMap(distance_non_tunnel);
-    printf("Tunneling Distance Map:\n");
-    printDistanceMap(distance_tunnel);
+    printNonTunnelingMap(); // Added for non-tunneling map
+    printf("\nTunneling Distance Map:\n");
+    printTunnelingMap();
 
     if (save) {
         if (saveFileName) {

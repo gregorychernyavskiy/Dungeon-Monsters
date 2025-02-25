@@ -25,6 +25,8 @@
 #define MAX_HARDNESS 255
 #define MIN_HARDNESS 1
 
+#define INFINITY INT_MAX
+
 struct Room {
     int x;
     int y;
@@ -82,8 +84,12 @@ MinHeap* createMinHeap(int capacity);
 void heapify(MinHeap* heap, int idx);
 void insertHeap(MinHeap* heap, HeapNode node);
 HeapNode extractMin(MinHeap* heap);
-void dijkstraNonTunneling();
-void dijkstraTunneling();
-void printDistanceMap(int distance[HEIGHT][WIDTH]);
+
+
+void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]);
+void printNonTunnelingMap();
+
+void dijkstraTunneling(int dist[HEIGHT][WIDTH]);
+void printTunnelingMap();
 
 #endif
