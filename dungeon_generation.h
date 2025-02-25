@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <endian.h>
+#include <limits.h>
 
 #define WIDTH 80
 #define HEIGHT 21
