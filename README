@@ -1,12 +1,19 @@
-Dungeon Generation
+Dungeon Generation and Pathfinding
+- This project generates a randomized dungeon layout in a terminal-based environment, following specific rules for room placement, connectivity, and accessibility. The dungeon consists of rooms, corridors, and staircases (< for upstairs, > for downstairs), ensuring that all areas can be reached.
 
-This project generates a randomized dungeon layout in a terminal environment, following specific rules for room placement, spacing, and connectivity. The dungeon includes rooms, corridors, and staircases (< for upstairs, > for downstairs) while ensuring all areas are accessible.
+In addition to dungeon generation, this project implements Dijkstra’s Algorithm for pathfinding. This allows monsters to navigate the dungeon efficiently, depending on their movement type:
+- Non-tunneling monsters move only through open spaces (rooms, corridors, stairs), treating all traversable tiles with equal weight.
+- Tunneling monsters can move through walls, with movement cost determined by the hardness of each tile (1 + hardness / 85).
+Both distance maps are computed from the player's position and printed, displaying the shortest paths to every dungeon cell using gradient descent movement (monsters always move to the adjacent cell with the lowest distance).
 
-# Compile the project:
+Compile the project:
 make         
-# Generate a new dungeon:         
+
+Generate a new dungeon:         
 ./dungeon
-# Save the dungeon:
-./dungeon_generation --save "file name"
-# Load a saved dungeon:
-./dungeon_generation --load "file name"
+
+Save the dungeon:
+./dungeon --save "filename"
+
+Load a saved dungeon:
+./dungeon --load "filename"

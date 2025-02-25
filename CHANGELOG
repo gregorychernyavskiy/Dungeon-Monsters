@@ -32,3 +32,13 @@
 3. Updated main.c to correctly handle the --load flag and pass the specified filename to loadDungeon().
 4. Verified that loading restores the dungeon exactly as it was saved, including rooms, corridors, stairs, and player position.
 5. Fully tested --save and --load functionality, ensuring the game state persists across runs.
+
+02/24/2025
+1. Implemented a min-heap to efficiently manage priority queue operations.
+2. Verified that removal and other heap operations function correctly without errors.
+
+02/25/2025
+1. Completed Dijkstra's algorithm for tunneling monsters, ensuring they navigate based on terrain hardness values.
+2. Finished the non-tunneling variant, restricting movement to open spaces while maintaining optimal pathfinding.
+3. Updated the main program to integrate both pathfinding implementations and ensure correct execution.
+4. Validated distance map outputs, confirming that both tunneling and non-tunneling calculations display correctly with accurate values.
