@@ -172,6 +172,7 @@ void printHardness() {
 
 
 // Min Heap Implementation
+
 MinHeap* createMinHeap(int capacity) {
     MinHeap* heap = malloc(sizeof(MinHeap));
     heap->nodes = malloc(sizeof(HeapNode) * capacity);
@@ -225,12 +226,8 @@ HeapNode extractMin(MinHeap* heap) {
 }
 
 
+// Dijkstra's algorithm for non-tunneling monsters
 
-
-
-// Add these after the tunneling functions in dungeon_generation.c
-
-// Dijkstra's algorithm for non-tunneling monsters (simplified to BFS-like behavior)
 void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
     // Initialize distances to infinity
     for (int y = 0; y < HEIGHT; y++) {

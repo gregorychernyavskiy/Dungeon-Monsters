@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
     printf("\nHardness:\n");
     printHardness();
     printf("\nNon-Tunneling Distance Map:\n");
-    printNonTunnelingMap(); // Added for non-tunneling map
+    printNonTunnelingMap();
     printf("\nTunneling Distance Map:\n");
     printTunnelingMap();
 

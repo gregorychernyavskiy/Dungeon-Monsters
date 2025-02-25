@@ -1,4 +1,3 @@
-// dungeon_generation.h
 #ifndef DUNGEON_GENERATION_H
 #define DUNGEON_GENERATION_H
 
