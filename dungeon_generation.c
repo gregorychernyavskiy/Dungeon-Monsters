@@ -1,4 +1,4 @@
-include "dungeon_generation.h"
+#include "dungeon_generation.h"
 
 char dungeon[HEIGHT][WIDTH];
 unsigned char hardness[HEIGHT][WIDTH];
