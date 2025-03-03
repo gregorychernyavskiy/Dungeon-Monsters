@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g
-OBJ = main.o dungeon_generation.o save_load.o pathfinding.o  # Changed from dijkstras.o to pathfinding.o
+OBJ = main.o dungeon_generation.o save_load.o findpath.o
 
 all: dungeon
 
