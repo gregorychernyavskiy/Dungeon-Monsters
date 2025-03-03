@@ -11,19 +11,14 @@
 
 #define WIDTH 80
 #define HEIGHT 21
-
 #define MAX_ROOMS 8
 #define MIN_ROOMS 6
-
 #define MIN_ROOM_HEIGHT 3
 #define MAX_ROOM_HEIGHT 9
-
 #define MIN_ROOM_WIDTH 4
 #define MAX_ROOM_WIDTH 12
-
 #define MAX_HARDNESS 255
 #define MIN_HARDNESS 1
-
 #define INFINITY INT_MAX
 
 struct Room {
@@ -50,15 +45,15 @@ typedef struct {
     int capacity;
 } MinHeap;
 
-extern char dungeon[HEIGHT][WIDTH];         
-extern unsigned char hardness[HEIGHT][WIDTH]; 
+extern char dungeon[HEIGHT][WIDTH];
+extern unsigned char hardness[HEIGHT][WIDTH];
 extern struct Room rooms[MAX_ROOMS];
 extern int distance_non_tunnel[HEIGHT][WIDTH];
 extern int distance_tunnel[HEIGHT][WIDTH];
 
 extern int player_x;
 extern int player_y;
-extern int num_rooms; 
+extern int num_rooms;
 extern int randRoomNum;
 extern int upStairsCount;
 extern int downStairsCount;
@@ -66,6 +61,7 @@ extern int downStairsCount;
 extern struct Stairs upStairs[MAX_ROOMS];
 extern struct Stairs downStairs[MAX_ROOMS];
 
+// Dungeon-related functions
 void printDungeon();
 void emptyDungeon();
 int overlapCheck(struct Room r1, struct Room r2);
@@ -78,16 +74,16 @@ void printHardness();
 void saveDungeon(char *filename);
 void loadDungeon(char *filename);
 
-// New pathfinding functions
+// MinHeap functions
 MinHeap* createMinHeap(int capacity);
 void heapify(MinHeap* heap, int idx);
 void insertHeap(MinHeap* heap, HeapNode node);
 HeapNode extractMin(MinHeap* heap);
+void decreasePriority(MinHeap* heap, int x, int y, int newDistance);
 
-
+// Pathfinding functions
 void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]);
 void printNonTunnelingMap();
-
 void dijkstraTunneling(int dist[HEIGHT][WIDTH]);
 void printTunnelingMap();
 

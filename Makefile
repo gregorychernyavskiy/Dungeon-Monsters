@@ -16,5 +16,8 @@ dungeon_generation.o: dungeon_generation.c dungeon_generation.h
 save_load.o: save_load.c dungeon_generation.h
 	$(CC) $(CFLAGS) -c save_load.c
 
+pathfinding.o: pathfinding.c dungeon_generation.h
+	$(CC) $(CFLAGS) -c pathfinding.c
+
 clean:
 	rm -f dungeon $(OBJ)
