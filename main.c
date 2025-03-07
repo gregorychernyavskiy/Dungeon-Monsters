@@ -44,10 +44,11 @@ int main(int argc, char *argv[]) {
         initializeHardness();
     }
 
+    //print functions
     printf("Dungeon:\n");
     printDungeon();
-    printf("\nHardness:\n");
-    printHardness();
+    //printf("\nHardness:\n");
+    //printHardness();
     printf("\nNon-Tunneling Distance Map:\n");
     printNonTunnelingMap();
     printf("\nTunneling Distance Map:\n");
