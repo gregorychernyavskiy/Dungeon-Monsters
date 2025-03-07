@@ -1,5 +1,5 @@
 #include "dungeon_generation.h"
-#include <unistd.h> // Add this line
+#include <unistd.h>
 
 static int isValid(int x, int y) {
     return (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT);
@@ -139,7 +139,6 @@ void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
     int dx[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
     int dy[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-    // Initialize distances
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             dist[y][x] = INFINITY;
@@ -212,7 +211,7 @@ void runGame() {
 
     // Initial events
     Event pc_event = {0, 1, -1};
-    insertHeap(eventQueue, (HeapNode){0, 0, pc_event.time}); // Using x, y as placeholders
+    insertHeap(eventQueue, (HeapNode){0, 0, pc_event.time}); // PC event, no movement
     for (int i = 0; i < num_monsters; i++) {
         Event mon_event = {0, 0, i};
         insertHeap(eventQueue, (HeapNode){0, 0, mon_event.time});
@@ -262,11 +261,9 @@ void runGame() {
         }
 
         if (event.is_player && pc.alive) {
-            movePlayerRandom();
-            if (pc.alive) {
-                int next_time = game_turn + (1000 / pc.speed);
-                insertHeap(eventQueue, (HeapNode){0, 0, next_time});
-            }
+            // PC skips turn, just requeue event
+            int next_time = game_turn + (1000 / pc.speed);
+            insertHeap(eventQueue, (HeapNode){0, 0, next_time});
         } else if (!event.is_player && monsters[event.index].alive) {
             moveMonster(event.index);
             if (monsters[event.index].alive) {

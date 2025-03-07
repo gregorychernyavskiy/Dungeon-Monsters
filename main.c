@@ -1,7 +1,7 @@
 #include "dungeon_generation.h"
 
 Player pc;
-Monster *monsters = NULL; // Define here
+Monster *monsters = NULL;
 int num_monsters = DEFAULT_MONSTERS;
 
 int main(int argc, char *argv[]) {

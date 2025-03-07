@@ -122,8 +122,7 @@ void printNonTunnelingMap();
 void dijkstraTunneling(int dist[HEIGHT][WIDTH]);
 void printTunnelingMap();
 
-// Player and monster functions
-void movePlayerRandom();
+// Monster functions
 void spawnMonsters(int count);
 void moveMonster(int index);
 int hasLineOfSight(int x1, int y1, int x2, int y2);
