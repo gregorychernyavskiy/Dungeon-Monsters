@@ -204,3 +204,93 @@ void printTunnelingMap() {
         printf("\n");
     }
 }
+
+void runGame() {
+    MinHeap* eventQueue = createMinHeap(num_monsters + 1);
+    int game_turn = 0;
+
+    // Initial events
+    Event pc_event = {0, 1, -1};
+    insertHeap(eventQueue, (HeapNode){0, 0, pc_event.time}); // Using x, y as placeholders
+    for (int i = 0; i < num_monsters; i++) {
+        Event mon_event = {0, 0, i};
+        insertHeap(eventQueue, (HeapNode){0, 0, mon_event.time});
+    }
+
+    updateDistanceMaps();
+    printDungeon();
+    usleep(250000);
+
+    while (eventQueue->size > 0) {
+        HeapNode node = extractMin(eventQueue);
+        game_turn = node.distance; // Time of the event
+        Event event;
+        event.time = node.distance;
+
+        // Reconstruct event (since HeapNode doesn't store full event)
+        int found = 0;
+        for (int i = 0; i < eventQueue->size; i++) {
+            if (eventQueue->nodes[i].distance == game_turn) continue;
+            if (!found && pc.alive) {
+                event.is_player = 1;
+                event.index = -1;
+                found = 1;
+            } else {
+                for (int j = 0; j < num_monsters; j++) {
+                    if (monsters[j].alive) {
+                        event.is_player = 0;
+                        event.index = j;
+                        found = 1;
+                        break;
+                    }
+                }
+            }
+            break;
+        }
+        if (!found) {
+            for (int i = 0; i < num_monsters; i++) {
+                if (monsters[i].alive) {
+                    event.is_player = 0;
+                    event.index = i;
+                    break;
+                } else {
+                    event.is_player = 1;
+                    event.index = -1;
+                }
+            }
+        }
+
+        if (event.is_player && pc.alive) {
+            movePlayerRandom();
+            if (pc.alive) {
+                int next_time = game_turn + (1000 / pc.speed);
+                insertHeap(eventQueue, (HeapNode){0, 0, next_time});
+            }
+        } else if (!event.is_player && monsters[event.index].alive) {
+            moveMonster(event.index);
+            if (monsters[event.index].alive) {
+                int next_time = game_turn + (1000 / monsters[event.index].speed);
+                insertHeap(eventQueue, (HeapNode){0, 0, next_time});
+            }
+        }
+
+        // Check win/lose conditions
+        int alive_monsters = 0;
+        for (int i = 0; i < num_monsters; i++) {
+            if (monsters[i].alive) alive_monsters++;
+        }
+        if (!pc.alive) {
+            printf("Game Over: Player has died.\n");
+            break;
+        } else if (alive_monsters == 0) {
+            printf("Game Over: Player wins!\n");
+            break;
+        }
+
+        printDungeon();
+        usleep(250000);
+    }
+
+    free(eventQueue->nodes);
+    free(eventQueue);
+}

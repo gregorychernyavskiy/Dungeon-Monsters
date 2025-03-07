@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g
-OBJ = main.o dungeon_generation.o save_load.o findpath.o
+OBJ = main.o dungeon_generation.o save_load.o findpath.o monsters.o
 
 all: dungeon
 
@@ -18,6 +18,9 @@ save_load.o: save_load.c dungeon_generation.h
 
 findpath.o: findpath.c dungeon_generation.h
 	$(CC) $(CFLAGS) -c findpath.c
+
+monsters.o: monsters.c dungeon_generation.h
+	$(CC) $(CFLAGS) -c monsters.c
 
 clean:
 	rm -f dungeon $(OBJ)

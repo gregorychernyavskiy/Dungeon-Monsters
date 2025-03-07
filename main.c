@@ -1,5 +1,9 @@
 #include "dungeon_generation.h"
 
+Player pc;
+Monster *monsters = NULL;
+int num_monsters = DEFAULT_MONSTERS;
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0;
@@ -25,6 +29,15 @@ int main(int argc, char *argv[]) {
                 printf("Error: Missing filename for --load\n");
                 return 1;
             }
+        } else if (strcmp(argv[i], "--nummon") == 0) {
+            if (i + 1 < argc) {
+                num_monsters = atoi(argv[i + 1]);
+                if (num_monsters < 1) num_monsters = DEFAULT_MONSTERS;
+                i++;
+            } else {
+                printf("Error: Missing number for --nummon\n");
+                return 1;
+            }
         }
     }
 
@@ -44,19 +57,20 @@ int main(int argc, char *argv[]) {
         initializeHardness();
     }
 
-    // Calculate distance maps before printing
-    dijkstraNonTunneling(distance_non_tunnel);
-    dijkstraTunneling(distance_tunnel);
+    // Initialize PC
+    pc.x = player_x;
+    pc.y = player_y;
+    pc.speed = PC_SPEED;
+    pc.alive = 1;
 
-    printf("Dungeon:\n");
-    printDungeon();
-    printf("\nHardness:\n");
-    printHardness();
-    printf("\nNon-Tunneling Distance Map:\n");
-    printNonTunnelingMap();
-    printf("\nTunneling Distance Map:\n");
-    printTunnelingMap();
+    // Spawn monsters
+    spawnMonsters(num_monsters);
 
+    // Run the game
+    runGame();
+
+    // Cleanup
+    freeMonsters();
     if (save) {
         if (saveFileName) {
             saveDungeon(saveFileName);

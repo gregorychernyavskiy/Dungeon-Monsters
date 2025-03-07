@@ -142,6 +142,32 @@ void placePlayer() {
     dungeon[player_y][player_x] = '@';
 }
 
+void movePlayerRandom() {
+    if (!pc.alive) return;
+
+    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1, 0};
+    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1, 0};
+    int dir = rand() % 9;
+    int new_x = pc.x + dx[dir];
+    int new_y = pc.y + dy[dir];
+
+    if (new_x >= 0 && new_x < WIDTH && new_y >= 0 && new_y < HEIGHT && hardness[new_y][new_x] != 255) {
+        // Check for monster collision
+        for (int i = 0; i < num_monsters; i++) {
+            if (monsters[i].alive && monsters[i].x == new_x && monsters[i].y == new_y) {
+                monsters[i].alive = 0; // PC kills monster
+                printf("Player killed monster %c at (%d, %d)\n", monsters[i].symbol, new_x, new_y);
+                break;
+            }
+        }
+        // Move PC
+        dungeon[pc.y][pc.x] = (hardness[pc.y][pc.x] == 0) ? '.' : '#';
+        pc.x = new_x;
+        pc.y = new_y;
+        dungeon[pc.y][pc.x] = '@';
+    }
+}
+
 
 void initializeHardness() {
     for (int y = 0; y < HEIGHT; y++) {
