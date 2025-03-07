@@ -206,15 +206,14 @@ void printTunnelingMap() {
 }
 
 void runGame() {
+    // Use x and y to store is_player and index, respectively; distance is event time
     MinHeap* eventQueue = createMinHeap(num_monsters + 1);
     int game_turn = 0;
 
-    // Initial events
-    Event pc_event = {0, 1, -1};
-    insertHeap(eventQueue, (HeapNode){0, 0, pc_event.time}); // PC event, no movement
+    // Initial events: PC at time 0, monsters at time 0
+    insertHeap(eventQueue, (HeapNode){1, -1, 0}); // PC event: is_player=1, index=-1
     for (int i = 0; i < num_monsters; i++) {
-        Event mon_event = {0, 0, i};
-        insertHeap(eventQueue, (HeapNode){0, 0, mon_event.time});
+        insertHeap(eventQueue, (HeapNode){0, i, 0}); // Monster event: is_player=0, index=i
     }
 
     updateDistanceMaps();
@@ -222,53 +221,21 @@ void runGame() {
     usleep(250000);
 
     while (eventQueue->size > 0) {
-        HeapNode node = extractMin(eventQueue);
-        game_turn = node.distance; // Time of the event
-        Event event;
-        event.time = node.distance;
+        HeapNode event_node = extractMin(eventQueue);
+        game_turn = event_node.distance; // Current game time
+        int is_player = event_node.x;     // 1 for PC, 0 for monster
+        int index = event_node.y;         // Monster index or -1 for PC
 
-        // Reconstruct event (since HeapNode doesn't store full event)
-        int found = 0;
-        for (int i = 0; i < eventQueue->size; i++) {
-            if (eventQueue->nodes[i].distance == game_turn) continue;
-            if (!found && pc.alive) {
-                event.is_player = 1;
-                event.index = -1;
-                found = 1;
-            } else {
-                for (int j = 0; j < num_monsters; j++) {
-                    if (monsters[j].alive) {
-                        event.is_player = 0;
-                        event.index = j;
-                        found = 1;
-                        break;
-                    }
-                }
-            }
-            break;
-        }
-        if (!found) {
-            for (int i = 0; i < num_monsters; i++) {
-                if (monsters[i].alive) {
-                    event.is_player = 0;
-                    event.index = i;
-                    break;
-                } else {
-                    event.is_player = 1;
-                    event.index = -1;
-                }
-            }
-        }
-
-        if (event.is_player && pc.alive) {
-            // PC skips turn, just requeue event
+        if (is_player && pc.alive) {
+            // PC turn: Do nothing, just requeue
             int next_time = game_turn + (1000 / pc.speed);
-            insertHeap(eventQueue, (HeapNode){0, 0, next_time});
-        } else if (!event.is_player && monsters[event.index].alive) {
-            moveMonster(event.index);
-            if (monsters[event.index].alive) {
-                int next_time = game_turn + (1000 / monsters[event.index].speed);
-                insertHeap(eventQueue, (HeapNode){0, 0, next_time});
+            insertHeap(eventQueue, (HeapNode){1, -1, next_time});
+        } else if (!is_player && monsters[index].alive) {
+            // Monster turn: Move toward PC
+            moveMonster(index);
+            if (monsters[index].alive) {
+                int next_time = game_turn + (1000 / monsters[index].speed);
+                insertHeap(eventQueue, (HeapNode){0, index, next_time});
             }
         }
 
