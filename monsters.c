@@ -72,8 +72,6 @@ void moveMonster(int index) {
 
     int new_x = monsters[index].x;
     int new_y = monsters[index].y;
-    int target_x = pc.x;
-    int target_y = pc.y;
 
     // Erratic behavior
     if (monsters[index].erratic && rand() % 2) {
@@ -88,6 +86,7 @@ void moveMonster(int index) {
         }
     } else {
         // Determine target
+        int target_x, target_y;
         if (monsters[index].telepathic || hasLineOfSight(monsters[index].x, monsters[index].y, pc.x, pc.y)) {
             target_x = pc.x;
             target_y = pc.y;
