@@ -1,4 +1,5 @@
 #include "dungeon_generation.h"
+#include <unistd.h> // Add this line
 
 static int isValid(int x, int y) {
     return (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT);
