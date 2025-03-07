@@ -44,10 +44,6 @@ int main(int argc, char *argv[]) {
         initializeHardness();
     }
 
-    // Calculate distance maps before printing
-    dijkstraNonTunneling(distance_non_tunnel);
-    dijkstraTunneling(distance_tunnel);
-
     printf("Dungeon:\n");
     printDungeon();
     printf("\nHardness:\n");
