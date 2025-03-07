@@ -4,6 +4,9 @@ static int isValid(int x, int y) {
     return (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT);
 }
 
+
+
+
 MinHeap* createMinHeap(int capacity) {
     MinHeap* heap = malloc(sizeof(MinHeap));
     heap->size = 0;
@@ -11,6 +14,9 @@ MinHeap* createMinHeap(int capacity) {
     heap->nodes = malloc(capacity * sizeof(HeapNode));
     return heap;
 }
+
+
+
 
 void heapify(MinHeap* heap, int idx) {
     int smallest = idx;
@@ -35,6 +41,9 @@ void heapify(MinHeap* heap, int idx) {
     }
 }
 
+
+
+
 void insertHeap(MinHeap* heap, HeapNode node) {
     if (heap->size == heap->capacity) {
         return;
@@ -51,6 +60,9 @@ void insertHeap(MinHeap* heap, HeapNode node) {
         i = (i-1)/2;
     }
 }
+
+
+
 
 HeapNode extractMin(MinHeap* heap) {
     if (heap->size <= 0) {
@@ -71,6 +83,9 @@ HeapNode extractMin(MinHeap* heap) {
     return root;
 }
 
+
+
+
 void decreasePriority(MinHeap* heap, int x, int y, int newDistance) {
     int i;
     for (i = 0; i < heap->size; i++) {
@@ -88,6 +103,9 @@ void decreasePriority(MinHeap* heap, int x, int y, int newDistance) {
         }
     }
 }
+
+
+
 
 void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
     int dx[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
@@ -134,6 +152,9 @@ void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
     free(heap);
 }
 
+
+
+
 void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
     int dx[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
     int dy[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
@@ -174,6 +195,8 @@ void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
     free(heap->nodes);
     free(heap);
 }
+
+
 
 void printNonTunnelingMap() {
     for (int y = 0; y < HEIGHT; y++) {
