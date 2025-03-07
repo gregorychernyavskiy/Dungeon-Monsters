@@ -1,7 +1,5 @@
 #include "dungeon_generation.h"
 
-Monster *monsters = NULL;
-
 static char getMonsterSymbol(int intelligent, int telepathic, int tunneling, int erratic) {
     int value = (erratic << 3) | (tunneling << 2) | (telepathic << 1) | intelligent;
     if (value < 10) return '0' + value;
@@ -85,18 +83,14 @@ void moveMonster(int index) {
             return; // Invalid move
         }
     } else {
-        // Determine target
-        int target_x, target_y;
+        // Determine if we have a target
         if (monsters[index].telepathic || hasLineOfSight(monsters[index].x, monsters[index].y, pc.x, pc.y)) {
-            target_x = pc.x;
-            target_y = pc.y;
             if (monsters[index].intelligent) {
                 monsters[index].last_seen_x = pc.x;
                 monsters[index].last_seen_y = pc.y;
             }
         } else if (monsters[index].intelligent && monsters[index].last_seen_x != -1) {
-            target_x = monsters[index].last_seen_x;
-            target_y = monsters[index].last_seen_y;
+            // Use last seen position
         } else {
             return; // No movement if no target
         }
