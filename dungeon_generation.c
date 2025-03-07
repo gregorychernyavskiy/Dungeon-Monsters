@@ -16,6 +16,7 @@ int downStairsCount = 0;
 struct Stairs upStairs[MAX_ROOMS];
 struct Stairs downStairs[MAX_ROOMS];
 
+
 void printDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -24,6 +25,7 @@ void printDungeon() {
         printf("\n");
     }
 }
+
 
 void emptyDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
@@ -130,6 +132,7 @@ void placeStairs() {
     dungeon[downStairs[0].y][downStairs[0].x] = '>';
 }
 
+
 void placePlayer() {
     int index = rand() % num_rooms;
     struct Room playerRoom = rooms[index];
@@ -138,6 +141,7 @@ void placePlayer() {
     player_y = playerRoom.y + rand() % playerRoom.height;
     dungeon[player_y][player_x] = '@';
 }
+
 
 void initializeHardness() {
     for (int y = 0; y < HEIGHT; y++) {
@@ -153,6 +157,7 @@ void initializeHardness() {
         }
     }
 }
+
 
 void printHardness() {
     for (int y = 0; y < HEIGHT; y++) {
