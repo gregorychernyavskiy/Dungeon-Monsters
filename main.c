@@ -2,7 +2,7 @@
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
-    int load = 0, save = 0;
+    int load = 0, save = 0, nummon = 10; // Default 10 monsters
     char *saveFileName = NULL;
     char *loadFileName = NULL;
 
@@ -25,6 +25,21 @@ int main(int argc, char *argv[]) {
                 printf("Error: Missing filename for --load\n");
                 return 1;
             }
+        } else if (strcmp(argv[i], "--nummon") == 0) {
+            if (i + 1 < argc) {
+                nummon = atoi(argv[i + 1]);
+                if (nummon < 1) {
+                    printf("Error: Number of monsters must be at least 1\n");
+                    return 1;
+                }
+                i++;
+            } else {
+                printf("Error: Missing number for --nummon\n");
+                return 1;
+            }
+        } else {
+            printf("Error: Unrecognized argument '%s'\n", argv[i]);
+            return 1;
         }
     }
 
@@ -44,17 +59,18 @@ int main(int argc, char *argv[]) {
         initializeHardness();
     }
 
-    //print functions
-    printf("Dungeon:\n");
+    // Spawn monsters and run the game
+    spawnMonsters(nummon);
+    printf("Initial Dungeon:\n");
     printDungeon();
-    //printf("\nHardness:\n");
-    //printHardness();
     printf("\nNon-Tunneling Distance Map:\n");
     printNonTunnelingMap();
     printf("\nTunneling Distance Map:\n");
     printTunnelingMap();
 
-    if (save) {
+    runGame();
+
+    if (save && !load) {
         if (saveFileName) {
             saveDungeon(saveFileName);
         } else {
