@@ -193,7 +193,36 @@ void placePlayer() {
 
 
 
+void movePlayer(void) {
+    int curr_x = player_x;
+    int curr_y = player_y;
+    int next_x = curr_x;
+    int next_y = curr_y;
 
+    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+
+    // Pick a random direction
+    int dir = rand() % 8;
+    int nx = curr_x + dx[dir];
+    int ny = curr_y + dy[dir];
+
+    // Check if the new position is valid
+    if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
+        hardness[ny][nx] == 0 && !monsterAt[ny][nx]) {
+        next_x = nx;
+        next_y = ny;
+    }
+
+    // Update player position if moved
+    if (next_x != curr_x || next_y != curr_y) {
+        dungeon[curr_y][curr_x] = (curr_y == upStairs[0].y && curr_x == upStairs[0].x) ? '<' :
+                                  (curr_y == downStairs[0].y && curr_x == downStairs[0].x) ? '>' : '.';
+        player_x = next_x;
+        player_y = next_y;
+        dungeon[player_y][player_x] = '@';
+    }
+}
 
 
 

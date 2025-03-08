@@ -98,4 +98,6 @@ void runGame(int numMonsters);
 
 int isGameOver(Monster **culprit);
 
+void movePlayer(void);
+
 #endif

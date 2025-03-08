@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
     printf("Initial Dungeon:\n");
     printDungeon();
 
-    MinHeap *eventQueue = createMinHeap(numMonsters);
+    MinHeap *eventQueue = createMinHeap(numMonsters + 1); // +1 for player
     if (!eventQueue) {
         printf("Error: Failed to create event queue\n");
         for (int i = 0; i < num_monsters; i++) {
@@ -119,6 +119,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Insert initial event for player (speed = 10)
+    Event playerEvent = {0, NULL}; // NULL indicates player
+    HeapNode playerNode = {player_x, player_y, playerEvent.time};
+    insertHeap(eventQueue, playerNode);
+
     int turn = 0;
     while (eventQueue->size > 0) {
         HeapNode nextEventNode = extractMin(eventQueue);
@@ -126,34 +131,57 @@ int main(int argc, char *argv[]) {
         int curr_y = nextEventNode.y;
         Monster *monster = monsterAt[curr_y][curr_x];
 
-        if (!monster || !monster->alive) {
-            continue; // Skip if monster is dead or missing
-        }
+        if (monster) { // Monster move
+            if (!monster->alive) {
+                continue;
+            }
+            moveMonster(monster);
 
-        moveMonster(monster);
+            // Check for game over after monster move
+            Monster *culprit = NULL;
+            if (isGameOver(&culprit)) {
+                int personality = culprit->intelligent + 
+                                  (culprit->telepathic << 1) + 
+                                  (culprit->tunneling << 2) + 
+                                  (culprit->erratic << 3);
+                char symbol = personality < 10 ? '0' + personality : 'a' + (personality - 10);
+                printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
+                       turn, symbol, player_x, player_y);
+                printDungeon();
+                printf("GAME OVER: Player has been defeated!\n");
+                break;
+            }
 
-        // Check for game over after every monster move
-        Monster *culprit = NULL;
-        if (isGameOver(&culprit)) {
-            int personality = culprit->intelligent + 
-                              (culprit->telepathic << 1) + 
-                              (culprit->tunneling << 2) + 
-                              (culprit->erratic << 3);
-            char symbol = personality < 10 ? '0' + personality : 'a' + (personality - 10);
-            printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
-                   turn, symbol, player_x, player_y);
-            printDungeon();
-            printf("GAME OVER: Player has been defeated!\n");
-            break; // Exit the game loop immediately
-        }
+            if (monster->alive) {
+                int nextTime = nextEventNode.distance + (1000 / monster->speed);
+                HeapNode newEvent = {monster->x, monster->y, nextTime};
+                insertHeap(eventQueue, newEvent);
+            }
+        } else { // Player move
+            movePlayer();
 
-        if (monster->alive) {
-            int nextTime = nextEventNode.distance + (1000 / monster->speed);
-            HeapNode newEvent = {monster->x, monster->y, nextTime};
+            // Check for game over after player move (in case player moves onto a monster)
+            Monster *culprit = NULL;
+            if (isGameOver(&culprit)) {
+                int personality = culprit->intelligent + 
+                                  (culprit->telepathic << 1) + 
+                                  (culprit->tunneling << 2) + 
+                                  (culprit->erratic << 3);
+                char symbol = personality < 10 ? '0' + personality : 'a' + (personality - 10);
+                printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
+                       turn, symbol, player_x, player_y);
+                printDungeon();
+                printf("GAME OVER: Player has been defeated!\n");
+                break;
+            }
+
+            int nextTime = nextEventNode.distance + (1000 / 10); // Player speed = 10
+            HeapNode newEvent = {player_x, player_y, nextTime};
             insertHeap(eventQueue, newEvent);
         }
 
-        printf("\nTurn %d: After monster at (%d, %d) moves:\n", turn++, curr_x, curr_y);
+        // Print player's location instead of monster's
+        printf("\nTurn %d: Player at (%d, %d):\n", turn++, player_x, player_y);
         printDungeon();
         usleep(250000);
     }
