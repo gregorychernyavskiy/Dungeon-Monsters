@@ -60,6 +60,7 @@ extern int num_rooms;
 extern int randRoomNum;
 extern int upStairsCount;
 extern int downStairsCount;
+extern int player_room_index;
 
 extern char *dungeonFile;
 

@@ -22,6 +22,8 @@ int randRoomNum = 0;
 int upStairsCount = 0;
 int downStairsCount = 0;
 
+int player_room_index = -1;
+
 struct Stairs upStairs[MAX_ROOMS];
 struct Stairs downStairs[MAX_ROOMS];
 
@@ -175,14 +177,17 @@ void printHardness() {
 }
 
 
+
+
+
 void placePlayer() {
     int index = rand() % num_rooms;
+    player_room_index = index; // Store the room index
     struct Room playerRoom = rooms[index];
     player_x = playerRoom.x + rand() % playerRoom.width;
     player_y = playerRoom.y + rand() % playerRoom.height;
     dungeon[player_y][player_x] = '@';
 }
-
 
 
 
@@ -317,7 +322,14 @@ int spawnMonsterWithMonType(char monType) {
     for (int j = 0; j < attempts; j++) {
         int x = rand() % WIDTH;
         int y = rand() % HEIGHT;
-        if (dungeon[y][x] != '.' || (x == player_x && y == player_y) || monsterAt[y][x]) {
+        // Check if position is in the player's room
+        struct Room playerRoom = rooms[player_room_index];
+        int in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
+                              y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
+        if (dungeon[y][x] != '.' || 
+            (x == player_x && y == player_y) || 
+            monsterAt[y][x] || 
+            in_player_room) { // Add this condition
             continue;
         }
         
@@ -333,6 +345,9 @@ int spawnMonsterWithMonType(char monType) {
     fprintf(stderr, "Error: Failed to spawn monster\n");
     return 1;
 }
+
+
+
 
 int spawnMonsters(int numMonsters) {
     if (monsters) {
@@ -361,9 +376,14 @@ int spawnMonsters(int numMonsters) {
         for (int j = 0; j < 100; j++) {
             int x = rand() % WIDTH;
             int y = rand() % HEIGHT;
+            // Check if position is in the player's room
+            struct Room playerRoom = rooms[player_room_index];
+            int in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
+                                  y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
             if (dungeon[y][x] == '.' && 
                 !(x == player_x && y == player_y) && 
-                !monsterAt[y][x]) {
+                !monsterAt[y][x] && 
+                !in_player_room) { // Add this condition
                 Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
                 if (!temp) continue;
                 monsters = temp;
@@ -388,9 +408,14 @@ int spawnMonsters(int numMonsters) {
         for (int j = 0; j < 100; j++) {
             int x = rand() % WIDTH;
             int y = rand() % HEIGHT;
+            // Check if position is in the player's room
+            struct Room playerRoom = rooms[player_room_index];
+            int in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
+                                  y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
             if (dungeon[y][x] == '.' && 
                 !(x == player_x && y == player_y) && 
-                !monsterAt[y][x]) {
+                !monsterAt[y][x] && 
+                !in_player_room) { // Add this condition
                 Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
                 if (!temp) continue;
                 monsters = temp;
@@ -412,6 +437,8 @@ int spawnMonsters(int numMonsters) {
 
     return 0;
 }
+
+
 
 void runGame(int numMonsters) {
     if (spawnMonsters(numMonsters)) {
