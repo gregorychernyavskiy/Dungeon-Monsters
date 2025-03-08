@@ -61,6 +61,8 @@ extern int randRoomNum;
 extern int upStairsCount;
 extern int downStairsCount;
 
+extern char *dungeonFile;
+
 extern struct Stairs upStairs[MAX_ROOMS];
 extern struct Stairs downStairs[MAX_ROOMS];
 

@@ -25,8 +25,6 @@ int downStairsCount = 0;
 struct Stairs upStairs[MAX_ROOMS];
 struct Stairs downStairs[MAX_ROOMS];
 
-char *dungeonFile;
-
 void printDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
