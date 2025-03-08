@@ -12,6 +12,20 @@ typedef struct {
     Monster *monster; // Pointer to the monster
 } Event;
 
+// Function to check if any monster has reached the player
+int isGameOver() {
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            if (monsterAt[y][x] != NULL && 
+                monsterAt[y][x]->x == player_x && 
+                monsterAt[y][x]->y == player_y) {
+                return 1; // A monster is at the player's position
+            }
+        }
+    }
+    return 0; // No monster has reached the player
+}
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0, nummonFlag = 0;
@@ -136,8 +150,8 @@ int main(int argc, char *argv[]) {
 
         moveMonster(monster);
 
-        // Check if monster reached player
-        if (monster->x == player_x && monster->y == player_y) {
+        // Check if any monster has reached the player
+        if (isGameOver()) {
             printf("\nTurn %d: Monster reached '@'!\n", turn);
             printDungeon();
             printf("GAME OVER\n");
