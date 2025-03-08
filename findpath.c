@@ -1,12 +1,8 @@
 #include "dungeon_generation.h"
 #include "minheap.h"
 
-static int isValid(int x, int y) {
-    return (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT);
-}
-
 void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
-    
+    // Initialize distances to infinity
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             dist[y][x] = INFINITY;
@@ -14,53 +10,113 @@ void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
     }
     dist[player_y][player_x] = 0;
 
-    
-    int queue[HEIGHT * WIDTH][3];
-    int q_size = 0;
+    // Create min-heap for priority queue
+    MinHeap* heap = createMinHeap(HEIGHT * WIDTH);
+    if (!heap) {
+        fprintf(stderr, "Failed to create min-heap\n");
+        return;
+    }
+
+    // Insert starting node (player position)
+    HeapNode start = {player_x, player_y, 0};
+    insertHeap(heap, start);
+
     int visited[HEIGHT][WIDTH] = {0};
-
-    queue[q_size][0] = player_x;
-    queue[q_size][1] = player_y;
-    queue[q_size][2] = 0;
-    q_size++;
-
-    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1}; // 8-way connectivity
     int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-    while (q_size > 0) {
-        
-        int x = queue[0][0];
-        int y = queue[0][1];
-        int curr_dist = queue[0][2];
-
-        for (int i = 0; i < q_size - 1; i++) {
-            queue[i][0] = queue[i + 1][0];
-            queue[i][1] = queue[i + 1][1];
-            queue[i][2] = queue[i + 1][2];
-        }
-        q_size--;
+    while (heap->size > 0) {
+        HeapNode current = extractMin(heap);
+        int x = current.x;
+        int y = current.y;
+        int curr_dist = current.distance;
 
         if (visited[y][x]) continue;
         visited[y][x] = 1;
 
+        // Explore 8 neighbors
         for (int i = 0; i < 8; i++) {
             int nx = x + dx[i];
             int ny = y + dy[i];
 
             if (nx < 0 || nx >= WIDTH || ny < 0 || ny >= HEIGHT) continue;
             if (visited[ny][nx]) continue;
-            if (hardness[ny][nx] != 0) continue;
+            if (hardness[ny][nx] != 0) continue; // Non-tunneling: only move through hardness 0
 
-            int new_dist = curr_dist + 1;
+            int new_dist = curr_dist + 1; // Weight is always 1 for floor
             if (new_dist < dist[ny][nx]) {
                 dist[ny][nx] = new_dist;
-                queue[q_size][0] = nx;
-                queue[q_size][1] = ny;
-                queue[q_size][2] = new_dist;
-                q_size++;
+                HeapNode next = {nx, ny, new_dist};
+                insertHeap(heap, next);
+                // No need for decreasePriority here since we only insert unvisited nodes
             }
         }
     }
+
+    // Free heap memory
+    free(heap->nodes);
+    free(heap);
+}
+
+void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
+    // Initialize distances to infinity
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            dist[y][x] = INFINITY;
+        }
+    }
+    dist[player_y][player_x] = 0;
+
+    // Create min-heap for priority queue
+    MinHeap* heap = createMinHeap(HEIGHT * WIDTH);
+    if (!heap) {
+        fprintf(stderr, "Failed to create min-heap\n");
+        return;
+    }
+
+    // Insert starting node (player position)
+    HeapNode start = {player_x, player_y, 0};
+    insertHeap(heap, start);
+
+    int visited[HEIGHT][WIDTH] = {0};
+    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1}; // 8-way connectivity
+    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+
+    while (heap->size > 0) {
+        HeapNode current = extractMin(heap);
+        int x = current.x;
+        int y = current.y;
+        int curr_dist = current.distance;
+
+        if (visited[y][x]) continue;
+        visited[y][x] = 1;
+
+        // Explore 8 neighbors
+        for (int i = 0; i < 8; i++) {
+            int nx = x + dx[i];
+            int ny = y + dy[i];
+
+            if (nx < 0 || nx >= WIDTH || ny < 0 || ny >= HEIGHT) continue;
+            if (visited[ny][nx]) continue;
+            if (hardness[ny][nx] == 255) continue; // Infinite weight for hardness 255
+
+            // Calculate weight based on hardness
+            int weight = (hardness[ny][nx] == 0) ? 1 : 1 + hardness[ny][nx] / 85;
+            int new_dist = curr_dist + weight;
+
+            if (new_dist < dist[ny][nx]) {
+                dist[ny][nx] = new_dist;
+                HeapNode next = {nx, ny, new_dist};
+                insertHeap(heap, next);
+                // Note: If a node is already in the heap with a higher distance,
+                // we could use decreasePriority, but for simplicity, we allow duplicates
+            }
+        }
+    }
+
+    // Free heap memory
+    free(heap->nodes);
+    free(heap);
 }
 
 void printNonTunnelingMap() {
@@ -81,83 +137,6 @@ void printNonTunnelingMap() {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            dist[y][x] = INFINITY;
-        }
-    }
-    dist[player_y][player_x] = 0;
-
-    int visited[HEIGHT][WIDTH] = {0};
-    int queue[HEIGHT * WIDTH][3];
-    int q_size = 0;
-
-    queue[q_size][0] = player_x;
-    queue[q_size][1] = player_y;
-    queue[q_size][2] = 0;
-    q_size++;
-    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
-    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
-
-    while (q_size > 0) {
-        int min_idx = 0;
-        for (int i = 1; i < q_size; i++) {
-            if (queue[i][2] < queue[min_idx][2]) {
-                min_idx = i;
-            }
-        }
-
-        int x = queue[min_idx][0];
-        int y = queue[min_idx][1];
-        int curr_dist = queue[min_idx][2];
-
-        queue[min_idx][0] = queue[q_size - 1][0];
-        queue[min_idx][1] = queue[q_size - 1][1];
-        queue[min_idx][2] = queue[q_size - 1][2];
-        q_size--;
-
-        if (visited[y][x]) continue;
-        visited[y][x] = 1;
-
-        for (int i = 0; i < 8; i++) {
-            int nx = x + dx[i];
-            int ny = y + dy[i];
-
-            if (nx < 0 || nx >= WIDTH || ny < 0 || ny >= HEIGHT) continue;
-            if (visited[ny][nx]) continue;
-
-            int weight;
-            if (hardness[ny][nx] == 0) {
-                weight = 1;
-            } else if (hardness[ny][nx] == 255) {
-                continue;
-            } else {
-                weight = 1 + hardness[ny][nx] / 85;
-            }
-
-            int new_dist = curr_dist + weight;
-            if (new_dist < dist[ny][nx]) {
-                dist[ny][nx] = new_dist;
-                
-                queue[q_size][0] = nx;
-                queue[q_size][1] = ny;
-                queue[q_size][2] = new_dist;
-                q_size++;
-            }
-        }
-    }
-}
 void printTunnelingMap() {
     int dist[HEIGHT][WIDTH];
     dijkstraTunneling(dist);
