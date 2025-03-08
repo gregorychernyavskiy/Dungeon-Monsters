@@ -12,12 +12,16 @@
 
 #define WIDTH 80
 #define HEIGHT 21
+
 #define MAX_ROOMS 8
 #define MIN_ROOMS 6
+
 #define MIN_ROOM_HEIGHT 3
 #define MAX_ROOM_HEIGHT 9
+
 #define MIN_ROOM_WIDTH 4
 #define MAX_ROOM_WIDTH 12
+
 #define MAX_HARDNESS 255
 #define MIN_HARDNESS 1
 
@@ -33,33 +37,21 @@ struct Stairs {
     int y;
 };
 
-typedef struct {
-    int x, y;
-} Pos;
-
-typedef struct {
-    Pos pos;
-    int speed;
-    int intelligent, telepathic, tunneling, erratic;
-    Pos last_known_pc; // For intelligent, non-telepathic monsters
-    int alive;
-} Monster;
-
 extern char dungeon[HEIGHT][WIDTH];         
 extern unsigned char hardness[HEIGHT][WIDTH]; 
 extern struct Room rooms[MAX_ROOMS];
 extern int distance_non_tunnel[HEIGHT][WIDTH];
 extern int distance_tunnel[HEIGHT][WIDTH];
+
 extern int player_x;
 extern int player_y;
 extern int num_rooms; 
 extern int randRoomNum;
 extern int upStairsCount;
 extern int downStairsCount;
+
 extern struct Stairs upStairs[MAX_ROOMS];
 extern struct Stairs downStairs[MAX_ROOMS];
-extern Monster* monsters;
-extern int num_monsters;
 
 void printDungeon();
 void emptyDungeon();
@@ -72,13 +64,10 @@ void initializeHardness();
 void printHardness();
 void saveDungeon(char *filename);
 void loadDungeon(char *filename);
+
 void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]);
 void printNonTunnelingMap();
 void dijkstraTunneling(int dist[HEIGHT][WIDTH]);
 void printTunnelingMap();
-
-// New functions for 1.04
-void spawnMonsters(int count);
-void runGame();
 
 #endif
