@@ -192,7 +192,6 @@ void placePlayer() {
 
 
 
-
 void movePlayer(void) {
     int curr_x = player_x;
     int curr_y = player_y;
@@ -224,8 +223,24 @@ void movePlayer(void) {
         } else {
             // Restore the original dungeon character, preserving '#' for corridors
             char original = dungeon[curr_y][curr_x];
-            dungeon[curr_y][curr_x] = (original == '@') ? 
-                                     (hardness[curr_y][curr_x] == 0 ? '.' : '#') : original;
+            // If the original was '@', determine the underlying terrain
+            if (original == '@') {
+                // Check adjacent cells to infer if it was a corridor or room
+                int is_corridor = 0;
+                for (int i = 0; i < 8; i++) {
+                    int adj_x = curr_x + dx[i];
+                    int adj_y = curr_y + dy[i];
+                    if (adj_x >= 0 && adj_x < WIDTH && adj_y >= 0 && adj_y < HEIGHT) {
+                        if (dungeon[adj_y][adj_x] == '#') {
+                            is_corridor = 1;
+                            break;
+                        }
+                    }
+                }
+                dungeon[curr_y][curr_x] = is_corridor ? '#' : '.';
+            } else {
+                dungeon[curr_y][curr_x] = original; // Retain non-player characters
+            }
         }
 
         // Update player position
@@ -234,7 +249,6 @@ void movePlayer(void) {
         dungeon[player_y][player_x] = '@';
     }
 }
-
 
 
 
