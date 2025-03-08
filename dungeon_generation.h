@@ -45,6 +45,11 @@ typedef struct {
     int last_seen_y;    // Last known PC y position
 } Monster;
 
+typedef struct {
+    int time;         // Event time based on 1000/speed
+    Monster *monster; // Pointer to the monster
+} Event;
+
 extern char dungeon[HEIGHT][WIDTH];         
 extern unsigned char hardness[HEIGHT][WIDTH]; 
 extern struct Room rooms[MAX_ROOMS];
@@ -87,8 +92,10 @@ void printTunnelingMap();
 Monster *createMonsterWithMonType(char c, int x, int y);
 Monster *createMonster(int x, int y);
 int spawnMonsterWithMonType(char monType);
-int spawnMonsters(int count);  // Updated to return int
+int spawnMonsters(int count);
 void moveMonster(Monster *monster);
 void runGame(int numMonsters);
+
+int isGameOver(Monster **culprit);
 
 #endif

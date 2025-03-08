@@ -456,3 +456,17 @@ void runGame(int numMonsters) {
     printf("\nFinal state:\n");
     printDungeon();
 }
+
+
+
+int isGameOver(Monster **culprit) {
+    for (int i = 0; i < num_monsters; i++) {
+        if (monsters[i] && monsters[i]->alive && 
+            monsters[i]->x == player_x && monsters[i]->y == player_y) {
+            *culprit = monsters[i];
+            return 1;
+        }
+    }
+    *culprit = NULL;
+    return 0;
+}

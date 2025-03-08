@@ -7,23 +7,6 @@
 #include "dungeon_generation.h"
 #include "minheap.h"
 
-typedef struct {
-    int time;         // Event time based on 1000/speed
-    Monster *monster; // Pointer to the monster
-} Event;
-
-int isGameOver(Monster **culprit) {
-    for (int i = 0; i < num_monsters; i++) {
-        if (monsters[i] && monsters[i]->alive && 
-            monsters[i]->x == player_x && monsters[i]->y == player_y) {
-            *culprit = monsters[i];
-            return 1;
-        }
-    }
-    *culprit = NULL;
-    return 0;
-}
-
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0, nummonFlag = 0;
@@ -152,18 +135,11 @@ int main(int argc, char *argv[]) {
         // Check for game over after every monster move
         Monster *culprit = NULL;
         if (isGameOver(&culprit)) {
-            // Find the monster's symbol by its index in the monsters array
-            char symbol = '0'; // Default fallback
-            for (int i = 0; i < num_monsters; i++) {
-                if (monsters[i] == culprit) {
-                    if (i < 10) {
-                        symbol = '0' + i; // 0-9
-                    } else {
-                        symbol = 'a' + (i - 10); // a-f
-                    }
-                    break;
-                }
-            }
+            int personality = culprit->intelligent + 
+                              (culprit->telepathic << 1) + 
+                              (culprit->tunneling << 2) + 
+                              (culprit->erratic << 3);
+            char symbol = personality < 10 ? '0' + personality : 'a' + (personality - 10);
             printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
                    turn, symbol, player_x, player_y);
             printDungeon();
