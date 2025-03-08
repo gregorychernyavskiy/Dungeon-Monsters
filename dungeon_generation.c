@@ -278,24 +278,17 @@ void moveMonster(Monster *monster) {
     int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
     int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-    // Debug: Force first move to player's position for testing
-    static int first_move = 1;
-    if (first_move && monster->intelligent) { // Test with an intelligent monster
-        next_x = player_x;
-        next_y = player_y;
-        first_move = 0;
-    } else {
-        for (int i = 0; i < 8; i++) {
-            int nx = curr_x + dx[i];
-            int ny = curr_y + dy[i];
-            if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
-                if (dist[ny][nx] < min_dist && 
-                    (monster->tunneling || hardness[ny][nx] == 0) && 
-                    !monsterAt[ny][nx]) {
-                    min_dist = dist[ny][nx];
-                    next_x = nx;
-                    next_y = ny;
-                }
+    for (int i = 0; i < 8; i++) {
+        int nx = curr_x + dx[i];
+        int ny = curr_y + dy[i];
+        
+        if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
+            if (dist[ny][nx] < min_dist && 
+                (monster->tunneling || hardness[ny][nx] == 0) && 
+                !monsterAt[ny][nx]) {
+                min_dist = dist[ny][nx];
+                next_x = nx;
+                next_y = ny;
             }
         }
     }
