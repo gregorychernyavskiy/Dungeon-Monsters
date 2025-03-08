@@ -25,13 +25,22 @@ int downStairsCount = 0;
 struct Stairs upStairs[MAX_ROOMS];
 struct Stairs downStairs[MAX_ROOMS];
 
+
 void printDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             if (monsterAt[y][x]) {
-                int personality = monsterAt[y][x]->intelligent + (monsterAt[y][x]->telepathic << 1) +
-                                  (monsterAt[y][x]->tunneling << 2) + (monsterAt[y][x]->erratic << 3);
-                printf("%c", personality < 10 ? '0' + personality : 'a' + (personality - 10));
+                int personality = monsterAt[y][x]->intelligent + 
+                                (monsterAt[y][x]->telepathic << 1) +
+                                (monsterAt[y][x]->tunneling << 2) + 
+                                (monsterAt[y][x]->erratic << 3);
+                if (monsterAt[y][x]->intelligent) {
+                    // Capital letters for intelligent monsters
+                    printf("%c", personality < 10 ? '0' + personality : 'A' + (personality - 10));
+                } else {
+                    // Numbers for non-intelligent (dumb) monsters
+                    printf("%d", personality % 10); // Always a single digit 0-9
+                }
             } else if (x == player_x && y == player_y) {
                 printf("@");
             } else {
