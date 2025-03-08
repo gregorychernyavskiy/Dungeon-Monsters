@@ -1,6 +1,7 @@
 #include "dungeon_generation.h"
 #include "minheap.h"
 
+
 void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
     // Initialize distances to infinity
     for (int y = 0; y < HEIGHT; y++) {
@@ -9,14 +10,12 @@ void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
         }
     }
     dist[player_y][player_x] = 0;
-
     // Create min-heap for priority queue
     MinHeap* heap = createMinHeap(HEIGHT * WIDTH);
     if (!heap) {
         fprintf(stderr, "Failed to create min-heap\n");
         return;
     }
-
     // Insert starting node (player position)
     HeapNode start = {player_x, player_y, 0};
     insertHeap(heap, start);
@@ -33,7 +32,6 @@ void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
 
         if (visited[y][x]) continue;
         visited[y][x] = 1;
-
         // Explore 8 neighbors
         for (int i = 0; i < 8; i++) {
             int nx = x + dx[i];
@@ -52,11 +50,12 @@ void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
             }
         }
     }
-
     // Free heap memory
     free(heap->nodes);
     free(heap);
 }
+
+
 
 void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
     // Initialize distances to infinity
@@ -66,14 +65,12 @@ void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
         }
     }
     dist[player_y][player_x] = 0;
-
     // Create min-heap for priority queue
     MinHeap* heap = createMinHeap(HEIGHT * WIDTH);
     if (!heap) {
         fprintf(stderr, "Failed to create min-heap\n");
         return;
     }
-
     // Insert starting node (player position)
     HeapNode start = {player_x, player_y, 0};
     insertHeap(heap, start);
@@ -113,23 +110,26 @@ void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
             }
         }
     }
-
     // Free heap memory
     free(heap->nodes);
     free(heap);
 }
 
+
+
+
+
 void printNonTunnelingMap() {
     int dist[HEIGHT][WIDTH];
     dijkstraNonTunneling(dist);
 
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            if (x == player_x && y == player_y) {
+    for(int y = 0; y < HEIGHT; y++) {
+        for(int x = 0; x < WIDTH; x++) {
+            if(x == player_x && y == player_y) {
                 printf("@");
-            } else if (dist[y][x] == INFINITY) {
+            } else if(dist[y][x] == INFINITY) {
                 printf("%c", dungeon[y][x]);
-            } else {
+            } else{
                 printf("%d", dist[y][x] % 10);
             }
         }
@@ -141,13 +141,13 @@ void printTunnelingMap() {
     int dist[HEIGHT][WIDTH];
     dijkstraTunneling(dist);
 
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            if (x == player_x && y == player_y) {
+    for(int y = 0; y < HEIGHT; y++) {
+        for(int x = 0; x < WIDTH; x++) {
+            if(x == player_x && y == player_y) {
                 printf("@");
-            } else if (dist[y][x] == INFINITY) {
+            } else if(dist[y][x] == INFINITY) {
                 printf("%c", dungeon[y][x]);
-            } else {
+            } else{
                 printf("%d", dist[y][x] % 10);
             }
         }
