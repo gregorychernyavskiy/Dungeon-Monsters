@@ -1,4 +1,5 @@
 #include "dungeon_generation.h"
+#include <unistd.h>
 
 char dungeon[HEIGHT][WIDTH];                 
 unsigned char hardness[HEIGHT][WIDTH];     
