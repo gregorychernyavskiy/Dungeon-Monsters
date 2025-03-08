@@ -12,17 +12,16 @@ typedef struct {
     Monster *monster; // Pointer to the monster
 } Event;
 
-// Function to check if any monster has reached the player's position
 int isGameOver(Monster **culprit) {
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i] && monsters[i]->alive && 
             monsters[i]->x == player_x && monsters[i]->y == player_y) {
-            *culprit = monsters[i]; // Return the monster that caused game over
-            return 1; // A living monster is at the player's position
+            *culprit = monsters[i];
+            return 1;
         }
     }
     *culprit = NULL;
-    return 0; // No monster has reached the player
+    return 0;
 }
 
 int main(int argc, char *argv[]) {

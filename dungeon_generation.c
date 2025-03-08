@@ -202,7 +202,6 @@ void placePlayer() {
 
 
 
-
 Monster *createMonsterWithMonType(char c, int x, int y) {
     Monster *monster = malloc(sizeof(Monster));
     if (!monster) {
@@ -279,25 +278,26 @@ void moveMonster(Monster *monster) {
     int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
     int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-    for (int i = 0; i < 8; i++) {
-        int nx = curr_x + dx[i];
-        int ny = curr_y + dy[i];
-        
-        if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
-            if (dist[ny][nx] < min_dist && 
-                (monster->tunneling || hardness[ny][nx] == 0) && // Fix: Non-tunneling only moves where hardness == 0
-                !monsterAt[ny][nx]) {
-                min_dist = dist[ny][nx];
-                next_x = nx;
-                next_y = ny;
+    // Debug: Force first move to player's position for testing
+    static int first_move = 1;
+    if (first_move && monster->intelligent) { // Test with an intelligent monster
+        next_x = player_x;
+        next_y = player_y;
+        first_move = 0;
+    } else {
+        for (int i = 0; i < 8; i++) {
+            int nx = curr_x + dx[i];
+            int ny = curr_y + dy[i];
+            if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
+                if (dist[ny][nx] < min_dist && 
+                    (monster->tunneling || hardness[ny][nx] == 0) && 
+                    !monsterAt[ny][nx]) {
+                    min_dist = dist[ny][nx];
+                    next_x = nx;
+                    next_y = ny;
+                }
             }
         }
-    }
-
-    if (next_x == player_x && next_y == player_y) {
-        monster->alive = 0;
-        monsterAt[curr_y][curr_x] = NULL;
-        return;
     }
 
     if (next_x != curr_x || next_y != curr_y) {
@@ -322,14 +322,13 @@ int spawnMonsterWithMonType(char monType) {
     for (int j = 0; j < attempts; j++) {
         int x = rand() % WIDTH;
         int y = rand() % HEIGHT;
-        // Check if position is in the player's room
         struct Room playerRoom = rooms[player_room_index];
         int in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
                               y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
         if (dungeon[y][x] != '.' || 
             (x == player_x && y == player_y) || 
             monsterAt[y][x] || 
-            in_player_room) { // Add this condition
+            in_player_room) {
             continue;
         }
         
@@ -376,14 +375,13 @@ int spawnMonsters(int numMonsters) {
         for (int j = 0; j < 100; j++) {
             int x = rand() % WIDTH;
             int y = rand() % HEIGHT;
-            // Check if position is in the player's room
             struct Room playerRoom = rooms[player_room_index];
             int in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
                                   y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
             if (dungeon[y][x] == '.' && 
                 !(x == player_x && y == player_y) && 
                 !monsterAt[y][x] && 
-                !in_player_room) { // Add this condition
+                !in_player_room) {
                 Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
                 if (!temp) continue;
                 monsters = temp;
@@ -408,14 +406,13 @@ int spawnMonsters(int numMonsters) {
         for (int j = 0; j < 100; j++) {
             int x = rand() % WIDTH;
             int y = rand() % HEIGHT;
-            // Check if position is in the player's room
             struct Room playerRoom = rooms[player_room_index];
             int in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
                                   y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
             if (dungeon[y][x] == '.' && 
                 !(x == player_x && y == player_y) && 
                 !monsterAt[y][x] && 
-                !in_player_room) { // Add this condition
+                !in_player_room) {
                 Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
                 if (!temp) continue;
                 monsters = temp;
