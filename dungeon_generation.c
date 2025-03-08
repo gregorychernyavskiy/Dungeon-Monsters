@@ -192,6 +192,7 @@ void placePlayer() {
 
 
 
+
 void movePlayer(void) {
     int curr_x = player_x;
     int curr_y = player_y;
@@ -221,8 +222,10 @@ void movePlayer(void) {
         } else if (curr_y == downStairs[0].y && curr_x == downStairs[0].x) {
             dungeon[curr_y][curr_x] = '>';
         } else {
-            // Restore the original terrain from original_dungeon
-            dungeon[curr_y][curr_x] = original_dungeon[curr_y][curr_x];
+            // Restore the original dungeon character, preserving '#' for corridors
+            char original = dungeon[curr_y][curr_x];
+            dungeon[curr_y][curr_x] = (original == '@') ? 
+                                     (hardness[curr_y][curr_x] == 0 ? '.' : '#') : original;
         }
 
         // Update player position
