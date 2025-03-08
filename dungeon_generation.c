@@ -1,11 +1,15 @@
 #include "dungeon_generation.h"
 #include "minheap.h"
+#include <unistd.h>
 
 char dungeon[HEIGHT][WIDTH];                 
 unsigned char hardness[HEIGHT][WIDTH];     
 struct Room rooms[MAX_ROOMS];                
 int distance_non_tunnel[HEIGHT][WIDTH];
 int distance_tunnel[HEIGHT][WIDTH];
+
+Monster *monsters = NULL;
+int num_monsters = 0;
 
 int player_x;
 int player_y;
@@ -181,14 +185,14 @@ void placePlayer() {
 
 
 
-Monster *createMonsterWithMonType(char c, Pos pos) {
+Monster *createMonsterWithMonType(char c, int x, int y) {
     Monster *monster = malloc(sizeof(Monster));
     if (!monster) {
         fprintf(stderr, "Error: Failed to allocate memory for monster\n");
         return NULL;
     }
-    monster->x = pos.x;
-    monster->y = pos.y;
+    monster->x = x;
+    monster->y = y;
     monster->speed = rand() % 16 + 5;
 
     int num;
@@ -214,7 +218,7 @@ Monster *createMonsterWithMonType(char c, Pos pos) {
     return monster;
 }
 
-Monster *createMonster(Pos pos) {
+Monster *createMonster(int x, int y) {
     Monster *monster = malloc(sizeof(Monster));
     if (!monster) {
         fprintf(stderr, "Error: Failed to allocate memory for monster\n");
@@ -226,8 +230,8 @@ Monster *createMonster(Pos pos) {
     monster->telepathic = rand() % 2;
     monster->erratic = rand() % 2;
     monster->speed = rand() % 16 + 5;
-    monster->x = pos.x;
-    monster->y = pos.y;
+    monster->x = x;
+    monster->y = y;
     monster->alive = 1;
     monster->last_seen_x = -1;
     monster->last_seen_y = -1;
@@ -236,7 +240,7 @@ Monster *createMonster(Pos pos) {
 }
 
 int spawnMonsterWithMonType(char monType) {
-    Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster*));
+    Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
     if (!temp) {
         fprintf(stderr, "Error: Failed to allocate memory for monsters\n");
         return 1;
@@ -251,12 +255,11 @@ int spawnMonsterWithMonType(char monType) {
             continue;
         }
         
-        Pos pos = {x, y};
-        monsters[num_monsters] = createMonsterWithMonType(monType, pos);
+        monsters[num_monsters] = createMonsterWithMonType(monType, x, y);
         if (!monsters[num_monsters]) {
             return 1;
         }
-        monsterAt[y][x] = &monsters[num_monsters];
+        monsterAt[y][x] = monsters[num_monsters];
         num_monsters++;
         return 0;
     }
@@ -268,15 +271,17 @@ int spawnMonsterWithMonType(char monType) {
 int spawnMonsters(int numMonsters) {
     if (monsters) {
         for (int i = 0; i < num_monsters; i++) {
-            if (monsterAt[monsters[i].y][monsters[i].x]) {
-                monsterAt[monsters[i].y][monsters[i].x] = NULL;
+            if (monsters[i] && monsterAt[monsters[i]->y][monsters[i]->x]) {
+                monsterAt[monsters[i]->y][monsters[i]->x] = NULL;
             }
+            if (monsters[i]) free(monsters[i]);
         }
         free(monsters);
+        monsters = NULL;
     }
 
     num_monsters = 0;
-    monsters = malloc(numMonsters * sizeof(Monster));
+    monsters = malloc(numMonsters * sizeof(Monster *));
     if (!monsters) {
         fprintf(stderr, "Error: Failed to allocate memory for monsters\n");
         return 1;
@@ -286,49 +291,53 @@ int spawnMonsters(int numMonsters) {
     int nontunneling_count = numMonsters - tunneling_count;
 
     for (int i = 0; i < tunneling_count; i++) {
-        Pos pos;
         int placed = 0;
         for (int j = 0; j < 100; j++) {
-            pos.x = rand() % WIDTH;
-            pos.y = rand() % HEIGHT;
-            if (dungeon[pos.y][pos.x] == '.' && 
-                !(pos.x == player_x && pos.y == player_y) && 
-                !monsterAt[pos.y][pos.x]) {
-                Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster));
+            int x = rand() % WIDTH;
+            int y = rand() % HEIGHT;
+            if (dungeon[y][x] == '.' && 
+                !(x == player_x && y == player_y) && 
+                !monsterAt[y][x]) {
+                Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
                 if (!temp) continue;
                 monsters = temp;
-                monsters[num_monsters] = *createMonster(pos);
-                monsters[num_monsters].tunneling = 1;
-                monsterAt[pos.y][pos.x] = &monsters[num_monsters];
+                monsters[num_monsters] = createMonster(x, y);
+                monsters[num_monsters]->tunneling = 1;
+                monsterAt[y][x] = monsters[num_monsters];
                 num_monsters++;
                 placed = 1;
                 break;
             }
         }
-        if (!placed) return 1;
+        if (!placed) {
+            fprintf(stderr, "Error: Failed to place tunneling monster\n");
+            return 1;
+        }
     }
 
     for (int i = 0; i < nontunneling_count; i++) {
-        Pos pos;
         int placed = 0;
         for (int j = 0; j < 100; j++) {
-            pos.x = rand() % WIDTH;
-            pos.y = rand() % HEIGHT;
-            if (dungeon[pos.y][pos.x] == '.' && 
-                !(pos.x == player_x && pos.y == player_y) && 
-                !monsterAt[pos.y][pos.x]) {
-                Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster));
+            int x = rand() % WIDTH;
+            int y = rand() % HEIGHT;
+            if (dungeon[y][x] == '.' && 
+                !(x == player_x && y == player_y) && 
+                !monsterAt[y][x]) {
+                Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
                 if (!temp) continue;
                 monsters = temp;
-                monsters[num_monsters] = *createMonster(pos);
-                monsters[num_monsters].tunneling = 0;
-                monsterAt[pos.y][pos.x] = &monsters[num_monsters];
+                monsters[num_monsters] = createMonster(x, y);
+                monsters[num_monsters]->tunneling = 0;
+                monsterAt[y][x] = monsters[num_monsters];
                 num_monsters++;
                 placed = 1;
                 break;
             }
         }
-        if (!placed) return 1;
+        if (!placed) {
+            fprintf(stderr, "Error: Failed to place non-tunneling monster\n");
+            return 1;
+        }
     }
 
     return 0;
@@ -397,8 +406,8 @@ void runGame(int numMonsters) {
         
         monsters_alive = 0;
         for (int i = 0; i < num_monsters; i++) {
-            if (monsters[i].alive) {
-                moveMonster(&monsters[i]);
+            if (monsters[i]->alive) {
+                moveMonster(monsters[i]);  // Pass pointer directly
                 monsters_alive++;
             }
         }

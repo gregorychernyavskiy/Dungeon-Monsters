@@ -55,6 +55,9 @@ int main(int argc, char *argv[]) {
     }
 
     if (monsters) {
+        for (int i = 0; i < num_monsters; i++) {
+            if (monsters[i]) free(monsters[i]);
+        }
         free(monsters);
     }
 
