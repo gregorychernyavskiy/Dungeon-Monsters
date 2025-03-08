@@ -42,3 +42,18 @@
 2. Finished the non-tunneling variant, restricting movement to open spaces while maintaining optimal pathfinding.
 3. Updated the main program to integrate both pathfinding implementations and ensure correct execution.
 4. Validated distance map outputs, confirming that both tunneling and non-tunneling calculations display correctly with accurate values.
+
+03/06/2025
+1. Defined core variables and data structures, including structs for `Monster` and `Room`.
+2. Added an array for dungeon representation and monster tracking.
+
+03/07/2025
+1. Developed functionality for monster creation.
+2. Implemented spawning logic for different monster types.
+3. Added a switch to specify the number of monsters using `--nummon`.
+4. Implemented core movement logic for monsters based on intelligence, telepathy, tunneling, and erratic behavior.
+
+03/08/2025
+1. Implemented player placement and movement within the dungeon.
+2. Ensured monster behavior follows the specifications for intelligent, telepathic, and tunneling creatures.
+3. Added game-over conditions and debugging output to track player interactions.
