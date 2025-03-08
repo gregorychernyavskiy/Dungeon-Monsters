@@ -280,7 +280,7 @@ void moveMonster(Monster *monster) {
         
         if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
             if (dist[ny][nx] < min_dist && 
-                (!monster->tunneling || hardness[ny][nx] < 255) &&
+                (monster->tunneling || hardness[ny][nx] == 0) && // Fix: Non-tunneling only moves where hardness == 0
                 !monsterAt[ny][nx]) {
                 min_dist = dist[ny][nx];
                 next_x = nx;
