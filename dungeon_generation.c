@@ -222,9 +222,10 @@ void movePlayer(void) {
         } else if (curr_y == downStairs[0].y && curr_x == downStairs[0].x) {
             dungeon[curr_y][curr_x] = '>';
         } else {
-            // Restore the original dungeon character, defaulting to '.' if unknown
+            // Restore the original dungeon character, preserving '#' for corridors
             char original = dungeon[curr_y][curr_x];
-            dungeon[curr_y][curr_x] = (original == '@') ? '.' : original;
+            dungeon[curr_y][curr_x] = (original == '@') ? 
+                                     (hardness[curr_y][curr_x] == 0 ? '.' : '#') : original;
         }
 
         // Update player position
@@ -233,7 +234,6 @@ void movePlayer(void) {
         dungeon[player_y][player_x] = '@';
     }
 }
-
 
 
 
