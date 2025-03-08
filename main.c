@@ -1,3 +1,17 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <time.h>
+#include <unistd.h>
+#include "dungeon_generation.h"
+#include "minheap.h"
+
+typedef struct {
+    int time;         // Event time based on 1000/speed
+    Monster *monster; // Pointer to the monster
+} Event;
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0, nummonFlag = 0;
