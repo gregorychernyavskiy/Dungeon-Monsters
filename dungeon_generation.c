@@ -193,8 +193,6 @@ void placePlayer() {
 
 
 
-// ... (previous code remains unchanged until movePlayer)
-
 void movePlayer(void) {
     int curr_x = player_x;
     int curr_y = player_y;
@@ -218,18 +216,23 @@ void movePlayer(void) {
 
     // Update player position if moved
     if (next_x != curr_x || next_y != curr_y) {
-        // Restore the original dungeon character at the previous position
-        dungeon[curr_y][curr_x] = (curr_y == upStairs[0].y && curr_x == upStairs[0].x) ? '<' :
-                                  (curr_y == downStairs[0].y && curr_x == downStairs[0].x) ? '>' :
-                                  dungeon[curr_y][curr_x]; // Preserve original character
+        // Clear the current player position before moving
+        if (curr_y == upStairs[0].y && curr_x == upStairs[0].x) {
+            dungeon[curr_y][curr_x] = '<';
+        } else if (curr_y == downStairs[0].y && curr_x == downStairs[0].x) {
+            dungeon[curr_y][curr_x] = '>';
+        } else {
+            // Restore the original dungeon character, defaulting to '.' if unknown
+            char original = dungeon[curr_y][curr_x];
+            dungeon[curr_y][curr_x] = (original == '@') ? '.' : original;
+        }
+
+        // Update player position
         player_x = next_x;
         player_y = next_y;
         dungeon[player_y][player_x] = '@';
     }
 }
-
-
-
 
 
 
