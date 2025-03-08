@@ -12,15 +12,12 @@ typedef struct {
     Monster *monster; // Pointer to the monster
 } Event;
 
-// Function to check if any monster has reached the player
+// Function to check if any monster has reached the player's position
 int isGameOver() {
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            if (monsterAt[y][x] != NULL && 
-                monsterAt[y][x]->x == player_x && 
-                monsterAt[y][x]->y == player_y) {
-                return 1; // A monster is at the player's position
-            }
+    for (int i = 0; i < num_monsters; i++) {
+        if (monsters[i] && monsters[i]->alive && 
+            monsters[i]->x == player_x && monsters[i]->y == player_y) {
+            return 1; // A living monster is at the player's position
         }
     }
     return 0; // No monster has reached the player
@@ -86,7 +83,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (!nummonFlag) {
-        numMonsters = 10;
+        numMonsters = 10; // Default number of monsters
     }
 
     if (load) {
@@ -129,6 +126,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Insert initial events for all monsters
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i] && monsters[i]->alive) {
             Event event = {0, monsters[i]};
@@ -145,16 +143,17 @@ int main(int argc, char *argv[]) {
         Monster *monster = monsterAt[curr_y][curr_x];
 
         if (!monster || !monster->alive) {
-            continue;
+            continue; // Skip if monster is dead or missing
         }
 
         moveMonster(monster);
 
-        // Check if any monster has reached the player
+        // Check for game over after every monster move
         if (isGameOver()) {
-            printf("\nTurn %d: Monster reached '@'!\n", turn);
+            printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
+                   turn, monster->symbol, player_x, player_y);
             printDungeon();
-            printf("GAME OVER\n");
+            printf("GAME OVER: Player has been defeated!\n");
             break; // Exit the game loop immediately
         }
 
