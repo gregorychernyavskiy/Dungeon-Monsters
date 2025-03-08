@@ -13,13 +13,15 @@ typedef struct {
 } Event;
 
 // Function to check if any monster has reached the player's position
-int isGameOver() {
+int isGameOver(Monster **culprit) {
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i] && monsters[i]->alive && 
             monsters[i]->x == player_x && monsters[i]->y == player_y) {
+            *culprit = monsters[i]; // Return the monster that caused game over
             return 1; // A living monster is at the player's position
         }
     }
+    *culprit = NULL;
     return 0; // No monster has reached the player
 }
 
@@ -149,9 +151,22 @@ int main(int argc, char *argv[]) {
         moveMonster(monster);
 
         // Check for game over after every monster move
-        if (isGameOver()) {
+        Monster *culprit = NULL;
+        if (isGameOver(&culprit)) {
+            // Find the monster's symbol by its index in the monsters array
+            char symbol = '0'; // Default fallback
+            for (int i = 0; i < num_monsters; i++) {
+                if (monsters[i] == culprit) {
+                    if (i < 10) {
+                        symbol = '0' + i; // 0-9
+                    } else {
+                        symbol = 'a' + (i - 10); // a-f
+                    }
+                    break;
+                }
+            }
             printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
-                   turn, monster->symbol, player_x, player_y);
+                   turn, symbol, player_x, player_y);
             printDungeon();
             printf("GAME OVER: Player has been defeated!\n");
             break; // Exit the game loop immediately
