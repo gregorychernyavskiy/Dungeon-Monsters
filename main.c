@@ -63,5 +63,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            monsterAt[y][x] = NULL;
+        }
+    }
+
     return 0;
 }

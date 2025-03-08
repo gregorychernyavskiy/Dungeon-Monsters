@@ -1,6 +1,7 @@
 #include "dungeon_generation.h"
 #include "minheap.h"
 #include <unistd.h>
+#include <ctype.h>
 
 char dungeon[HEIGHT][WIDTH];                 
 unsigned char hardness[HEIGHT][WIDTH];     
@@ -8,8 +9,11 @@ struct Room rooms[MAX_ROOMS];
 int distance_non_tunnel[HEIGHT][WIDTH];
 int distance_tunnel[HEIGHT][WIDTH];
 
-Monster *monsters = NULL;
+// Monsters is an array of pointers to Monster structs
+Monster *monsters = NULL; // Still declared as Monster *, but will hold Monster ** after allocation
 int num_monsters = 0;
+
+Monster *monsterAt[HEIGHT][WIDTH]; // Add declaration here since it's extern in header
 
 int player_x;
 int player_y;
@@ -185,6 +189,17 @@ void placePlayer() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 Monster *createMonsterWithMonType(char c, int x, int y) {
     Monster *monster = malloc(sizeof(Monster));
     if (!monster) {
@@ -302,10 +317,12 @@ int spawnMonsters(int numMonsters) {
                 if (!temp) continue;
                 monsters = temp;
                 monsters[num_monsters] = createMonster(x, y);
-                monsters[num_monsters]->tunneling = 1;
-                monsterAt[y][x] = monsters[num_monsters];
-                num_monsters++;
-                placed = 1;
+                if (monsters[num_monsters]) {
+                    monsters[num_monsters]->tunneling = 1;
+                    monsterAt[y][x] = monsters[num_monsters];
+                    num_monsters++;
+                    placed = 1;
+                }
                 break;
             }
         }
@@ -327,10 +344,12 @@ int spawnMonsters(int numMonsters) {
                 if (!temp) continue;
                 monsters = temp;
                 monsters[num_monsters] = createMonster(x, y);
-                monsters[num_monsters]->tunneling = 0;
-                monsterAt[y][x] = monsters[num_monsters];
-                num_monsters++;
-                placed = 1;
+                if (monsters[num_monsters]) {
+                    monsters[num_monsters]->tunneling = 0;
+                    monsterAt[y][x] = monsters[num_monsters];
+                    num_monsters++;
+                    placed = 1;
+                }
                 break;
             }
         }
@@ -407,8 +426,8 @@ void runGame(int numMonsters) {
         monsters_alive = 0;
         for (int i = 0; i < num_monsters; i++) {
             if (monsters[i]->alive) {
-                moveMonster(monsters[i]);  // Pass pointer directly
-                monsters_alive++;
+                moveMonster(monsters[i]); // Pass pointer directly
+                if (monsters[i]->alive) monsters_alive++;
             }
         }
         sleep(1); // Add delay to see movement
