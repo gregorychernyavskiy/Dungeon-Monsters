@@ -50,7 +50,7 @@ extern unsigned char hardness[HEIGHT][WIDTH];
 extern struct Room rooms[MAX_ROOMS];
 extern int distance_non_tunnel[HEIGHT][WIDTH];
 extern int distance_tunnel[HEIGHT][WIDTH];
-extern Monster *monsters;
+extern Monster **monsters; // An array of pointers to Monster structs
 extern int num_monsters;
 extern Monster *monsterAt[HEIGHT][WIDTH];
 
