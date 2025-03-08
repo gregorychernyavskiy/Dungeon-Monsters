@@ -193,16 +193,6 @@ void placePlayer() {
 
 
 
-// In dungeon_generation.c, after dungeon generation (e.g., in connectRooms or initializeHardness)
-void initializeOriginalDungeon() {
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            original_dungeon[y][x] = dungeon[y][x];
-        }
-    }
-}
-
-// Modified movePlayer
 void movePlayer(void) {
     int curr_x = player_x;
     int curr_y = player_y;
@@ -212,20 +202,43 @@ void movePlayer(void) {
     int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
     int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
+    // Pick a random direction
     int dir = rand() % 8;
     int nx = curr_x + dx[dir];
     int ny = curr_y + dy[dir];
 
+    // Check if the new position is valid
     if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
         hardness[ny][nx] == 0 && !monsterAt[ny][nx]) {
         next_x = nx;
         next_y = ny;
     }
 
+    // Update player position if moved
     if (next_x != curr_x || next_y != curr_y) {
-        // Restore original terrain from the stored map
-        dungeon[curr_y][curr_x] = original_dungeon[curr_y][curr_x];
+        // Determine the original terrain at the current position
+        char original_terrain;
+        if (curr_y == upStairs[0].y && curr_x == upStairs[0].x) {
+            original_terrain = '<';
+        } else if (curr_y == downStairs[0].y && curr_x == downStairs[0].x) {
+            original_terrain = '>';
+        } else {
+            // Check if the current position is in a room or corridor
+            int in_room = 0;
+            for (int i = 0; i < num_rooms; i++) {
+                if (curr_x >= rooms[i].x && curr_x < rooms[i].x + rooms[i].width &&
+                    curr_y >= rooms[i].y && curr_y < rooms[i].y + rooms[i].height) {
+                    in_room = 1;
+                    break;
+                }
+            }
+            original_terrain = in_room ? '.' : '#'; // Room -> '.', Corridor -> '#'
+        }
 
+        // Restore the original terrain
+        dungeon[curr_y][curr_x] = original_terrain;
+
+        // Update player position
         player_x = next_x;
         player_y = next_y;
         dungeon[player_y][player_x] = '@';

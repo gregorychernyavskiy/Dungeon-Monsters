@@ -72,8 +72,6 @@ extern char *dungeonFile;
 extern struct Stairs upStairs[MAX_ROOMS];
 extern struct Stairs downStairs[MAX_ROOMS];
 
-extern char original_dungeon[HEIGHT][WIDTH];
-
 void printDungeon();
 void emptyDungeon();
 int overlapCheck(struct Room r1, struct Room r2);
