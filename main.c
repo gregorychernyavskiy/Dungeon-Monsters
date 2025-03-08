@@ -9,34 +9,40 @@
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
-    int load = 0, save = 0, numMonsters = 0;
+    int load = 0, save = 0;
     char *saveFileName = NULL;
     char *loadFileName = NULL;
+    int numMonsters = 0;
 
     // Parse command-line arguments
-    int i = 1;
-    while (i < argc) {
-        if (strcmp(argv[i], "--save") == 0) {
+    if (argc > 1) {
+        if (strcmp(argv[1], "--save") == 0) {
             save = 1;
-            if (i + 1 < argc) {
-                saveFileName = argv[i + 1];
-                i += 2;
+            if (argc == 3) {
+                saveFileName = argv[2];
             } else {
                 printf("Error: Missing filename for --save\n");
                 return 1;
             }
-        } else if (strcmp(argv[i], "--load") == 0) {
+            if (argc > 3) {
+                printf("Error: --save does not support additional arguments\n");
+                return 1;
+            }
+        } else if (strcmp(argv[1], "--load") == 0) {
             load = 1;
-            if (i + 1 < argc) {
-                loadFileName = argv[i + 1];
-                i += 2;
+            if (argc == 3) {
+                loadFileName = argv[2];
             } else {
                 printf("Error: Missing filename for --load\n");
                 return 1;
             }
-        } else {
-            // Assume it's a number of monsters
-            char *numStr = argv[i];
+            if (argc > 3) {
+                printf("Error: --load does not support additional arguments\n");
+                return 1;
+            }
+        } else if (argc == 2) {
+            // Check if it's a number of monsters
+            char *numStr = argv[1];
             int valid = 1;
             for (int j = 0; numStr[j] != '\0'; j++) {
                 if (!isdigit(numStr[j])) {
@@ -51,10 +57,13 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
             } else {
-                printf("Error: Unrecognized argument or invalid number '%s'\n", numStr);
+                printf("Error: Unrecognized argument '%s'\n", numStr);
                 return 1;
             }
-            i++;
+        } else {
+            printf("Error: Invalid arguments\n");
+            printf("Usage: ./dungeon [num_monsters | --save <filename> | --load <filename>]\n");
+            return 1;
         }
     }
 
@@ -79,34 +88,35 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // Initialize dungeon based on load or generate new
-    if (load) {
-        if (loadFileName) {
+    // Case 2: --save or --load - Handle dungeon without monsters
+    if (save || load) {
+        if (load) {
             loadDungeon(loadFileName);
         } else {
-            printf("Error: No file path specified for loading!\n");
-            return 1;
+            emptyDungeon();
+            createRooms();
+            connectRooms();
+            placeStairs();
+            placePlayer();
+            initializeHardness();
         }
-    } else {
-        emptyDungeon();
-        createRooms();
-        connectRooms();
-        placeStairs();
-        placePlayer();
-        initializeHardness();
-    }
 
-    // If only --save or --load without monsters, print and possibly save
-    if (numMonsters == 0) {
         printf("Dungeon:\n");
         printDungeon();
-        if (save && saveFileName) {
+        if (save) {
             saveDungeon(saveFileName);
         }
         return 0;
     }
 
-    // Case 2: Run game with monsters
+    // Case 3: Run game with monsters
+    emptyDungeon();
+    createRooms();
+    connectRooms();
+    placeStairs();
+    placePlayer();
+    initializeHardness();
+
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             monsterAt[y][x] = NULL;
@@ -202,10 +212,6 @@ int main(int argc, char *argv[]) {
         printf("\nTurn %d: Player at (%d, %d):\n", turn++, player_x, player_y);
         printDungeon();
         usleep(250000);
-    }
-
-    if (save && saveFileName) {
-        saveDungeon(saveFileName);
     }
 
     // Cleanup
