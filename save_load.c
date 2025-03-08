@@ -180,9 +180,6 @@ void loadDungeon(char *nameOfFile) {
         dungeon[downStairs[i].y][downStairs[i].x] = '>';
     }
 
-    // Copy the dungeon state into original_dungeon before placing the player
-    memcpy(original_dungeon, dungeon, HEIGHT * WIDTH * sizeof(char));
-
     //Set player position
     dungeon[player_y][player_x] = '@';
 
