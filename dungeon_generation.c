@@ -193,6 +193,16 @@ void placePlayer() {
 
 
 
+// In dungeon_generation.c, after dungeon generation (e.g., in connectRooms or initializeHardness)
+void initializeOriginalDungeon() {
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            original_dungeon[y][x] = dungeon[y][x];
+        }
+    }
+}
+
+// Modified movePlayer
 void movePlayer(void) {
     int curr_x = player_x;
     int curr_y = player_y;
@@ -202,33 +212,20 @@ void movePlayer(void) {
     int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
     int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-    // Pick a random direction
     int dir = rand() % 8;
     int nx = curr_x + dx[dir];
     int ny = curr_y + dy[dir];
 
-    // Check if the new position is valid
     if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
         hardness[ny][nx] == 0 && !monsterAt[ny][nx]) {
         next_x = nx;
         next_y = ny;
     }
 
-    // Update player position if moved
     if (next_x != curr_x || next_y != curr_y) {
-        // Clear the current player position before moving
-        if (curr_y == upStairs[0].y && curr_x == upStairs[0].x) {
-            dungeon[curr_y][curr_x] = '<';
-        } else if (curr_y == downStairs[0].y && curr_x == downStairs[0].x) {
-            dungeon[curr_y][curr_x] = '>';
-        } else {
-            // Restore the original dungeon character, preserving '#' for corridors
-            char original = dungeon[curr_y][curr_x];
-            dungeon[curr_y][curr_x] = (original == '@') ? 
-                                     (hardness[curr_y][curr_x] == 0 ? '.' : '#') : original;
-        }
+        // Restore original terrain from the stored map
+        dungeon[curr_y][curr_x] = original_dungeon[curr_y][curr_x];
 
-        // Update player position
         player_x = next_x;
         player_y = next_y;
         dungeon[player_y][player_x] = '@';
