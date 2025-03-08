@@ -8,6 +8,7 @@
 #include <time.h>
 #include <endian.h>
 #include <limits.h>
+#include "minheap.h"
 
 #define WIDTH 80
 #define HEIGHT 21
@@ -24,8 +25,6 @@
 #define MAX_HARDNESS 255
 #define MIN_HARDNESS 1
 
-#define INFINITY INT_MAX
-
 struct Room {
     int x;
     int y;
@@ -37,18 +36,6 @@ struct Stairs {
     int x;
     int y;
 };
-
-typedef struct {
-    int x;
-    int y;
-    int distance;
-} HeapNode;
-
-typedef struct {
-    HeapNode *nodes;
-    int size;
-    int capacity;
-} MinHeap;
 
 extern char dungeon[HEIGHT][WIDTH];         
 extern unsigned char hardness[HEIGHT][WIDTH]; 
@@ -78,16 +65,8 @@ void printHardness();
 void saveDungeon(char *filename);
 void loadDungeon(char *filename);
 
-// New pathfinding functions
-MinHeap* createMinHeap(int capacity);
-void heapify(MinHeap* heap, int idx);
-void insertHeap(MinHeap* heap, HeapNode node);
-HeapNode extractMin(MinHeap* heap);
-
-
 void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]);
 void printNonTunnelingMap();
-
 void dijkstraTunneling(int dist[HEIGHT][WIDTH]);
 void printTunnelingMap();
 
