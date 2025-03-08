@@ -1,12 +1,10 @@
 #include "dungeon_generation.h"
-#include <unistd.h> // For sleep()
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0;
     char *saveFileName = NULL;
     char *loadFileName = NULL;
-    int numMonsters = 5;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--save") == 0) {
@@ -14,12 +12,18 @@ int main(int argc, char *argv[]) {
             if (i + 1 < argc) {
                 saveFileName = argv[i + 1];
                 i++;
+            } else {
+                printf("Error: Missing filename for --save\n");
+                return 1;
             }
         } else if (strcmp(argv[i], "--load") == 0) {
             load = 1;
             if (i + 1 < argc) {
                 loadFileName = argv[i + 1];
                 i++;
+            } else {
+                printf("Error: Missing filename for --load\n");
+                return 1;
             }
         }
     }
@@ -40,10 +44,15 @@ int main(int argc, char *argv[]) {
         initializeHardness();
     }
 
-    printf("Initial Dungeon:\n");
+    //print functions
+    printf("Dungeon:\n");
     printDungeon();
-    
-    runGame(numMonsters);
+    //printf("\nHardness:\n");
+    //printHardness();
+    printf("\nNon-Tunneling Distance Map:\n");
+    printNonTunnelingMap();
+    printf("\nTunneling Distance Map:\n");
+    printTunnelingMap();
 
     if (save) {
         if (saveFileName) {
@@ -52,13 +61,6 @@ int main(int argc, char *argv[]) {
             printf("Error: No file path specified for saving!\n");
             return 1;
         }
-    }
-
-    if (monsters) {
-        for (int i = 0; i < num_monsters; i++) {
-            if (monsters[i]) free(monsters[i]);
-        }
-        free(monsters);
     }
 
     return 0;
