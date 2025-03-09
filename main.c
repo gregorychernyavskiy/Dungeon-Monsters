@@ -13,10 +13,9 @@ int main(int argc, char *argv[]) {
                 saveFileName = argv[2];
             } else {
                 printf("Error: Missing filename for --save\n");
-                return 1;
-            }
-            if (argc > 3) {
-                printf("Error: --save does not support additional arguments\n");
+                printf("Usage: ./dungeon --save <filename>\n");
+                printf("       ./dungeon --load <filename>\n");
+                printf("       ./dungeon <num_monsters> (1-15)\n");
                 return 1;
             }
         } else if (strcmp(argv[1], "--load") == 0) {
@@ -25,10 +24,9 @@ int main(int argc, char *argv[]) {
                 loadFileName = argv[2];
             } else {
                 printf("Error: Missing filename for --load\n");
-                return 1;
-            }
-            if (argc > 3) {
-                printf("Error: --load does not support additional arguments\n");
+                printf("Usage: ./dungeon --save <filename>\n");
+                printf("       ./dungeon --load <filename>\n");
+                printf("       ./dungeon <num_monsters> (1-15)\n");
                 return 1;
             }
         } else if (argc == 2) {
@@ -45,29 +43,38 @@ int main(int argc, char *argv[]) {
                 numMonsters = atoi(numStr);
                 if (numMonsters < 1 || numMonsters > 15) {
                     printf("Error: Number of monsters must be between 1 and 15\n");
+                    printf("Usage: ./dungeon --save <filename>\n");
+                    printf("       ./dungeon --load <filename>\n");
+                    printf("       ./dungeon <num_monsters> (1-15)\n");
                     return 1;
                 }
             } else {
                 printf("Error: Unrecognized argument '%s'\n", numStr);
+                printf("Usage: ./dungeon --save <filename>\n");
+                printf("       ./dungeon --load <filename>\n");
+                printf("       ./dungeon <num_monsters> (1-15)\n");
                 return 1;
             }
         } else {
             printf("Error: Invalid arguments\n");
-            printf("Usage: ./dungeon [num_monsters | --save <filename> | --load <filename>]\n");
+            printf("Usage: ./dungeon --save <filename>\n");
+            printf("       ./dungeon --load <filename>\n");
+            printf("       ./dungeon <num_monsters> (1-15)\n");
             return 1;
         }
+    } else {
+        printf("Error: No arguments provided\n");
+        printf("Usage: ./dungeon --save <filename>\n");
+        printf("       ./dungeon --load <filename>\n");
+        printf("       ./dungeon <num_monsters> (1-15)\n");
+        return 1;
     }
 
     // Handle --save or --load (no monsters)
     if (save || load) {
         if (load) {
-            if (loadFileName) {
-                loadDungeon(loadFileName);
-            } else {
-                printf("Error: No file path specified for loading!\n");
-                return 1;
-            }
-        } else {
+            loadDungeon(loadFileName);
+        } else { // save
             emptyDungeon();
             createRooms();
             connectRooms();
@@ -87,38 +94,12 @@ int main(int argc, char *argv[]) {
         printTunnelingMap();
 
         if (save) {
-            if (saveFileName) {
-                saveDungeon(saveFileName);
-            } else {
-                printf("Error: No file path specified for saving!\n");
-                return 1;
-            }
+            saveDungeon(saveFileName);
         }
         return 0;
     }
 
-    // Case 1: No arguments - Generate and print dungeon info (no monsters)
-    if (argc == 1) {
-        emptyDungeon();
-        createRooms();
-        connectRooms();
-        placeStairs();
-        placePlayer();
-        initializeHardness();
-
-        printf("Generated Dungeon:\n");
-        printDungeon();
-        printf("\nHardness Map:\n");
-        printHardness();
-        printf("\nNon-Tunneling Distance Map:\n");
-        printNonTunnelingMap();
-        printf("\nTunneling Distance Map:\n");
-        printTunnelingMap();
-
-        return 0;
-    }
-
-    // Case 2: Run game with monsters
+    // Case: Run game with monsters
     emptyDungeon();
     createRooms();
     connectRooms();
