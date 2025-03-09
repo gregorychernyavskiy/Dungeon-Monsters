@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
             moveMonster(monster);
 
             Monster *culprit = NULL;
-            if (isGameOver(&culprit)) {
+            if (gameOver(&culprit)) {
                 int personality = culprit->intelligent + 
                                   (culprit->telepathic << 1) + 
                                   (culprit->tunneling << 2) + 
@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
             movePlayer();
 
             Monster *culprit = NULL;
-            if (isGameOver(&culprit)) {
+            if (gameOver(&culprit)) {
                 int personality = culprit->intelligent + 
                                   (culprit->telepathic << 1) + 
                                   (culprit->tunneling << 2) + 
