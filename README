@@ -17,3 +17,6 @@ Save the dungeon:
 
 Load a saved dungeon:
 ./dungeon --load "filename"
+
+Populate dungeon with monsters (between 1 and 15):
+./dungeon "number" (1-15)
