@@ -74,7 +74,6 @@ extern char *dungeonFile;
 extern struct Stairs upStairs[MAX_ROOMS];
 extern struct Stairs downStairs[MAX_ROOMS];
 
-
 void printDungeon();
 void emptyDungeon();
 int overlapCheck(struct Room r1, struct Room r2);
@@ -92,11 +91,11 @@ void printNonTunnelingMap();
 void dijkstraTunneling(int dist[HEIGHT][WIDTH]);
 void printTunnelingMap();
 
-Monster *createMonsterWithMonType(char c, int x, int y);
-Monster *createMonster(int x, int y);
-int spawnMonsterWithMonType(char monType);
+Monster *generateMonsterByType(char c, int x, int y);
+Monster *generateMonster(int x, int y);
+int spawnMonsterByType(char monType);
 int spawnMonsters(int count);
-void moveMonster(Monster *monster);
+void relocateMonster(Monster *monster);
 void runGame(int numMonsters);
 
 int gameOver(Monster **culprit);

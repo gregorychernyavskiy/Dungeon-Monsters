@@ -258,7 +258,7 @@ void movePlayer(void) {
 
 
 
-Monster *createMonsterWithMonType(char c, int x, int y) {
+Monster *generateMonsterByType(char c, int x, int y) {
     Monster *monster = malloc(sizeof(Monster));
     if (!monster) {
         fprintf(stderr, "Error: Failed to allocate memory for monster\n");
@@ -291,7 +291,7 @@ Monster *createMonsterWithMonType(char c, int x, int y) {
     return monster;
 }
 
-Monster *createMonster(int x, int y) {
+Monster *generateMonster(int x, int y) {
     Monster *monster = malloc(sizeof(Monster));
     if (!monster) {
         fprintf(stderr, "Error: Failed to allocate memory for monster\n");
@@ -315,7 +315,7 @@ Monster *createMonster(int x, int y) {
 
 
 
-void moveMonster(Monster *monster) {
+void relocateMonster(Monster *monster) {
     if (!monster->alive) return;
 
     int dist[HEIGHT][WIDTH];
@@ -359,7 +359,7 @@ void moveMonster(Monster *monster) {
 
 
 
-int spawnMonsterWithMonType(char monType) {
+int spawnMonsterByType(char monType) {
     Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
     if (!temp) {
         fprintf(stderr, "Error: Failed to allocate memory for monsters\n");
@@ -381,7 +381,7 @@ int spawnMonsterWithMonType(char monType) {
             continue;
         }
         
-        monsters[num_monsters] = createMonsterWithMonType(monType, x, y);
+        monsters[num_monsters] = generateMonsterByType(monType, x, y);
         if (!monsters[num_monsters]) {
             return 1;
         }
@@ -434,7 +434,7 @@ int spawnMonsters(int numMonsters) {
                 Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
                 if (!temp) continue;
                 monsters = temp;
-                monsters[num_monsters] = createMonster(x, y);
+                monsters[num_monsters] = generateMonster(x, y);
                 if (monsters[num_monsters]) {
                     monsters[num_monsters]->tunneling = 1;
                     monsterAt[y][x] = monsters[num_monsters];
@@ -465,7 +465,7 @@ int spawnMonsters(int numMonsters) {
                 Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
                 if (!temp) continue;
                 monsters = temp;
-                monsters[num_monsters] = createMonster(x, y);
+                monsters[num_monsters] = generateMonster(x, y);
                 if (monsters[num_monsters]) {
                     monsters[num_monsters]->tunneling = 0;
                     monsterAt[y][x] = monsters[num_monsters];
@@ -502,7 +502,7 @@ void runGame(int numMonsters) {
         monsters_alive = 0;
         for (int i = 0; i < num_monsters; i++) {
             if (monsters[i]->alive) {
-                moveMonster(monsters[i]);
+                relocateMonster(monsters[i]);
                 if (monsters[i]->alive) monsters_alive++;
             }
         }
