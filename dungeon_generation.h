@@ -14,7 +14,7 @@
 #define HEIGHT 21
 #define MAX_ROOMS 8
 #define MIN_ROOMS 6
-#define MIN_ROOM_HEIGHT No arguments: Generate and print dungeon
+#define MIN_ROOM_HEIGHT 3
 #define MAX_ROOM_HEIGHT 9
 #define MIN_ROOM_WIDTH 4
 #define MAX_ROOM_WIDTH 12
