@@ -1,3 +1,12 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <ctype.h>
+#include "dungeon_generation.h"
+#include "minheap.h"
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0, numMonsters = 0;
@@ -122,15 +131,14 @@ int main(int argc, char *argv[]) {
             moveMonster(monster);
 
             Monster *culprit = NULL;
-            if (gameOver(&culprit)) {
+            if (isGameOver(&culprit)) {
                 int personality = culprit->intelligent + 
                                   (culprit->telepathic << 1) + 
                                   (culprit->tunneling << 2) + 
-                                  (culprit->erratic << 3) +
-                                  (culprit->strong << 4);
-                char symbol = personality < 26 ? 'A' + personality : '0' + (personality - 26);
+                                  (culprit->erratic << 3);
+                char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
                 printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
-                       turn, toupper(symbol), player_x, player_y);
+                       turn, symbol, player_x, player_y);
                 printDungeon();
                 printf("GAME OVER: Player has been defeated!\n");
                 break;
@@ -145,15 +153,14 @@ int main(int argc, char *argv[]) {
             movePlayer();
 
             Monster *culprit = NULL;
-            if (gameOver(&culprit)) {
+            if (isGameOver(&culprit)) {
                 int personality = culprit->intelligent + 
                                   (culprit->telepathic << 1) + 
                                   (culprit->tunneling << 2) + 
-                                  (culprit->erratic << 3) +
-                                  (culprit->strong << 4);
-                char symbol = personality < 26 ? 'A' + personality : '0' + (personality - 26);
+                                  (culprit->erratic << 3);
+                char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
                 printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
-                       turn, toupper(symbol), player_x, player_y);
+                       turn, symbol, player_x, player_y);
                 printDungeon();
                 printf("GAME OVER: Player has been defeated!\n");
                 break;
