@@ -9,74 +9,63 @@
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
-    int load = 0, save = 0;
-    char *saveFileName = NULL;
-    char *loadFileName = NULL;
-    int numMonsters = 0;
+    int load = 0, save = 0, numMonsters = 0;
+    char *saveFileName = "dungeon"; // Default save file name
+    char *loadFileName = "dungeon"; // Default load file name
 
     // Parse command-line arguments
-    if (argc > 1) {
-        if (strcmp(argv[1], "--save") == 0) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--save") == 0) {
             save = 1;
-            if (argc == 3) {
-                saveFileName = argv[2];
-            } else {
-                printf("Error: Missing filename for --save\n");
-                printf("Usage: ./dungeon [--save <filename>] [--load <filename>] [<num_monsters> (1-15)]\n");
-                return 1;
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                saveFileName = argv[++i];
             }
-        } else if (strcmp(argv[1], "--load") == 0) {
+        } else if (strcmp(argv[i], "--load") == 0) {
             load = 1;
-            if (argc == 3) {
-                loadFileName = argv[2];
-            } else {
-                printf("Error: Missing filename for --load\n");
-                printf("Usage: ./dungeon [--save <filename>] [--load <filename>] [<num_monsters> (1-15)]\n");
-                return 1;
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                loadFileName = argv[++i];
             }
-        } else if (argc == 2) {
-            // Check if it's a number of monsters
-            char *numStr = argv[1];
-            int valid = 1;
-            for (int j = 0; numStr[j] != '\0'; j++) {
-                if (!isdigit(numStr[j])) {
-                    valid = 0;
-                    break;
-                }
-            }
-            if (valid && strlen(numStr) > 0) {
-                numMonsters = atoi(numStr);
+        } else if (strcmp(argv[i], "--nummon") == 0) {
+            if (i + 1 < argc && isdigit(argv[i + 1][0])) {
+                numMonsters = atoi(argv[++i]);
                 if (numMonsters < 1 || numMonsters > 15) {
                     printf("Error: Number of monsters must be between 1 and 15\n");
-                    printf("Usage: ./dungeon [--save <filename>] [--load <filename>] [<num_monsters> (1-15)]\n");
+                    printf("Usage: ./dungeon [--save [filename]] [--load [filename]] [--nummon <1-15>]\n");
                     return 1;
                 }
             } else {
-                printf("Error: Unrecognized argument '%s'\n", numStr);
-                printf("Usage: ./dungeon [--save <filename>] [--load <filename>] [<num_monsters> (1-15)]\n");
+                printf("Error: --nummon requires a number between 1 and 15\n");
+                printf("Usage: ./dungeon [--save [filename]] [--load [filename]] [--nummon <1-15>]\n");
                 return 1;
             }
         } else {
-            printf("Error: Invalid arguments\n");
-            printf("Usage: ./dungeon [--save <filename>] [--load <filename>] [<num_monsters> (1-15)]\n");
+            printf("Error: Unrecognized argument '%s'\n", argv[i]);
+            printf("Usage: ./dungeon [--save [filename]] [--load [filename]] [--nummon <1-15>]\n");
             return 1;
         }
     }
 
-    // If no arguments or only --save/--load
-    if (argc == 1 || save || load) {
-        if (load) {
-            loadDungeon(loadFileName);
-        } else { // Default or --save
-            emptyDungeon();
-            createRooms();
-            connectRooms();
-            placeStairs();
-            placePlayer();
-            initializeHardness();
+    // Initialize monsterAt array
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            monsterAt[y][x] = NULL;
         }
+    }
 
-        // Print dungeon and maps
+    // Handle dungeon generation or loading
+    if (load) {
+        loadDungeon(loadFileName);
+    } else {
+        emptyDungeon();
+        createRooms();
+        connectRooms();
+        placeStairs();
+        placePlayer();
+        initializeHardness();
+    }
+
+    // If no monsters specified and not just saving/loading, print maps and exit
+    if (numMonsters == 0) {
         printf("Dungeon:\n");
         printDungeon();
         printf("\nHardness Map:\n");
@@ -92,20 +81,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // Case: Run game with monsters
-    emptyDungeon();
-    createRooms();
-    connectRooms();
-    placeStairs();
-    placePlayer();
-    initializeHardness();
-
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            monsterAt[y][x] = NULL;
-        }
-    }
-
+    // Game mode with monsters
     if (spawnMonsters(numMonsters)) {
         printf("Failed to spawn monsters\n");
         return 1;
@@ -204,6 +180,10 @@ int main(int argc, char *argv[]) {
         if (monsters[i]) free(monsters[i]);
     }
     free(monsters);
+
+    if (save) {
+        saveDungeon(saveFileName);
+    }
 
     return 0;
 }
