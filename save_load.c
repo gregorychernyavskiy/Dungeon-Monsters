@@ -1,189 +1,203 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <endian.h>
-
+#include <time.h>
+#include <unistd.h>
+#include <ctype.h>
 #include "dungeon_generation.h"
+#include "minheap.h"
 
-char *dungeonFile;
+int main(int argc, char *argv[]) {
+    srand(time(NULL));
+    int load = 0, save = 0, numMonsters = 0;
+    char *saveFileName = NULL;
+    char *loadFileName = NULL;
 
-void setupDungeonFile(char *nameOfFile) {
-    char *home = getenv("HOME");
-    int fileLength = strlen(home) + strlen("/.rlg327/") + strlen(nameOfFile) + 1;
-
-    dungeonFile = malloc(fileLength);
-    if (!dungeonFile) {
-        perror("Memory allocation failed...");
-        exit(EXIT_FAILURE);
-    }
-
-    strcpy(dungeonFile, home);
-    strcat(dungeonFile, "/.rlg327/");
-    strcat(dungeonFile, nameOfFile);
-}
-
-void saveDungeon(char *nameOfFile) {
-    setupDungeonFile(nameOfFile);
-    FILE *file = fopen(dungeonFile, "w");
-
-    if (!file) {
-        perror("Error! Cannot open the file...");
-        exit(EXIT_FAILURE);
-    }
-    //Offset 0
-    fwrite("RLG327-S2025", 1, 12, file);
-    
-    //Offset 12
-    uint32_t versionMaker = htobe32(0);
-    fwrite(&versionMaker, 4, 1, file);
-
-    //Offset 16
-    uint32_t sizeOfTheFile = htobe32(1712 + num_rooms * 4);
-    fwrite(&sizeOfTheFile, 4, 1, file);
-
-    //Offset 20
-    uint8_t position[2] = {(uint8_t) player_x, (uint8_t) player_y};
-    fwrite(&position, 2, 1, file);
-
-    //Offset 22
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            fwrite(&hardness[y][x], 1, 1, file);
-        }
-    }
-
-    //Offset 1702
-    uint16_t r = htobe16(num_rooms);
-    fwrite(&r, 2, 1, file);
-
-    //Offset 1704
-    for (int i = 0; i < num_rooms; i++) {
-        uint8_t room[4] = {rooms[i].x, rooms[i].y, rooms[i].width, rooms[i].height};
-        fwrite(room, 4, 1, file);
-    }
-
-    //Offset 1704 + r × 4
-    uint16_t upstairs = htobe16(upStairsCount);
-    fwrite(&upstairs, 2, 1, file);
-    //Write upstairs positions
-    for (int i = 0; i < upStairsCount; i++) {
-        uint8_t upStairsNum[2] = {(uint8_t) upStairs[i].x, (uint8_t) upStairs[i].y};
-        fwrite(upStairsNum, 2, 1, file);
-    }
-
-    //Offset 1704 + r × 4 + u × 2
-    uint16_t downstairs = htobe16(downStairsCount);
-    fwrite(&downstairs, 2, 1, file);
-    //Write upstairs positions
-    for (int i = 0; i < downStairsCount; i++) {
-        uint8_t downPos[2] = {(uint8_t) downStairs[i].x, (uint8_t) downStairs[i].y};
-        fwrite(downPos, 2, 1, file);
-    }
-
-    printf("Dungeon saved to %s\n", dungeonFile);
-    fclose(file);
-    free(dungeonFile);
-}
-
-
-
-void loadDungeon(char *nameOfFile) {
-    setupDungeonFile(nameOfFile);
-    FILE *file = fopen(dungeonFile, "r");
-
-    if (!file) {
-        perror("Error! Cannot open the file...");
-        exit(EXIT_FAILURE);
-    }
-
-    //Offset 0
-    char marker[12];
-    fread(marker, 1, 12, file);
-
-    //Offset 12
-    uint32_t versionMaker;
-    fread(&versionMaker, 4, 1, file);
-    versionMaker = be32toh(versionMaker);
-
-    //Offset 16
-    uint32_t sizeOfTheFile;
-    fread(&sizeOfTheFile, 4, 1, file);
-    sizeOfTheFile = be32toh(sizeOfTheFile);
-
-    //Offset 20
-    uint8_t position[2];
-    fread(&position, 2, 1, file);
-    player_x = position[0];
-    player_y = position[1];
-
-    //Offset 22
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            fread(&hardness[y][x], 1, 1, file);
-            //Restore dungeon terrain based on hardness
-            if (hardness[y][x] == 0) {
-                dungeon[y][x] = '#';
-            } else if (hardness[y][x] == 255) {
-                dungeon[y][x] = '+';
+    // Parse command-line arguments
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--save") == 0) {
+            save = 1;
+            if (i + 1 < argc) {
+                saveFileName = argv[i + 1];
+                i++;
             } else {
-                dungeon[y][x] = ' ';
+                printf("Error: Missing filename for --save\n");
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--load") == 0) {
+            load = 1;
+            if (i + 1 < argc) {
+                loadFileName = argv[i + 1];
+                i++;
+            } else {
+                printf("Error: Missing filename for --load\n");
+                return 1;
+            }
+        } else {
+            // Check if the argument is a number for numMonsters
+            char *endptr;
+            long num = strtol(argv[i], &endptr, 10);
+            if (*endptr == '\0' && num >= 0) { // Valid non-negative integer
+                numMonsters = (int)num;
             }
         }
     }
 
-    //Offset 1702
-    uint16_t r;
-    fread(&r, 2, 1, file);
-    num_rooms = be16toh(r);
-
-    //Offset 1704
-    for (int i = 0; i < num_rooms; i++) {
-        uint8_t room[4];
-        fread(room, 4, 1, file);
-        rooms[i].x = room[0];
-        rooms[i].y = room[1];
-        rooms[i].width = room[2];
-        rooms[i].height = room[3];
-
-        //Restore rooms
-        for (int y = rooms[i].y; y < rooms[i].y + rooms[i].height; y++) {
-            for (int x = rooms[i].x; x < rooms[i].x + rooms[i].width; x++) {
-                dungeon[y][x] = '.';
-            }
+    // Handle load case separately
+    if (load) {
+        if (loadFileName) {
+            loadDungeon(loadFileName);
+            // Print the loaded dungeon and maps
+            printf("Dungeon:\n");
+            printDungeon();
+            printf("\nHardness:\n");
+            printHardness();
+            printf("\nNon-Tunneling Distance Map:\n");
+            printNonTunnelingMap();
+            printf("\nTunneling Distance Map:\n");
+            printTunnelingMap();
+            return 0; // Exit after loading and printing
+        } else {
+            printf("Error: No file path specified for loading!\n");
+            return 1;
         }
     }
 
-    //Offset 1704 + r × 4
-    uint16_t upstairs;
-    fread(&upstairs, 2, 1, file);
-    upStairsCount = be16toh(upstairs);
-    //Read upstairs positions
-    for (int i = 0; i < upStairsCount; i++) {
-        uint8_t upPos[2];
-        fread(upPos, 2, 1, file);
-        upStairs[i].x = upPos[0];
-        upStairs[i].y = upPos[1];
-        dungeon[upStairs[i].y][upStairs[i].x] = '<';
+    // Generate a new dungeon if not loading
+    emptyDungeon();
+    createRooms();
+    connectRooms();
+    placeStairs();
+    placePlayer();
+    initializeHardness();
+
+    // If no monsters specified, just print and optionally save
+    if (numMonsters == 0) {
+        printf("Dungeon:\n");
+        printDungeon();
+        printf("\nHardness:\n");
+        printHardness();
+        printf("\nNon-Tunneling Distance Map:\n");
+        printNonTunnelingMap();
+        printf("\nTunneling Distance Map:\n");
+        printTunnelingMap();
+
+        if (save) {
+            if (saveFileName) {
+                saveDungeon(saveFileName);
+            } else {
+                printf("Error: No file path specified for saving!\n");
+                return 1;
+            }
+        }
+        return 0; // Exit after printing and saving
     }
 
-    //Offset 1704 + r × 4 + u × 2
-    uint16_t downstairs;
-    fread(&downstairs, 2, 1, file);
-    downStairsCount = be16toh(downstairs);
-    //Write upstairs positions
-    for (int i = 0; i < downStairsCount; i++) {
-        uint8_t downPos[2];
-        fread(downPos, 2, 1, file);
-        downStairs[i].x = downPos[0];
-        downStairs[i].y = downPos[1];
-        dungeon[downStairs[i].y][downStairs[i].x] = '>';
+    // Game mode with monsters
+    if (spawnMonsters(numMonsters)) {
+        printf("Failed to spawn monsters\n");
+        return 1;
     }
 
-    //Set player position
-    dungeon[player_y][player_x] = '@';
+    printf("Initial Dungeon:\n");
+    printDungeon();
 
-    printf("Dungeon loaded from %s\n", dungeonFile);
-    fclose(file);
-    free(dungeonFile);
+    MinHeap *eventQueue = createMinHeap(numMonsters + 1); // +1 for player
+    if (!eventQueue) {
+        printf("Error: Failed to create event queue\n");
+        for (int i = 0; i < numMonsters; i++) {
+            if (monsters[i]) free(monsters[i]);
+        }
+        free(monsters);
+        return 1;
+    }
+
+    // Insert initial events for all monsters
+    for (int i = 0; i < numMonsters; i++) {
+        if (monsters[i] && monsters[i]->alive) {
+            Event event = {1000 / monsters[i]->speed, monsters[i]}; // Initial time based on speed
+            HeapNode node = {monsters[i]->x, monsters[i]->y, event.time};
+            insertHeap(eventQueue, node);
+        }
+    }
+
+    // Insert initial event for player (speed = 10)
+    Event playerEvent = {1000 / 10, NULL}; // NULL indicates player
+    HeapNode playerNode = {player_x, player_y, playerEvent.time};
+    insertHeap(eventQueue, playerNode);
+
+    int turn = 0;
+    while (eventQueue->size > 0) {
+        HeapNode nextEventNode = extractMin(eventQueue);
+        int curr_x = nextEventNode.x;
+        int curr_y = nextEventNode.y;
+        Monster *monster = monsterAt[curr_y][curr_x];
+
+        if (monster) { // Monster move
+            if (!monster->alive) {
+                continue;
+            }
+            moveMonster(monster);
+
+            Monster *culprit = NULL;
+            if (isGameOver(&culprit)) {
+                int personality = culprit->intelligent + 
+                                  (culprit->telepathic << 1) + 
+                                  (culprit->tunneling << 2) + 
+                                  (culprit->erratic << 3);
+                char symbol = personality < 10 ? '0' + personality : 'a' + (personality - 10);
+                printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
+                       turn, symbol, player_x, player_y);
+                printDungeon();
+                printf("GAME OVER: Player has been defeated!\n");
+                break;
+            }
+
+            if (monster->alive) {
+                int nextTime = nextEventNode.distance + (1000 / monster->speed);
+                HeapNode newEvent = {monster->x, monster->y, nextTime};
+                insertHeap(eventQueue, newEvent);
+            }
+        } else { // Player move
+            movePlayer();
+
+            Monster *culprit = NULL;
+            if (isGameOver(&culprit)) {
+                int personality = culprit->intelligent + 
+                                  (culprit->telepathic << 1) + 
+                                  (culprit->tunneling << 2) + 
+                                  (culprit->erratic << 3);
+                char symbol = personality < 10 ? '0' + personality : 'a' + (personality - 10);
+                printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
+                       turn, symbol, player_x, player_y);
+                printDungeon();
+                printf("GAME OVER: Player has been defeated!\n");
+                break;
+            }
+
+            int nextTime = nextEventNode.distance + (1000 / 10); // Player speed = 10
+            HeapNode newEvent = {player_x, player_y, nextTime};
+            insertHeap(eventQueue, newEvent);
+        }
+
+        printf("\nTurn %d: Player at (%d, %d):\n", turn++, player_x, player_y);
+        printDungeon();
+        usleep(250000); // 250ms delay for visibility
+    }
+
+    // Cleanup
+    free(eventQueue->nodes);
+    free(eventQueue);
+    for (int i = 0; i < numMonsters; i++) {
+        if (monsters[i]) free(monsters[i]);
+    }
+    free(monsters);
+
+    if (save) {
+        if (saveFileName) {
+            saveDungeon(saveFileName);
+        }
+    }
+
+    return 0;
 }
