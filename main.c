@@ -10,53 +10,38 @@
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0, numMonsters = 0;
-    char *saveFileName = "dungeon"; // Default save file name
-    char *loadFileName = "dungeon"; // Default load file name
+    char *saveFileName = NULL;
+    char *loadFileName = NULL;
 
-    // Parse command-line arguments
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--save") == 0) {
             save = 1;
-            if (i + 1 < argc && argv[i + 1][0] != '-') {
-                saveFileName = argv[++i];
+            if (i + 1 < argc) {
+                saveFileName = argv[i + 1];
+                i++;
+            } else {
+                printf("Error: Missing filename for --save\n");
+                return 1;
             }
         } else if (strcmp(argv[i], "--load") == 0) {
             load = 1;
-            if (i + 1 < argc && argv[i + 1][0] != '-') {
-                loadFileName = argv[++i];
-            }
-        } else if (strcmp(argv[i], "--nummon") == 0) {
-            if (i + 1 < argc && isdigit(argv[i + 1][0])) {
-                numMonsters = atoi(argv[++i]);
-                if (numMonsters < 1 || numMonsters > 15) {
-                    fprintf(stderr, "Error: Number of monsters must be between 1 and 15\n");
-                    fprintf(stderr, "Usage: %s [--save [filename]] [--load [filename]] [--nummon <1-15>]\n", argv[0]);
-                    return 1;
-                }
+            if (i + 1 < argc) {
+                loadFileName = argv[i + 1];
+                i++;
             } else {
-                fprintf(stderr, "Error: --nummon requires a number between 1 and 15\n");
-                fprintf(stderr, "Usage: %s [--save [filename]] [--load [filename]] [--nummon <1-15>]\n", argv[0]);
+                printf("Error: Missing filename for --load\n");
                 return 1;
             }
+        }
+    }
+
+    if (load) {
+        if (loadFileName) {
+            loadDungeon(loadFileName);
         } else {
-            fprintf(stderr, "Error: Unrecognized argument '%s'\n", argv[i]);
-            fprintf(stderr, "Usage: %s [--save [filename]] [--load [filename]] [--nummon <1-15>]\n", argv[0]);
+            printf("Error: No file path specified for loading!\n");
             return 1;
         }
-    }
-
-    // Initialize monsterAt array
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            monsterAt[y][x] = NULL;
-        }
-    }
-
-    // Handle dungeon generation or loading
-    if (load) {
-        loadDungeon(loadFileName);
-        // After loading, initialize hardness based on the loaded dungeon if not already set
-        initializeHardness();
     } else {
         emptyDungeon();
         createRooms();
@@ -66,21 +51,23 @@ int main(int argc, char *argv[]) {
         initializeHardness();
     }
 
-    // If no monsters specified, print maps and optionally save, then exit
-    if (numMonsters == 0) {
-        printf("Dungeon:\n");
-        printDungeon();
-        printf("\nHardness Map:\n");
-        printHardness();
-        printf("\nNon-Tunneling Distance Map:\n");
-        printNonTunnelingMap();
-        printf("\nTunneling Distance Map:\n");
-        printTunnelingMap();
+    //print functions
+    printf("Dungeon:\n");
+    printDungeon();
+    //printf("\nHardness:\n");
+    //printHardness();
+    printf("\nNon-Tunneling Distance Map:\n");
+    printNonTunnelingMap();
+    printf("\nTunneling Distance Map:\n");
+    printTunnelingMap();
 
-        if (save) {
+    if (save) {
+        if (saveFileName) {
             saveDungeon(saveFileName);
+        } else {
+            printf("Error: No file path specified for saving!\n");
+            return 1;
         }
-        return 0;
     }
 
     // Game mode with monsters
