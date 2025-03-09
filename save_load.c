@@ -83,6 +83,8 @@ void saveDungeon(char *nameOfFile) {
     free(dungeonFile);
 }
 
+
+
 void loadDungeon(char *nameOfFile) {
     setupDungeonFile(nameOfFile);
     FILE *file = fopen(dungeonFile, "r");
@@ -92,22 +94,27 @@ void loadDungeon(char *nameOfFile) {
         exit(EXIT_FAILURE);
     }
 
+    // Offset 0
     char marker[12];
     fread(marker, 1, 12, file);
 
+    // Offset 12
     uint32_t versionMaker;
     fread(&versionMaker, 4, 1, file);
     versionMaker = be32toh(versionMaker);
 
+    // Offset 16
     uint32_t sizeOfTheFile;
     fread(&sizeOfTheFile, 4, 1, file);
     sizeOfTheFile = be32toh(sizeOfTheFile);
 
+    // Offset 20
     uint8_t position[2];
     fread(&position, 2, 1, file);
     player_x = position[0];
     player_y = position[1];
 
+    // Offset 22
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             fread(&hardness[y][x], 1, 1, file);
@@ -121,10 +128,12 @@ void loadDungeon(char *nameOfFile) {
         }
     }
 
+    // Offset 1702
     uint16_t r;
     fread(&r, 2, 1, file);
     num_rooms = be16toh(r);
 
+    // Offset 1704
     for (int i = 0; i < num_rooms; i++) {
         uint8_t room[4];
         fread(room, 4, 1, file);
@@ -140,6 +149,7 @@ void loadDungeon(char *nameOfFile) {
         }
     }
 
+    // Offset 1704 + r × 4
     uint16_t upstairs;
     fread(&upstairs, 2, 1, file);
     upStairsCount = be16toh(upstairs);
@@ -151,6 +161,7 @@ void loadDungeon(char *nameOfFile) {
         dungeon[upStairs[i].y][upStairs[i].x] = '<';
     }
 
+    // Offset 1704 + r × 4 + u × 2
     uint16_t downstairs;
     fread(&downstairs, 2, 1, file);
     downStairsCount = be16toh(downstairs);
