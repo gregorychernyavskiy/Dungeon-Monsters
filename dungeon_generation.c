@@ -206,7 +206,6 @@ void placePlayer() {
 
 
 
-// Remove one of these - keep only one instance
 void movePlayer(void) {
     int curr_x = player_x;
     int curr_y = player_y;
