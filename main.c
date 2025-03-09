@@ -1,3 +1,12 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <ctype.h>
+#include "dungeon_generation.h"
+#include "minheap.h"
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0;
@@ -13,9 +22,7 @@ int main(int argc, char *argv[]) {
                 saveFileName = argv[2];
             } else {
                 printf("Error: Missing filename for --save\n");
-                printf("Usage: ./dungeon --save <filename>\n");
-                printf("       ./dungeon --load <filename>\n");
-                printf("       ./dungeon <num_monsters> (1-15)\n");
+                printf("Usage: ./dungeon [--save <filename>] [--load <filename>] [<num_monsters> (1-15)]\n");
                 return 1;
             }
         } else if (strcmp(argv[1], "--load") == 0) {
@@ -24,9 +31,7 @@ int main(int argc, char *argv[]) {
                 loadFileName = argv[2];
             } else {
                 printf("Error: Missing filename for --load\n");
-                printf("Usage: ./dungeon --save <filename>\n");
-                printf("       ./dungeon --load <filename>\n");
-                printf("       ./dungeon <num_monsters> (1-15)\n");
+                printf("Usage: ./dungeon [--save <filename>] [--load <filename>] [<num_monsters> (1-15)]\n");
                 return 1;
             }
         } else if (argc == 2) {
@@ -43,38 +48,26 @@ int main(int argc, char *argv[]) {
                 numMonsters = atoi(numStr);
                 if (numMonsters < 1 || numMonsters > 15) {
                     printf("Error: Number of monsters must be between 1 and 15\n");
-                    printf("Usage: ./dungeon --save <filename>\n");
-                    printf("       ./dungeon --load <filename>\n");
-                    printf("       ./dungeon <num_monsters> (1-15)\n");
+                    printf("Usage: ./dungeon [--save <filename>] [--load <filename>] [<num_monsters> (1-15)]\n");
                     return 1;
                 }
             } else {
                 printf("Error: Unrecognized argument '%s'\n", numStr);
-                printf("Usage: ./dungeon --save <filename>\n");
-                printf("       ./dungeon --load <filename>\n");
-                printf("       ./dungeon <num_monsters> (1-15)\n");
+                printf("Usage: ./dungeon [--save <filename>] [--load <filename>] [<num_monsters> (1-15)]\n");
                 return 1;
             }
         } else {
             printf("Error: Invalid arguments\n");
-            printf("Usage: ./dungeon --save <filename>\n");
-            printf("       ./dungeon --load <filename>\n");
-            printf("       ./dungeon <num_monsters> (1-15)\n");
+            printf("Usage: ./dungeon [--save <filename>] [--load <filename>] [<num_monsters> (1-15)]\n");
             return 1;
         }
-    } else {
-        printf("Error: No arguments provided\n");
-        printf("Usage: ./dungeon --save <filename>\n");
-        printf("       ./dungeon --load <filename>\n");
-        printf("       ./dungeon <num_monsters> (1-15)\n");
-        return 1;
     }
 
-    // Handle --save or --load (no monsters)
-    if (save || load) {
+    // If no arguments or only --save/--load
+    if (argc == 1 || save || load) {
         if (load) {
             loadDungeon(loadFileName);
-        } else { // save
+        } else { // Default or --save
             emptyDungeon();
             createRooms();
             connectRooms();
@@ -124,7 +117,7 @@ int main(int argc, char *argv[]) {
     MinHeap *eventQueue = createMinHeap(numMonsters + 1); // +1 for player
     if (!eventQueue) {
         printf("Error: Failed to create event queue\n");
-        for (int i = 0; i < num_monsters; i++) {
+        for (int i = 0; i < numMonsters; i++) {
             if (monsters[i]) free(monsters[i]);
         }
         free(monsters);
@@ -132,7 +125,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Insert initial events for all monsters
-    for (int i = 0; i < num_monsters; i++) {
+    for (int i = 0; i < numMonsters; i++) {
         if (monsters[i] && monsters[i]->alive) {
             Event event = {0, monsters[i]};
             HeapNode node = {monsters[i]->x, monsters[i]->y, event.time};
@@ -207,7 +200,7 @@ int main(int argc, char *argv[]) {
     // Cleanup
     free(eventQueue->nodes);
     free(eventQueue);
-    for (int i = 0; i < num_monsters; i++) {
+    for (int i = 0; i < numMonsters; i++) {
         if (monsters[i]) free(monsters[i]);
     }
     free(monsters);
