@@ -316,62 +316,6 @@ Monster *createMonster(int x, int y) {
 }
 
 
-
-
-void movePlayer(void) {
-    int curr_x = player_x;
-    int curr_y = player_y;
-    int next_x = curr_x;
-    int next_y = curr_y;
-
-    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
-    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
-
-    int dir = rand() % 8;
-    int nx = curr_x + dx[dir];
-    int ny = curr_y + dy[dir];
-
-    if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
-        hardness[ny][nx] == 0 && !monsterAt[ny][nx]) {
-        next_x = nx;
-        next_y = ny;
-    }
-
-    if (next_x != curr_x || next_y != curr_y) {
-        char original_terrain;
-
-        if (curr_y == upStairs[0].y && curr_x == upStairs[0].x) {
-            original_terrain = '<';
-        } else if (curr_y == downStairs[0].y && curr_x == downStairs[0].x) {
-            original_terrain = '>';
-        } else {
-            int in_room = 0;
-            for (int i = 0; i < num_rooms; i++) {
-                if (curr_x >= rooms[i].x && curr_x < rooms[i].x + rooms[i].width &&
-                    curr_y >= rooms[i].y && curr_y < rooms[i].y + rooms[i].height) {
-                    in_room = 1;
-                    break;
-                }
-            }
-            if (in_room) {
-                original_terrain = '.';
-            } else {
-                original_terrain = '#';
-            }
-        }
-
-        dungeon[curr_y][curr_x] = original_terrain;
-
-        player_x = next_x;
-        player_y = next_y;
-        dungeon[player_y][player_x] = '@';
-    }
-}
-
-
-
-
-
 int spawnMonsterWithMonType(char monType) {
     Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
     if (!temp) {
