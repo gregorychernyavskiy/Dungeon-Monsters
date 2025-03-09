@@ -44,14 +44,6 @@ void printDungeon() {
                     symbol = 'A' + (personality - 10);
                 }
                 printf("%c", symbol);
-                                  (monsterAt[y][x]->erratic << 3) +
-                                  (monsterAt[y][x]->strong << 4);
-                char symbol = 'A' + personality; 
-                if (personality >= 0 && personality < 26) {
-                    printf("%c", toupper(symbol));
-                } else {
-                    printf("%c", toupper('0' + (personality - 26)));
-                }
             } else if (x == player_x && y == player_y) {
                 printf("@");
             } else {
@@ -61,6 +53,7 @@ void printDungeon() {
         printf("\n");
     }
 }
+
 
 
 
@@ -327,47 +320,57 @@ Monster *createMonster(int x, int y) {
 
 
 
-void moveMonster(Monster *monster) {
-    if (!monster->alive) return;
-
-    int dist[HEIGHT][WIDTH];
-    if (monster->tunneling) {
-        dijkstraTunneling(dist);
-    } else {
-        dijkstraNonTunneling(dist);
-    }
-
-    int curr_x = monster->x;
-    int curr_y = monster->y;
-    int min_dist = dist[curr_y][curr_x];
+void movePlayer(void) {
+    int curr_x = player_x;
+    int curr_y = player_y;
     int next_x = curr_x;
     int next_y = curr_y;
 
     int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
     int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-    for (int i = 0; i < 8; i++) {
-        int nx = curr_x + dx[i];
-        int ny = curr_y + dy[i];
-        
-        if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
-            if (dist[ny][nx] < min_dist && 
-                (monster->tunneling || hardness[ny][nx] == 0) && 
-                !monsterAt[ny][nx]) {
-                min_dist = dist[ny][nx];
-                next_x = nx;
-                next_y = ny;
-            }
-        }
+    int dir = rand() % 8;
+    int nx = curr_x + dx[dir];
+    int ny = curr_y + dy[dir];
+
+    if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
+        hardness[ny][nx] == 0 && !monsterAt[ny][nx]) {
+        next_x = nx;
+        next_y = ny;
     }
 
     if (next_x != curr_x || next_y != curr_y) {
-        monsterAt[curr_y][curr_x] = NULL;
-        monster->x = next_x;
-        monster->y = next_y;
-        monsterAt[next_y][next_x] = monster;
+        char original_terrain;
+
+        if (curr_y == upStairs[0].y && curr_x == upStairs[0].x) {
+            original_terrain = '<';
+        } else if (curr_y == downStairs[0].y && curr_x == downStairs[0].x) {
+            original_terrain = '>';
+        } else {
+            int in_room = 0;
+            for (int i = 0; i < num_rooms; i++) {
+                if (curr_x >= rooms[i].x && curr_x < rooms[i].x + rooms[i].width &&
+                    curr_y >= rooms[i].y && curr_y < rooms[i].y + rooms[i].height) {
+                    in_room = 1;
+                    break;
+                }
+            }
+            if (in_room) {
+                original_terrain = '.';
+            } else {
+                original_terrain = '#';
+            }
+        }
+
+        dungeon[curr_y][curr_x] = original_terrain;
+
+        player_x = next_x;
+        player_y = next_y;
+        dungeon[player_y][player_x] = '@';
     }
 }
+
+
 
 
 
