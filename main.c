@@ -7,7 +7,6 @@
 #include "dungeon_generation.h"
 #include "minheap.h"
 
-
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0, numMonsters = 0;
@@ -132,7 +131,7 @@ int main(int argc, char *argv[]) {
             moveMonster(monster);
 
             Monster *culprit = NULL;
-            if (gameOver(&culprit)) {
+            if (isGameOver(&culprit)) {
                 int personality = culprit->intelligent + 
                                   (culprit->telepathic << 1) + 
                                   (culprit->tunneling << 2) + 
@@ -154,7 +153,7 @@ int main(int argc, char *argv[]) {
             movePlayer();
 
             Monster *culprit = NULL;
-            if (gameOver(&culprit)) {
+            if (isGameOver(&culprit)) {
                 int personality = culprit->intelligent + 
                                   (culprit->telepathic << 1) + 
                                   (culprit->tunneling << 2) + 
