@@ -32,45 +32,61 @@ int main(int argc, char *argv[]) {
                 printf("Error: Missing filename for --load\n");
                 return 1;
             }
+        } else {
+            char *endptr;
+            long num = strtol(argv[i], &endptr, 10);
+            if (*endptr == '\0' && num >= 0) {
+                numMonsters = (int)num;
+            }
         }
     }
 
     if (load) {
         if (loadFileName) {
             loadDungeon(loadFileName);
+            printf("Dungeon:\n");
+            printDungeon();
+            printf("\nHardness:\n");
+            printHardness();
+            printf("\nNon-Tunneling Distance Map:\n");
+            printNonTunnelingMap();
+            printf("\nTunneling Distance Map:\n");
+            printTunnelingMap();
+            return 0;
         } else {
             printf("Error: No file path specified for loading!\n");
             return 1;
         }
-    } else {
-        emptyDungeon();
-        createRooms();
-        connectRooms();
-        placeStairs();
-        placePlayer();
-        initializeHardness();
     }
 
-    //print functions
-    printf("Dungeon:\n");
-    printDungeon();
-    //printf("\nHardness:\n");
-    //printHardness();
-    printf("\nNon-Tunneling Distance Map:\n");
-    printNonTunnelingMap();
-    printf("\nTunneling Distance Map:\n");
-    printTunnelingMap();
+    emptyDungeon();
+    createRooms();
+    connectRooms();
+    placeStairs();
+    placePlayer();
+    initializeHardness();
 
-    if (save) {
-        if (saveFileName) {
-            saveDungeon(saveFileName);
-        } else {
-            printf("Error: No file path specified for saving!\n");
-            return 1;
+    if (numMonsters == 0) {
+        printf("Dungeon:\n");
+        printDungeon();
+        printf("\nHardness:\n");
+        printHardness();
+        printf("\nNon-Tunneling Distance Map:\n");
+        printNonTunnelingMap();
+        printf("\nTunneling Distance Map:\n");
+        printTunnelingMap();
+
+        if (save) {
+            if (saveFileName) {
+                saveDungeon(saveFileName);
+            } else {
+                printf("Error: No file path specified for saving!\n");
+                return 1;
+            }
         }
+        return 0;
     }
 
-    // Game mode with monsters
     if (spawnMonsters(numMonsters)) {
         printf("Failed to spawn monsters\n");
         return 1;
@@ -79,7 +95,7 @@ int main(int argc, char *argv[]) {
     printf("Initial Dungeon:\n");
     printDungeon();
 
-    MinHeap *eventQueue = createMinHeap(numMonsters + 1); // +1 for player
+    MinHeap *eventQueue = createMinHeap(numMonsters + 1);
     if (!eventQueue) {
         printf("Error: Failed to create event queue\n");
         for (int i = 0; i < numMonsters; i++) {
@@ -89,17 +105,15 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Insert initial events for all monsters
     for (int i = 0; i < numMonsters; i++) {
         if (monsters[i] && monsters[i]->alive) {
-            Event event = {0, monsters[i]};
+            Event event = {1000 / monsters[i]->speed, monsters[i]};
             HeapNode node = {monsters[i]->x, monsters[i]->y, event.time};
             insertHeap(eventQueue, node);
         }
     }
 
-    // Insert initial event for player (speed = 10)
-    Event playerEvent = {0, NULL}; // NULL indicates player
+    Event playerEvent = {1000 / 10, NULL};
     HeapNode playerNode = {player_x, player_y, playerEvent.time};
     insertHeap(eventQueue, playerNode);
 
@@ -110,7 +124,7 @@ int main(int argc, char *argv[]) {
         int curr_y = nextEventNode.y;
         Monster *monster = monsterAt[curr_y][curr_x];
 
-        if (monster) { // Monster move
+        if (monster) {
             if (!monster->alive) {
                 continue;
             }
@@ -135,7 +149,7 @@ int main(int argc, char *argv[]) {
                 HeapNode newEvent = {monster->x, monster->y, nextTime};
                 insertHeap(eventQueue, newEvent);
             }
-        } else { // Player move
+        } else {
             movePlayer();
 
             Monster *culprit = NULL;
@@ -152,7 +166,7 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
-            int nextTime = nextEventNode.distance + (1000 / 10); // Player speed = 10
+            int nextTime = nextEventNode.distance + (1000 / 10);
             HeapNode newEvent = {player_x, player_y, nextTime};
             insertHeap(eventQueue, newEvent);
         }
@@ -162,7 +176,6 @@ int main(int argc, char *argv[]) {
         usleep(250000);
     }
 
-    // Cleanup
     free(eventQueue->nodes);
     free(eventQueue);
     for (int i = 0; i < numMonsters; i++) {
@@ -171,7 +184,9 @@ int main(int argc, char *argv[]) {
     free(monsters);
 
     if (save) {
-        saveDungeon(saveFileName);
+        if (saveFileName) {
+            saveDungeon(saveFileName);
+        }
     }
 
     return 0;
