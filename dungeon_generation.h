@@ -39,6 +39,7 @@ typedef struct {
     int tunneling;    
     int telepathic;  
     int erratic;  
+    int strong;
     int speed;     
     int alive;       
     int last_seen_x;

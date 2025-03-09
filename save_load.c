@@ -22,6 +22,8 @@ void setupDungeonFile(char *nameOfFile) {
     strcat(dungeonFile, nameOfFile);
 }
 
+
+
 void saveDungeon(char *nameOfFile) {
     setupDungeonFile(nameOfFile);
     FILE *file = fopen(dungeonFile, "w");

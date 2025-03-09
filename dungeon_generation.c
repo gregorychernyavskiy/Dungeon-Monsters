@@ -36,14 +36,14 @@ void printDungeon() {
                 int personality = monsterAt[y][x]->intelligent +
                                   (monsterAt[y][x]->telepathic << 1) +
                                   (monsterAt[y][x]->tunneling << 2) +
-                                  (monsterAt[y][x]->erratic << 3);
-                char symbol;
-                if (personality < 10) {
-                    symbol = '0' + personality;
+                                  (monsterAt[y][x]->erratic << 3) +
+                                  (monsterAt[y][x]->strong << 4);
+                char symbol = 'A' + personality; 
+                if (personality >= 0 && personality < 26) {
+                    printf("%c", symbol);
                 } else {
-                    symbol = 'A' + (personality - 10);
+                    printf("%c", '0' + (personality - 26));
                 }
-                printf("%c", symbol);
             } else if (x == player_x && y == player_y) {
                 printf("@");
             } else {
@@ -285,12 +285,13 @@ Monster *createMonsterWithMonType(char c, int x, int y) {
     monster->telepathic = (num >> 1) & 1;
     monster->tunneling = (num >> 2) & 1;
     monster->erratic = (num >> 3) & 1;
+    monster->strong = (num >> 4) & 1;
     monster->alive = 1;
     monster->last_seen_x = -1;
     monster->last_seen_y = -1;
-
     return monster;
 }
+
 
 Monster *createMonster(int x, int y) {
     Monster *monster = malloc(sizeof(Monster));
@@ -298,11 +299,11 @@ Monster *createMonster(int x, int y) {
         fprintf(stderr, "Error: Failed to allocate memory for monster\n");
         return NULL;
     }
-
     monster->intelligent = rand() % 2;
     monster->tunneling = rand() % 2;
     monster->telepathic = rand() % 2;
     monster->erratic = rand() % 2;
+    monster->strong = rand() % 2;
     monster->speed = rand() % 16 + 5;
     monster->x = x;
     monster->y = y;
