@@ -14,7 +14,7 @@
 #define HEIGHT 21
 #define MAX_ROOMS 8
 #define MIN_ROOMS 6
-#define MIN_ROOM_HEIGHT 3
+#define MIN_ROOM_HEIGHT No arguments: Generate and print dungeon
 #define MAX_ROOM_HEIGHT 9
 #define MIN_ROOM_WIDTH 4
 #define MAX_ROOM_WIDTH 12
@@ -34,20 +34,20 @@ struct Stairs {
 };
 
 typedef struct {
-    int x, y;           // Position
-    int intelligent;    // 1 if intelligent, 0 otherwise
-    int tunneling;      // 1 if tunneling, 0 otherwise
-    int telepathic;     // 1 if telepathic, 0 otherwise
-    int erratic;        // 1 if erratic, 0 otherwise
-    int speed;          // Speed (5-20 for monsters, 10 for PC)
-    int alive;          // 1 if alive, 0 if dead
-    int last_seen_x;    // Last known PC x position (for intelligent non-telepathic)
-    int last_seen_y;    // Last known PC y position
+    int x, y;    
+    int intelligent;  
+    int tunneling;    
+    int telepathic;  
+    int erratic;  
+    int speed;     
+    int alive;       
+    int last_seen_x;
+    int last_seen_y;
 } Monster;
 
 typedef struct {
-    int time;         // Event time based on 1000/speed
-    Monster *monster; // Pointer to the monster
+    int time;
+    Monster *monster;
 } Event;
 
 extern char dungeon[HEIGHT][WIDTH];         
@@ -55,9 +55,10 @@ extern unsigned char hardness[HEIGHT][WIDTH];
 extern struct Room rooms[MAX_ROOMS];
 extern int distance_non_tunnel[HEIGHT][WIDTH];
 extern int distance_tunnel[HEIGHT][WIDTH];
-extern Monster **monsters; // An array of pointers to Monster structs
-extern int num_monsters;
 extern Monster *monsterAt[HEIGHT][WIDTH];
+
+extern Monster **monsters;
+extern int num_monsters;
 
 extern int player_x;
 extern int player_y;
@@ -96,7 +97,7 @@ int spawnMonsters(int count);
 void moveMonster(Monster *monster);
 void runGame(int numMonsters);
 
-int isGameOver(Monster **culprit);
+int gameOver(Monster **culprit);
 
 void movePlayer(void);
 

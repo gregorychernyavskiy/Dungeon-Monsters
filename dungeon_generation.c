@@ -517,7 +517,7 @@ void runGame(int numMonsters) {
 
 
 
-int isGameOver(Monster **culprit) {
+int gameOver(Monster **culprit) {
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i] && monsters[i]->alive && 
             monsters[i]->x == player_x && monsters[i]->y == player_y) {
