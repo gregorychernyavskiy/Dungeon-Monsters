@@ -56,7 +56,6 @@ void printDungeon() {
 
 
 
-
 void emptyDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -206,82 +205,55 @@ void placePlayer() {
 
 
 
-void moveMonster(Monster *monster) {
-    if (!monster || !monster->alive) return;
-
-    int curr_x = monster->x;
-    int curr_y = monster->y;
+void movePlayer(void) {
+    int curr_x = player_x;
+    int curr_y = player_y;
     int next_x = curr_x;
     int next_y = curr_y;
 
-    // Update last seen position if monster can see player
-    if (monster->telepathic || 
-        (abs(player_x - curr_x) <= 5 && abs(player_y - curr_y) <= 5)) { // Simple line-of-sight simulation
-        monster->last_seen_x = player_x;
-        monster->last_seen_y = player_y;
+    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+
+    // Pick a random direction
+    int dir = rand() % 8;
+    int nx = curr_x + dx[dir];
+    int ny = curr_y + dy[dir];
+
+    // Check if the new position is valid
+    if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
+        hardness[ny][nx] == 0 && !monsterAt[ny][nx]) {
+        next_x = nx;
+        next_y = ny;
     }
 
-    // If erratic, 50% chance to move randomly
-    if (monster->erratic && rand() % 2 == 0) {
-        int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
-        int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
-        int dir = rand() % 8;
-        int nx = curr_x + dx[dir];
-        int ny = curr_y + dy[dir];
-
-        if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
-            (monster->tunneling || hardness[ny][nx] == 0) &&
-            !monsterAt[ny][nx]) {
-            next_x = nx;
-            next_y = ny;
-        }
-    } else if (monster->intelligent && monster->last_seen_x != -1) {
-        // Use Dijkstra's map to move toward last seen position
-        int dist[HEIGHT][WIDTH];
-        if (monster->tunneling) {
-            dijkstraTunneling(dist);
-            int min_dist = INFINITY;
-            int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
-            int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
-            for (int i = 0; i < 8; i++) {
-                int nx = curr_x + dx[i];
-                int ny = curr_y + dy[i];
-                if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
-                    dist[ny][nx] < min_dist && !monsterAt[ny][nx]) {
-                    min_dist = dist[ny][nx];
-                    next_x = nx;
-                    next_y = ny;
-                }
-            }
-        } else {
-            dijkstraNonTunneling(dist);
-            int min_dist = INFINITY;
-            int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
-            int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
-            for (int i = 0; i < 8; i++) {
-                int nx = curr_x + dx[i];
-                int ny = curr_y + dy[i];
-                if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
-                    hardness[ny][nx] == 0 && dist[ny][nx] < min_dist && !monsterAt[ny][nx]) {
-                    min_dist = dist[ny][nx];
-                    next_x = nx;
-                    next_y = ny;
-                }
-            }
-        }
-    }
-
-    // Move the monster if a valid move was found
+    // Update player position if moved
     if (next_x != curr_x || next_y != curr_y) {
-        monsterAt[curr_y][curr_x] = NULL;
-        monster->x = next_x;
-        monster->y = next_y;
-        monsterAt[next_y][next_x] = monster;
-
-        // If monster reaches player, mark it as dead (for simplicity in this example)
-        if (next_x == player_x && next_y == player_y) {
-            monster->alive = 0;
+        // Determine the original terrain at the current position
+        char original_terrain;
+        if (curr_y == upStairs[0].y && curr_x == upStairs[0].x) {
+            original_terrain = '<';
+        } else if (curr_y == downStairs[0].y && curr_x == downStairs[0].x) {
+            original_terrain = '>';
+        } else {
+            // Check if the current position is in a room or corridor
+            int in_room = 0;
+            for (int i = 0; i < num_rooms; i++) {
+                if (curr_x >= rooms[i].x && curr_x < rooms[i].x + rooms[i].width &&
+                    curr_y >= rooms[i].y && curr_y < rooms[i].y + rooms[i].height) {
+                    in_room = 1;
+                    break;
+                }
+            }
+            original_terrain = in_room ? '.' : '#'; // Room -> '.', Corridor -> '#'
         }
+
+        // Restore the original terrain
+        dungeon[curr_y][curr_x] = original_terrain;
+
+        // Update player position
+        player_x = next_x;
+        player_y = next_y;
+        dungeon[player_y][player_x] = '@';
     }
 }
 
@@ -298,12 +270,11 @@ Monster *createMonsterWithMonType(char c, int x, int y) {
     monster->speed = rand() % 16 + 5;
 
     int num;
+    c = tolower(c);
     if (c >= '0' && c <= '9') {
         num = c - '0';
-    } else if (c >= 'a' && c <= 'z') {
+    } else if (c >= 'a' && c <= 'f') {
         num = c - 'a' + 10;
-    } else if (c >= 'A' && c <= 'Z') {
-        num = c - 'A' + 10;
     } else {
         printf("Error: Invalid hex character '%c'\n", c);
         free(monster);
@@ -314,13 +285,12 @@ Monster *createMonsterWithMonType(char c, int x, int y) {
     monster->telepathic = (num >> 1) & 1;
     monster->tunneling = (num >> 2) & 1;
     monster->erratic = (num >> 3) & 1;
-    monster->strong = (num >> 4) & 1;
     monster->alive = 1;
     monster->last_seen_x = -1;
     monster->last_seen_y = -1;
+
     return monster;
 }
-
 
 Monster *createMonster(int x, int y) {
     Monster *monster = malloc(sizeof(Monster));
@@ -328,11 +298,11 @@ Monster *createMonster(int x, int y) {
         fprintf(stderr, "Error: Failed to allocate memory for monster\n");
         return NULL;
     }
+
     monster->intelligent = rand() % 2;
     monster->tunneling = rand() % 2;
     monster->telepathic = rand() % 2;
     monster->erratic = rand() % 2;
-    monster->strong = rand() % 2;
     monster->speed = rand() % 16 + 5;
     monster->x = x;
     monster->y = y;
@@ -342,6 +312,7 @@ Monster *createMonster(int x, int y) {
 
     return monster;
 }
+
 
 
 int spawnMonsterWithMonType(char monType) {
@@ -487,11 +458,11 @@ void runGame(int numMonsters) {
         monsters_alive = 0;
         for (int i = 0; i < num_monsters; i++) {
             if (monsters[i]->alive) {
-                moveMonster(monsters[i]); 
+                moveMonster(monsters[i]); // Pass pointer directly
                 if (monsters[i]->alive) monsters_alive++;
             }
         }
-        sleep(1);
+        sleep(1); // Add delay to see movement
     }
     
     printf("\nFinal state:\n");
@@ -500,7 +471,7 @@ void runGame(int numMonsters) {
 
 
 
-int gameOver(Monster **culprit) {
+int isGameOver(Monster **culprit) {
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i] && monsters[i]->alive && 
             monsters[i]->x == player_x && monsters[i]->y == player_y) {

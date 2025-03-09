@@ -118,7 +118,6 @@ void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
 
 
 
-
 void printNonTunnelingMap() {
     int dist[HEIGHT][WIDTH];
     dijkstraNonTunneling(dist);
