@@ -7,6 +7,7 @@
 #include "dungeon_generation.h"
 #include "minheap.h"
 
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0, numMonsters = 0;
@@ -136,7 +137,7 @@ int main(int argc, char *argv[]) {
                                   (culprit->telepathic << 1) + 
                                   (culprit->tunneling << 2) + 
                                   (culprit->erratic << 3);
-                char symbol = personality < 10 ? '0' + personality : 'a' + (personality - 10);
+                char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
                 printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
                        turn, symbol, player_x, player_y);
                 printDungeon();
@@ -158,7 +159,7 @@ int main(int argc, char *argv[]) {
                                   (culprit->telepathic << 1) + 
                                   (culprit->tunneling << 2) + 
                                   (culprit->erratic << 3);
-                char symbol = personality < 10 ? '0' + personality : 'a' + (personality - 10);
+                char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
                 printf("\nTurn %d: Monster '%c' reached '@' at (%d, %d)!\n", 
                        turn, symbol, player_x, player_y);
                 printDungeon();
