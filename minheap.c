@@ -1,5 +1,6 @@
 #include "minheap.h"
 
+
 MinHeap* createMinHeap(int capacity) {
     MinHeap* heap = malloc(sizeof(MinHeap));
     if (!heap) return NULL;
@@ -12,6 +13,7 @@ MinHeap* createMinHeap(int capacity) {
     }
     return heap;
 }
+
 
 void heapify(MinHeap* heap, int idx) {
     int smallest = idx;
@@ -36,6 +38,7 @@ void heapify(MinHeap* heap, int idx) {
     }
 }
 
+
 void insertHeap(MinHeap* heap, HeapNode node) {
     if (heap->size == heap->capacity) {
         return;
@@ -52,6 +55,7 @@ void insertHeap(MinHeap* heap, HeapNode node) {
         i = (i-1)/2;
     }
 }
+
 
 HeapNode extractMin(MinHeap* heap) {
     if (heap->size <= 0) {
@@ -71,6 +75,7 @@ HeapNode extractMin(MinHeap* heap) {
 
     return root;
 }
+
 
 void decreasePriority(MinHeap* heap, int x, int y, int newDistance) {
     int i;

@@ -44,6 +44,14 @@ void printDungeon() {
                     symbol = 'A' + (personality - 10);
                 }
                 printf("%c", symbol);
+                                  (monsterAt[y][x]->erratic << 3) +
+                                  (monsterAt[y][x]->strong << 4);
+                char symbol = 'A' + personality; 
+                if (personality >= 0 && personality < 26) {
+                    printf("%c", toupper(symbol));
+                } else {
+                    printf("%c", toupper('0' + (personality - 26)));
+                }
             } else if (x == player_x && y == player_y) {
                 printf("@");
             } else {
@@ -228,14 +236,13 @@ void movePlayer(void) {
 
     // Update player position if moved
     if (next_x != curr_x || next_y != curr_y) {
-        // Determine the original terrain at the current position
         char original_terrain;
+
         if (curr_y == upStairs[0].y && curr_x == upStairs[0].x) {
             original_terrain = '<';
         } else if (curr_y == downStairs[0].y && curr_x == downStairs[0].x) {
             original_terrain = '>';
         } else {
-            // Check if the current position is in a room or corridor
             int in_room = 0;
             for (int i = 0; i < num_rooms; i++) {
                 if (curr_x >= rooms[i].x && curr_x < rooms[i].x + rooms[i].width &&
@@ -244,13 +251,15 @@ void movePlayer(void) {
                     break;
                 }
             }
-            original_terrain = in_room ? '.' : '#'; // Room -> '.', Corridor -> '#'
+            if (in_room) {
+                original_terrain = '.';
+            } else {
+                original_terrain = '#';
+            }
         }
 
-        // Restore the original terrain
         dungeon[curr_y][curr_x] = original_terrain;
 
-        // Update player position
         player_x = next_x;
         player_y = next_y;
         dungeon[player_y][player_x] = '@';
@@ -270,11 +279,12 @@ Monster *createMonsterWithMonType(char c, int x, int y) {
     monster->speed = rand() % 16 + 5;
 
     int num;
-    c = tolower(c);
     if (c >= '0' && c <= '9') {
         num = c - '0';
-    } else if (c >= 'a' && c <= 'f') {
+    } else if (c >= 'a' && c <= 'z') {
         num = c - 'a' + 10;
+    } else if (c >= 'A' && c <= 'Z') {
+        num = c - 'A' + 10;
     } else {
         printf("Error: Invalid hex character '%c'\n", c);
         free(monster);
@@ -285,12 +295,13 @@ Monster *createMonsterWithMonType(char c, int x, int y) {
     monster->telepathic = (num >> 1) & 1;
     monster->tunneling = (num >> 2) & 1;
     monster->erratic = (num >> 3) & 1;
+    monster->strong = (num >> 4) & 1;
     monster->alive = 1;
     monster->last_seen_x = -1;
     monster->last_seen_y = -1;
-
     return monster;
 }
+
 
 Monster *createMonster(int x, int y) {
     Monster *monster = malloc(sizeof(Monster));
@@ -298,11 +309,11 @@ Monster *createMonster(int x, int y) {
         fprintf(stderr, "Error: Failed to allocate memory for monster\n");
         return NULL;
     }
-
     monster->intelligent = rand() % 2;
     monster->tunneling = rand() % 2;
     monster->telepathic = rand() % 2;
     monster->erratic = rand() % 2;
+    monster->strong = rand() % 2;
     monster->speed = rand() % 16 + 5;
     monster->x = x;
     monster->y = y;
@@ -503,11 +514,11 @@ void runGame(int numMonsters) {
         monsters_alive = 0;
         for (int i = 0; i < num_monsters; i++) {
             if (monsters[i]->alive) {
-                moveMonster(monsters[i]); // Pass pointer directly
+                moveMonster(monsters[i]); 
                 if (monsters[i]->alive) monsters_alive++;
             }
         }
-        sleep(1); // Add delay to see movement
+        sleep(1);
     }
     
     printf("\nFinal state:\n");
@@ -516,7 +527,7 @@ void runGame(int numMonsters) {
 
 
 
-int isGameOver(Monster **culprit) {
+int gameOver(Monster **culprit) {
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i] && monsters[i]->alive && 
             monsters[i]->x == player_x && monsters[i]->y == player_y) {
