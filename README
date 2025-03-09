@@ -1,10 +1,9 @@
-Dungeon Generation and Pathfinding
-- This project generates a randomized dungeon layout in a terminal-based environment, following specific rules for room placement, connectivity, and accessibility. The dungeon consists of rooms, corridors, and staircases (< for upstairs, > for downstairs), ensuring that all areas can be reached.
+Dungeon Generation, Monsters, and Pathfinding
 
-In addition to dungeon generation, this project implements Dijkstra’s Algorithm for pathfinding. This allows monsters to navigate the dungeon efficiently, depending on their movement type:
-- Non-tunneling monsters move only through open spaces (rooms, corridors, stairs), treating all traversable tiles with equal weight.
-- Tunneling monsters can move through walls, with movement cost determined by the hardness of each tile (1 + hardness / 85).
-Both distance maps are computed from the player's position and printed, displaying the shortest paths to every dungeon cell using gradient descent movement (monsters always move to the adjacent cell with the lowest distance).
+- This project generates a randomized dungeon with rooms, corridors, and staircases (< for upstairs, > for downstairs), ensuring full accessibility. Dijkstra’s Algorithm is used for pathfinding, allowing non-tunneling monsters to move through open spaces and tunneling monsters to dig through walls, with movement costs based on hardness.
+
+- Monsters have distinct AI traits: intelligence (smart pathfinding), telepathy (always knows player location), tunneling (can dig through walls), and erratic behavior (random movement). The player ('@') moves randomly, and the game runs on an event-driven system where entity speed determines turn order.
+The game can save and load dungeons with './dungeon --save ' and './dungeon --load '. Running './dungeon <num_monsters>' spawns 1-15 monsters. The game ends when the player is defeated or all monsters are eliminated, with real-time visual updates after each turn.
 
 Compile the project:
 make         
