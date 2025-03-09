@@ -1,12 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <time.h>
-#include <unistd.h>
-#include "dungeon_generation.h"
-#include "minheap.h"
-
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0;
@@ -67,7 +58,46 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Case 1: No arguments - Generate and print dungeon info
+    // Handle --save or --load (no monsters)
+    if (save || load) {
+        if (load) {
+            if (loadFileName) {
+                loadDungeon(loadFileName);
+            } else {
+                printf("Error: No file path specified for loading!\n");
+                return 1;
+            }
+        } else {
+            emptyDungeon();
+            createRooms();
+            connectRooms();
+            placeStairs();
+            placePlayer();
+            initializeHardness();
+        }
+
+        // Print dungeon and maps
+        printf("Dungeon:\n");
+        printDungeon();
+        printf("\nHardness Map:\n");
+        printHardness();
+        printf("\nNon-Tunneling Distance Map:\n");
+        printNonTunnelingMap();
+        printf("\nTunneling Distance Map:\n");
+        printTunnelingMap();
+
+        if (save) {
+            if (saveFileName) {
+                saveDungeon(saveFileName);
+            } else {
+                printf("Error: No file path specified for saving!\n");
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    // Case 1: No arguments - Generate and print dungeon info (no monsters)
     if (argc == 1) {
         emptyDungeon();
         createRooms();
@@ -88,28 +118,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // Case 2: --save or --load - Handle dungeon without monsters
-    if (save || load) {
-        if (load) {
-            loadDungeon(loadFileName);
-        } else {
-            emptyDungeon();
-            createRooms();
-            connectRooms();
-            placeStairs();
-            placePlayer();
-            initializeHardness();
-        }
-
-        printf("Dungeon:\n");
-        printDungeon();
-        if (save) {
-            saveDungeon(saveFileName);
-        }
-        return 0;
-    }
-
-    // Case 3: Run game with monsters
+    // Case 2: Run game with monsters
     emptyDungeon();
     createRooms();
     connectRooms();
