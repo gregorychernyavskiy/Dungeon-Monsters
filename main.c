@@ -2,16 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
-#include <ctype.h>
 #include "dungeon_generation.h"
 #include "minheap.h"
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     int load = 0, save = 0, numMonsters = 0;
-    char *saveFileName = "dungeon"; // Default save file name
-    char *loadFileName = "dungeon"; // Default load file name
+    char *saveFileName = "dungeon"; // Default filename
+    char *loadFileName = "dungeon"; // Default filename
 
     // Parse command-line arguments
     for (int i = 1; i < argc; i++) {
@@ -45,14 +43,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Initialize monsterAt array
+    // Initialize monsterAt array (needed if monsters are used)
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             monsterAt[y][x] = NULL;
         }
     }
 
-    // Handle dungeon generation or loading
+    // Load or generate dungeon
     if (load) {
         loadDungeon(loadFileName);
     } else {
@@ -64,12 +62,12 @@ int main(int argc, char *argv[]) {
         initializeHardness();
     }
 
-    // If no monsters specified and not just saving/loading, print maps and exit
+    // If no monsters, just print maps
     if (numMonsters == 0) {
         printf("Dungeon:\n");
         printDungeon();
-        printf("\nHardness Map:\n");
-        printHardness();
+        //printf("\nHardness:\n");
+        //printHardness(); // Commented out as in your old main
         printf("\nNon-Tunneling Distance Map:\n");
         printNonTunnelingMap();
         printf("\nTunneling Distance Map:\n");
@@ -81,7 +79,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // Game mode with monsters
+    // Monster game mode
     if (spawnMonsters(numMonsters)) {
         printf("Failed to spawn monsters\n");
         return 1;
@@ -100,7 +98,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Insert initial events for all monsters
+    // Insert initial events for monsters
     for (int i = 0; i < numMonsters; i++) {
         if (monsters[i] && monsters[i]->alive) {
             Event event = {0, monsters[i]};
@@ -122,9 +120,7 @@ int main(int argc, char *argv[]) {
         Monster *monster = monsterAt[curr_y][curr_x];
 
         if (monster) { // Monster move
-            if (!monster->alive) {
-                continue;
-            }
+            if (!monster->alive) continue;
             moveMonster(monster);
 
             Monster *culprit = NULL;
