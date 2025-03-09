@@ -206,53 +206,82 @@ void placePlayer() {
 
 
 
-void movePlayer(void) {
-    int curr_x = player_x;
-    int curr_y = player_y;
+void moveMonster(Monster *monster) {
+    if (!monster || !monster->alive) return;
+
+    int curr_x = monster->x;
+    int curr_y = monster->y;
     int next_x = curr_x;
     int next_y = curr_y;
 
-    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
-    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
-
-    int dir = rand() % 8;
-    int nx = curr_x + dx[dir];
-    int ny = curr_y + dy[dir];
-
-    if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
-        hardness[ny][nx] == 0 && !monsterAt[ny][nx]) {
-        next_x = nx;
-        next_y = ny;
+    // Update last seen position if monster can see player
+    if (monster->telepathic || 
+        (abs(player_x - curr_x) <= 5 && abs(player_y - curr_y) <= 5)) { // Simple line-of-sight simulation
+        monster->last_seen_x = player_x;
+        monster->last_seen_y = player_y;
     }
 
-    if (next_x != curr_x || next_y != curr_y) {
-        char original_terrain;
+    // If erratic, 50% chance to move randomly
+    if (monster->erratic && rand() % 2 == 0) {
+        int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+        int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+        int dir = rand() % 8;
+        int nx = curr_x + dx[dir];
+        int ny = curr_y + dy[dir];
 
-        if (curr_y == upStairs[0].y && curr_x == upStairs[0].x) {
-            original_terrain = '<';
-        } else if (curr_y == downStairs[0].y && curr_x == downStairs[0].x) {
-            original_terrain = '>';
-        } else {
-            int in_room = 0;
-            for (int i = 0; i < num_rooms; i++) {
-                if (curr_x >= rooms[i].x && curr_x < rooms[i].x + rooms[i].width &&
-                    curr_y >= rooms[i].y && curr_y < rooms[i].y + rooms[i].height) {
-                    in_room = 1;
-                    break;
+        if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
+            (monster->tunneling || hardness[ny][nx] == 0) &&
+            !monsterAt[ny][nx]) {
+            next_x = nx;
+            next_y = ny;
+        }
+    } else if (monster->intelligent && monster->last_seen_x != -1) {
+        // Use Dijkstra's map to move toward last seen position
+        int dist[HEIGHT][WIDTH];
+        if (monster->tunneling) {
+            dijkstraTunneling(dist);
+            int min_dist = INFINITY;
+            int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+            int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+            for (int i = 0; i < 8; i++) {
+                int nx = curr_x + dx[i];
+                int ny = curr_y + dy[i];
+                if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
+                    dist[ny][nx] < min_dist && !monsterAt[ny][nx]) {
+                    min_dist = dist[ny][nx];
+                    next_x = nx;
+                    next_y = ny;
                 }
             }
-            if (in_room) {
-                original_terrain = '.';
-            } else {
-                original_terrain = '#';
+        } else {
+            dijkstraNonTunneling(dist);
+            int min_dist = INFINITY;
+            int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+            int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+            for (int i = 0; i < 8; i++) {
+                int nx = curr_x + dx[i];
+                int ny = curr_y + dy[i];
+                if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
+                    hardness[ny][nx] == 0 && dist[ny][nx] < min_dist && !monsterAt[ny][nx]) {
+                    min_dist = dist[ny][nx];
+                    next_x = nx;
+                    next_y = ny;
+                }
             }
         }
+    }
 
-        dungeon[curr_y][curr_x] = original_terrain;
+    // Move the monster if a valid move was found
+    if (next_x != curr_x || next_y != curr_y) {
+        monsterAt[curr_y][curr_x] = NULL;
+        monster->x = next_x;
+        monster->y = next_y;
+        monsterAt[next_y][next_x] = monster;
 
-        player_x = next_x;
-        player_y = next_y;
-        dungeon[player_y][player_x] = '@';
+        // If monster reaches player, mark it as dead (for simplicity in this example)
+        if (next_x == player_x && next_y == player_y) {
+            monster->alive = 0;
+        }
     }
 }
 
