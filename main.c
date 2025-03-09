@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
             if (!monster->alive) {
                 continue;
             }
-            moveMonster(monster);
+            relocateMonster(monster);
 
             Monster *culprit = NULL;
             if (gameOver(&culprit)) {
