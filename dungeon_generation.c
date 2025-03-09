@@ -315,6 +315,51 @@ Monster *createMonster(int x, int y) {
 
 
 
+
+void moveMonster(Monster *monster) {
+    if (!monster->alive) return;
+
+    int dist[HEIGHT][WIDTH];
+    if (monster->tunneling) {
+        dijkstraTunneling(dist);
+    } else {
+        dijkstraNonTunneling(dist);
+    }
+
+    int curr_x = monster->x;
+    int curr_y = monster->y;
+    int min_dist = dist[curr_y][curr_x];
+    int next_x = curr_x;
+    int next_y = curr_y;
+
+    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+
+    for (int i = 0; i < 8; i++) {
+        int nx = curr_x + dx[i];
+        int ny = curr_y + dy[i];
+        
+        if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
+            if (dist[ny][nx] < min_dist && 
+                (monster->tunneling || hardness[ny][nx] == 0) && 
+                !monsterAt[ny][nx]) {
+                min_dist = dist[ny][nx];
+                next_x = nx;
+                next_y = ny;
+            }
+        }
+    }
+
+    if (next_x != curr_x || next_y != curr_y) {
+        monsterAt[curr_y][curr_x] = NULL;
+        monster->x = next_x;
+        monster->y = next_y;
+        monsterAt[next_y][next_x] = monster;
+    }
+}
+
+
+
 int spawnMonsterWithMonType(char monType) {
     Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
     if (!temp) {
@@ -471,7 +516,7 @@ void runGame(int numMonsters) {
 
 
 
-int gameOver(Monster **culprit) {
+int isGameOver(Monster **culprit) {
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i] && monsters[i]->alive && 
             monsters[i]->x == player_x && monsters[i]->y == player_y) {
