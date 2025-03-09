@@ -9,11 +9,10 @@ struct Room rooms[MAX_ROOMS];
 int distance_non_tunnel[HEIGHT][WIDTH];
 int distance_tunnel[HEIGHT][WIDTH];
 
-// Monsters is an array of pointers to Monster structs
 Monster **monsters = NULL;
 int num_monsters = 0;
 
-Monster *monsterAt[HEIGHT][WIDTH]; // Add declaration here since it's extern in header
+Monster *monsterAt[HEIGHT][WIDTH];
 
 int player_x;
 int player_y;
@@ -27,13 +26,24 @@ int player_room_index = -1;
 struct Stairs upStairs[MAX_ROOMS];
 struct Stairs downStairs[MAX_ROOMS];
 
+
+
+
 void printDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             if (monsterAt[y][x]) {
-                int personality = monsterAt[y][x]->intelligent + (monsterAt[y][x]->telepathic << 1) +
-                                  (monsterAt[y][x]->tunneling << 2) + (monsterAt[y][x]->erratic << 3);
-                printf("%c", personality < 10 ? '0' + personality : 'a' + (personality - 10));
+                int personality = monsterAt[y][x]->intelligent +
+                                  (monsterAt[y][x]->telepathic << 1) +
+                                  (monsterAt[y][x]->tunneling << 2) +
+                                  (monsterAt[y][x]->erratic << 3);
+                char symbol;
+                if (personality < 10) {
+                    symbol = '0' + personality;
+                } else {
+                    symbol = 'A' + (personality - 10);
+                }
+                printf("%c", symbol);
             } else if (x == player_x && y == player_y) {
                 printf("@");
             } else {
@@ -43,6 +53,7 @@ void printDungeon() {
         printf("\n");
     }
 }
+
 
 
 void emptyDungeon() {
@@ -182,8 +193,9 @@ void printHardness() {
 
 void placePlayer() {
     int index = rand() % num_rooms;
-    player_room_index = index; // Store the room index
+    player_room_index = index;
     struct Room playerRoom = rooms[index];
+
     player_x = playerRoom.x + rand() % playerRoom.width;
     player_y = playerRoom.y + rand() % playerRoom.height;
     dungeon[player_y][player_x] = '@';
@@ -216,14 +228,13 @@ void movePlayer(void) {
 
     // Update player position if moved
     if (next_x != curr_x || next_y != curr_y) {
-        // Determine the original terrain at the current position
         char original_terrain;
+
         if (curr_y == upStairs[0].y && curr_x == upStairs[0].x) {
             original_terrain = '<';
         } else if (curr_y == downStairs[0].y && curr_x == downStairs[0].x) {
             original_terrain = '>';
         } else {
-            // Check if the current position is in a room or corridor
             int in_room = 0;
             for (int i = 0; i < num_rooms; i++) {
                 if (curr_x >= rooms[i].x && curr_x < rooms[i].x + rooms[i].width &&
@@ -232,13 +243,15 @@ void movePlayer(void) {
                     break;
                 }
             }
-            original_terrain = in_room ? '.' : '#'; // Room -> '.', Corridor -> '#'
+            if (in_room) {
+                original_terrain = '.';
+            } else {
+                original_terrain = '#';
+            }
         }
 
-        // Restore the original terrain
         dungeon[curr_y][curr_x] = original_terrain;
 
-        // Update player position
         player_x = next_x;
         player_y = next_y;
         dungeon[player_y][player_x] = '@';
@@ -491,11 +504,11 @@ void runGame(int numMonsters) {
         monsters_alive = 0;
         for (int i = 0; i < num_monsters; i++) {
             if (monsters[i]->alive) {
-                moveMonster(monsters[i]); // Pass pointer directly
+                moveMonster(monsters[i]); 
                 if (monsters[i]->alive) monsters_alive++;
             }
         }
-        sleep(1); // Add delay to see movement
+        sleep(1);
     }
     
     printf("\nFinal state:\n");
