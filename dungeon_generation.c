@@ -206,6 +206,7 @@ void placePlayer() {
 
 
 
+// Remove one of these - keep only one instance
 void movePlayer(void) {
     int curr_x = player_x;
     int curr_y = player_y;
@@ -215,19 +216,16 @@ void movePlayer(void) {
     int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
     int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-    // Pick a random direction
     int dir = rand() % 8;
     int nx = curr_x + dx[dir];
     int ny = curr_y + dy[dir];
 
-    // Check if the new position is valid
     if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
         hardness[ny][nx] == 0 && !monsterAt[ny][nx]) {
         next_x = nx;
         next_y = ny;
     }
 
-    // Update player position if moved
     if (next_x != curr_x || next_y != curr_y) {
         char original_terrain;
 
