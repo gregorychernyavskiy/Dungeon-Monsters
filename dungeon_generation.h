@@ -38,8 +38,7 @@ typedef struct {
     int intelligent;  
     int tunneling;    
     int telepathic;  
-    int erratic;  
-    int strong;
+    int erratic;
     int speed;     
     int alive;       
     int last_seen_x;
@@ -50,6 +49,7 @@ typedef struct {
     int time;
     Monster *monster;
 } Event;
+
 
 extern char dungeon[HEIGHT][WIDTH];         
 extern unsigned char hardness[HEIGHT][WIDTH]; 
@@ -73,6 +73,7 @@ extern char *dungeonFile;
 
 extern struct Stairs upStairs[MAX_ROOMS];
 extern struct Stairs downStairs[MAX_ROOMS];
+
 
 void printDungeon();
 void emptyDungeon();
