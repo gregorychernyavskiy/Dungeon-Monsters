@@ -9,11 +9,10 @@ struct Room rooms[MAX_ROOMS];
 int distance_non_tunnel[HEIGHT][WIDTH];
 int distance_tunnel[HEIGHT][WIDTH];
 
-// Monsters is an array of pointers to Monster structs
 Monster **monsters = NULL;
 int num_monsters = 0;
 
-Monster *monsterAt[HEIGHT][WIDTH]; // Add declaration here since it's extern in header
+Monster *monsterAt[HEIGHT][WIDTH];
 
 int player_x;
 int player_y;
@@ -27,13 +26,24 @@ int player_room_index = -1;
 struct Stairs upStairs[MAX_ROOMS];
 struct Stairs downStairs[MAX_ROOMS];
 
+
+
+
 void printDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             if (monsterAt[y][x]) {
-                int personality = monsterAt[y][x]->intelligent + (monsterAt[y][x]->telepathic << 1) +
-                                  (monsterAt[y][x]->tunneling << 2) + (monsterAt[y][x]->erratic << 3);
-                printf("%c", personality < 10 ? '0' + personality : 'a' + (personality - 10));
+                int personality = monsterAt[y][x]->intelligent +
+                                  (monsterAt[y][x]->telepathic << 1) +
+                                  (monsterAt[y][x]->tunneling << 2) +
+                                  (monsterAt[y][x]->erratic << 3);
+                char symbol;
+                if (personality < 10) {
+                    symbol = '0' + personality;
+                } else {
+                    symbol = 'A' + (personality - 10);
+                }
+                printf("%c", symbol);
             } else if (x == player_x && y == player_y) {
                 printf("@");
             } else {
@@ -43,6 +53,7 @@ void printDungeon() {
         printf("\n");
     }
 }
+
 
 
 void emptyDungeon() {
@@ -182,8 +193,9 @@ void printHardness() {
 
 void placePlayer() {
     int index = rand() % num_rooms;
-    player_room_index = index; // Store the room index
+    player_room_index = index;
     struct Room playerRoom = rooms[index];
+
     player_x = playerRoom.x + rand() % playerRoom.width;
     player_y = playerRoom.y + rand() % playerRoom.height;
     dungeon[player_y][player_x] = '@';
