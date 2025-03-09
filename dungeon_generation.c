@@ -40,9 +40,9 @@ void printDungeon() {
                                   (monsterAt[y][x]->strong << 4);
                 char symbol = 'A' + personality; 
                 if (personality >= 0 && personality < 26) {
-                    printf("%c", symbol);
+                    printf("%c", toupper(symbol));
                 } else {
-                    printf("%c", '0' + (personality - 26));
+                    printf("%c", toupper('0' + (personality - 26)));
                 }
             } else if (x == player_x && y == player_y) {
                 printf("@");
@@ -273,6 +273,8 @@ Monster *createMonsterWithMonType(char c, int x, int y) {
     int num;
     if (c >= '0' && c <= '9') {
         num = c - '0';
+    } else if (c >= 'a' && c <= 'z') {
+        num = c - 'a' + 10;
     } else if (c >= 'A' && c <= 'Z') {
         num = c - 'A' + 10;
     } else {
