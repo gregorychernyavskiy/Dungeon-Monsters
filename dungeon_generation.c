@@ -271,7 +271,6 @@ Monster *createMonsterWithMonType(char c, int x, int y) {
     monster->speed = rand() % 16 + 5;
 
     int num;
-    c = tolower(c);
     if (c >= '0' && c <= '9') {
         num = c - '0';
     } else if (c >= 'a' && c <= 'f') {
