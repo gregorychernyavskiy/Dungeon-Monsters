@@ -117,15 +117,15 @@ void regenerate_dungeon(int numMonsters) {
     createRooms();
     connectRooms();
     placeStairs();
-    placePlayer();
-    initializeHardness();
-    spawnMonsters(numMonsters);
-
+    // Initialize terrain before placing player
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             terrain[y][x] = dungeon[y][x];
         }
     }
+    placePlayer();
+    initializeHardness();
+    spawnMonsters(numMonsters);
 
     memset(visible, 0, sizeof(visible));
     update_visibility();
@@ -204,6 +204,12 @@ int main(int argc, char *argv[]) {
     createRooms();
     connectRooms();
     placeStairs();
+    // Initialize terrain before placing player
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            terrain[y][x] = dungeon[y][x];
+        }
+    }
     // Clear any stray '@' before placing player
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -214,11 +220,6 @@ int main(int argc, char *argv[]) {
     }
     placePlayer();
     initializeHardness();
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            terrain[y][x] = dungeon[y][x];
-        }
-    }
     if (numMonsters > 0) spawnMonsters(numMonsters);
     update_visibility();
 
