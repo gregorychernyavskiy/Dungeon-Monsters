@@ -141,10 +141,15 @@ int move_player(int dx, int dy, const char **message) {
         *message = "A monster blocks your path!";
         return 0;
     }
+    // Restore the tile the player is leaving
     dungeon[player_y][player_x] = terrain[player_y][player_x];
+    // Move player
     player_x = new_x;
     player_y = new_y;
-    terrain[player_y][player_x] = dungeon[player_y][player_x];
+    // Store the new tile's terrain before overwriting
+    if (terrain[player_y][player_x] == 0) { // Only set if not already set
+        terrain[player_y][player_x] = dungeon[player_y][player_x];
+    }
     dungeon[player_y][player_x] = '@';
     *message = "";
     update_visibility();
@@ -223,7 +228,7 @@ int main(int argc, char *argv[]) {
             case '5': case ' ': case '.': moved = 1; message = "Resting..."; break;
             case 'm': draw_monster_list(win); message = ""; break;
             case 'f': fog_enabled = !fog_enabled; message = fog_enabled ? "Fog of War ON" : "Fog of War OFF"; break;
-            case 'Q': case 'q': game_running = 0; message = "Quitting game..."; break; // Updated to handle both Q and q
+            case 'Q': case 'q': game_running = 0; message = "Quitting game..."; break;
             default: message = "Unknown command"; break;
         }
 
