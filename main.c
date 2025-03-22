@@ -172,9 +172,11 @@ int main(int argc, char *argv[]) {
     const char *message = "";
     int game_running = 1;
 
-    while (game_running) {
-        draw_dungeon(win, message);
+    // Draw initial dungeon state
+    draw_dungeon(win, message);
+    refresh(); // Ensure the screen updates immediately
 
+    while (game_running) {
         int ch = getch();
         int moved = 0;
         switch (ch) {
@@ -209,11 +211,12 @@ int main(int argc, char *argv[]) {
                 game_running = 0;
             }
         }
+        draw_dungeon(win, message);
     }
 
-    draw_dungeon(win, message);
+    draw_dungeon(win, message); // Final state display
     refresh();
-    sleep(2); // Show final message
+    sleep(2); // Show final message for 2 seconds
 
     if (save && saveFileName) saveDungeon(saveFileName);
 
