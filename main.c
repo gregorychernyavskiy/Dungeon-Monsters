@@ -10,44 +10,62 @@
 
 void init_ncurses() {
     initscr();
-    raw();           // Unbuffered input
-    noecho();        // Don't echo input
-    keypad(stdscr, TRUE); // Enable arrow keys
-    curs_set(0);     // Hide cursor
+    raw();
+    noecho();
+    keypad(stdscr, TRUE);
+    curs_set(0);
+}
+
+static int fog_enabled = 0; // Fog of war toggle state
+static char visible[HEIGHT][WIDTH]; // Tracks seen tiles
+
+void update_visibility() {
+    // Simple radius-based visibility (e.g., 5 tiles around player)
+    const int radius = 5;
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            int dx = x - player_x;
+            int dy = y - player_y;
+            if (dx * dx + dy * dy <= radius * radius) {
+                visible[y][x] = 1; // Mark as seen
+            }
+        }
+    }
 }
 
 void draw_dungeon(WINDOW *win, const char *message) {
     werase(win);
-    // Message line
     mvwprintw(win, 0, 0, "%s", message ? message : "");
 
-    // Dungeon (lines 1-21, zero-indexed)
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
-            if (monsterAt[y][x]) {
-                int personality = monsterAt[y][x]->intelligent +
-                                  (monsterAt[y][x]->telepathic << 1) +
-                                  (monsterAt[y][x]->tunneling << 2) +
-                                  (monsterAt[y][x]->erratic << 3);
-                char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
-                mvwprintw(win, y + 1, x, "%c", symbol);
-            } else if (x == player_x && y == player_y) {
-                mvwprintw(win, y + 1, x, "@");
+            if (!fog_enabled || visible[y][x]) { // Show if fog off or tile seen
+                if (monsterAt[y][x]) {
+                    int personality = monsterAt[y][x]->intelligent +
+                                      (monsterAt[y][x]->telepathic << 1) +
+                                      (monsterAt[y][x]->tunneling << 2) +
+                                      (monsterAt[y][x]->erratic << 3);
+                    char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
+                    mvwprintw(win, y + 1, x, "%c", symbol);
+                } else if (x == player_x && y == player_y) {
+                    mvwprintw(win, y + 1, x, "@");
+                } else {
+                    mvwprintw(win, y + 1, x, "%c", dungeon[y][x]);
+                }
             } else {
-                mvwprintw(win, y + 1, x, "%c", dungeon[y][x]);
+                mvwprintw(win, y + 1, x, " "); // Hidden in fog
             }
         }
     }
-    // Status lines (22-23) - Placeholder for future use
     mvwprintw(win, 22, 0, "Status Line 1");
-    mvwprintw(win, 23, 0, "Status Line 2");
+    mvwprintw(win, 23, 0, "Fog of War: %s", fog_enabled ? "ON" : "OFF");
     wrefresh(win);
 }
 
 void draw_monster_list(WINDOW *win) {
     werase(win);
-    int start = 0; // For scrolling
-    int max_lines = 22; // Lines 0-21 available, zero-indexed
+    int start = 0;
+    int max_lines = 22;
     int ch;
 
     while (1) {
@@ -71,18 +89,13 @@ void draw_monster_list(WINDOW *win) {
         wrefresh(win);
 
         ch = getch();
-        if (ch == 27) { // Escape
-            break;
-        } else if (ch == KEY_UP && start > 0) {
-            start--;
-        } else if (ch == KEY_DOWN && start + max_lines - 1 < num_monsters) {
-            start++;
-        }
+        if (ch == 27) break;
+        else if (ch == KEY_UP && start > 0) start--;
+        else if (ch == KEY_DOWN && start + max_lines - 1 < num_monsters) start++;
     }
 }
 
 void regenerate_dungeon(int numMonsters) {
-    // Free existing monsters
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i]) {
             if (monsterAt[monsters[i]->y][monsters[i]->x] == monsters[i]) {
@@ -95,7 +108,6 @@ void regenerate_dungeon(int numMonsters) {
     monsters = NULL;
     num_monsters = 0;
 
-    // Regenerate dungeon
     emptyDungeon();
     createRooms();
     connectRooms();
@@ -103,6 +115,10 @@ void regenerate_dungeon(int numMonsters) {
     placePlayer();
     initializeHardness();
     spawnMonsters(numMonsters);
+
+    // Reset visibility when regenerating dungeon
+    memset(visible, 0, sizeof(visible));
+    update_visibility();
 }
 
 int move_player(int dx, int dy, const char **message) {
@@ -126,6 +142,7 @@ int move_player(int dx, int dy, const char **message) {
     player_y = new_y;
     dungeon[player_y][player_x] = '@';
     *message = "";
+    update_visibility(); // Update visibility after moving
     return 1;
 }
 
@@ -161,6 +178,9 @@ int main(int argc, char *argv[]) {
     init_ncurses();
     WINDOW *win = newwin(24, 80, 0, 0);
 
+    // Initialize visibility map
+    memset(visible, 0, sizeof(visible));
+
     emptyDungeon();
     createRooms();
     connectRooms();
@@ -168,13 +188,13 @@ int main(int argc, char *argv[]) {
     placePlayer();
     initializeHardness();
     if (numMonsters > 0) spawnMonsters(numMonsters);
+    update_visibility(); // Initial visibility
 
     const char *message = "";
     int game_running = 1;
 
-    // Draw initial dungeon state
     draw_dungeon(win, message);
-    refresh(); // Ensure the screen updates immediately
+    refresh();
 
     while (game_running) {
         int ch = getch();
@@ -192,6 +212,7 @@ int main(int argc, char *argv[]) {
             case '<': moved = use_stairs('<', numMonsters, &message); break;
             case '5': case ' ': case '.': moved = 1; message = "Resting..."; break;
             case 'm': draw_monster_list(win); message = ""; break;
+            case 'f': fog_enabled = !fog_enabled; message = fog_enabled ? "Fog of War ON" : "Fog of War OFF"; break;
             case 'Q': game_running = 0; message = "Quitting game..."; break;
             default: message = "Unknown command"; break;
         }
@@ -214,9 +235,9 @@ int main(int argc, char *argv[]) {
         draw_dungeon(win, message);
     }
 
-    draw_dungeon(win, message); // Final state display
+    draw_dungeon(win, message);
     refresh();
-    sleep(2); // Show final message for 2 seconds
+    sleep(2);
 
     if (save && saveFileName) saveDungeon(saveFileName);
 
