@@ -16,18 +16,18 @@ void init_ncurses() {
     curs_set(0);
 }
 
-static int fog_enabled = 0; // Fog of war toggle state
-static char visible[HEIGHT][WIDTH]; // Tracks seen tiles
+static int fog_enabled = 0;
+static char visible[HEIGHT][WIDTH];
+static char terrain[HEIGHT][WIDTH]; // New: Stores underlying terrain
 
 void update_visibility() {
-    // Simple radius-based visibility (e.g., 5 tiles around player)
     const int radius = 5;
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             int dx = x - player_x;
             int dy = y - player_y;
             if (dx * dx + dy * dy <= radius * radius) {
-                visible[y][x] = 1; // Mark as seen
+                visible[y][x] = 1;
             }
         }
     }
@@ -39,7 +39,7 @@ void draw_dungeon(WINDOW *win, const char *message) {
 
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
-            if (!fog_enabled || visible[y][x]) { // Show if fog off or tile seen
+            if (!fog_enabled || visible[y][x]) {
                 if (monsterAt[y][x]) {
                     int personality = monsterAt[y][x]->intelligent +
                                       (monsterAt[y][x]->telepathic << 1) +
@@ -53,7 +53,7 @@ void draw_dungeon(WINDOW *win, const char *message) {
                     mvwprintw(win, y + 1, x, "%c", dungeon[y][x]);
                 }
             } else {
-                mvwprintw(win, y + 1, x, " "); // Hidden in fog
+                mvwprintw(win, y + 1, x, " ");
             }
         }
     }
@@ -116,7 +116,13 @@ void regenerate_dungeon(int numMonsters) {
     initializeHardness();
     spawnMonsters(numMonsters);
 
-    // Reset visibility when regenerating dungeon
+    // Copy dungeon to terrain map
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            terrain[y][x] = dungeon[y][x];
+        }
+    }
+
     memset(visible, 0, sizeof(visible));
     update_visibility();
 }
@@ -136,22 +142,25 @@ int move_player(int dx, int dy, const char **message) {
         *message = "A monster blocks your path!";
         return 0;
     }
-    char orig = dungeon[player_y][player_x];
-    dungeon[player_y][player_x] = (orig == '<' || orig == '>') ? orig : (player_room_index >= 0 ? '.' : '#');
+    // Restore the tile the player is leaving
+    dungeon[player_y][player_x] = terrain[player_y][player_x];
+    // Move player
     player_x = new_x;
     player_y = new_y;
+    terrain[player_y][player_x] = dungeon[player_y][player_x]; // Store new tile's terrain
     dungeon[player_y][player_x] = '@';
     *message = "";
-    update_visibility(); // Update visibility after moving
+    update_visibility();
     return 1;
 }
 
 int use_stairs(char direction, int numMonsters, const char **message) {
-    if (direction == '>' && dungeon[player_y][player_x] == '>') {
+    // Check the underlying terrain, not the display (which has '@')
+    if (direction == '>' && terrain[player_y][player_x] == '>') {
         regenerate_dungeon(numMonsters);
         *message = "Descended to a new level!";
         return 1;
-    } else if (direction == '<' && dungeon[player_y][player_x] == '<') {
+    } else if (direction == '<' && terrain[player_y][player_x] == '<') {
         regenerate_dungeon(numMonsters);
         *message = "Ascended to a new level!";
         return 1;
@@ -178,8 +187,8 @@ int main(int argc, char *argv[]) {
     init_ncurses();
     WINDOW *win = newwin(24, 80, 0, 0);
 
-    // Initialize visibility map
     memset(visible, 0, sizeof(visible));
+    memset(terrain, 0, sizeof(terrain)); // Initialize terrain map
 
     emptyDungeon();
     createRooms();
@@ -187,8 +196,14 @@ int main(int argc, char *argv[]) {
     placeStairs();
     placePlayer();
     initializeHardness();
+    // Initialize terrain map
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            terrain[y][x] = dungeon[y][x];
+        }
+    }
     if (numMonsters > 0) spawnMonsters(numMonsters);
-    update_visibility(); // Initial visibility
+    update_visibility();
 
     const char *message = "";
     int game_running = 1;
