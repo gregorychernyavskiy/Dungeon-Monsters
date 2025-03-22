@@ -77,8 +77,8 @@ void draw_monster_list(WINDOW *win) {
                 int dy = monsters[i]->y - player_y;
                 int personality = monsters[i]->intelligent +
                                   (monsters[i]->telepathic << 1) +
-                                  (monsters[i]->tunneling << 2) +
-                                  (monsters[i]->erratic << 3);
+                                  (monsterAt[y][x]->tunneling << 2) +
+                                  (monsterAt[y][x]->erratic << 3);
                 char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
                 const char *ns = dy < 0 ? "north" : "south";
                 const char *ew = dx < 0 ? "west" : "east";
@@ -141,13 +141,17 @@ int move_player(int dx, int dy, const char **message) {
         *message = "A monster blocks your path!";
         return 0;
     }
-    // Restore the tile the player is leaving
-    dungeon[player_y][player_x] = terrain[player_y][player_x];
+    // Set the tile the player is leaving to '.'
+    if (terrain[player_y][player_x] != '<' && terrain[player_y][player_x] != '>') {
+        dungeon[player_y][player_x] = '.'; // Always leave a floor tile
+    } else {
+        dungeon[player_y][player_x] = terrain[player_y][player_x]; // Preserve stairs
+    }
     // Move player
     player_x = new_x;
     player_y = new_y;
     // Store the new tile's terrain before overwriting
-    if (terrain[player_y][player_x] == 0) { // Only set if not already set
+    if (terrain[player_y][player_x] == 0) {
         terrain[player_y][player_x] = dungeon[player_y][player_x];
     }
     dungeon[player_y][player_x] = '@';
@@ -195,6 +199,14 @@ int main(int argc, char *argv[]) {
     createRooms();
     connectRooms();
     placeStairs();
+    // Ensure dungeon has no stray '@' before placing player
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            if (dungeon[y][x] == '@') {
+                dungeon[y][x] = '.'; // Clear any stray '@'
+            }
+        }
+    }
     placePlayer();
     initializeHardness();
     for (int y = 0; y < HEIGHT; y++) {
