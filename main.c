@@ -18,7 +18,7 @@ void init_ncurses() {
 
 static int fog_enabled = 0;
 static char visible[HEIGHT][WIDTH];
-static char terrain[HEIGHT][WIDTH]; // New: Stores underlying terrain
+static char terrain[HEIGHT][WIDTH];
 
 void update_visibility() {
     const int radius = 5;
@@ -116,7 +116,6 @@ void regenerate_dungeon(int numMonsters) {
     initializeHardness();
     spawnMonsters(numMonsters);
 
-    // Copy dungeon to terrain map
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             terrain[y][x] = dungeon[y][x];
@@ -142,12 +141,10 @@ int move_player(int dx, int dy, const char **message) {
         *message = "A monster blocks your path!";
         return 0;
     }
-    // Restore the tile the player is leaving
     dungeon[player_y][player_x] = terrain[player_y][player_x];
-    // Move player
     player_x = new_x;
     player_y = new_y;
-    terrain[player_y][player_x] = dungeon[player_y][player_x]; // Store new tile's terrain
+    terrain[player_y][player_x] = dungeon[player_y][player_x];
     dungeon[player_y][player_x] = '@';
     *message = "";
     update_visibility();
@@ -155,7 +152,6 @@ int move_player(int dx, int dy, const char **message) {
 }
 
 int use_stairs(char direction, int numMonsters, const char **message) {
-    // Check the underlying terrain, not the display (which has '@')
     if (direction == '>' && terrain[player_y][player_x] == '>') {
         regenerate_dungeon(numMonsters);
         *message = "Descended to a new level!";
@@ -188,7 +184,7 @@ int main(int argc, char *argv[]) {
     WINDOW *win = newwin(24, 80, 0, 0);
 
     memset(visible, 0, sizeof(visible));
-    memset(terrain, 0, sizeof(terrain)); // Initialize terrain map
+    memset(terrain, 0, sizeof(terrain));
 
     emptyDungeon();
     createRooms();
@@ -196,7 +192,6 @@ int main(int argc, char *argv[]) {
     placeStairs();
     placePlayer();
     initializeHardness();
-    // Initialize terrain map
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             terrain[y][x] = dungeon[y][x];
@@ -228,7 +223,7 @@ int main(int argc, char *argv[]) {
             case '5': case ' ': case '.': moved = 1; message = "Resting..."; break;
             case 'm': draw_monster_list(win); message = ""; break;
             case 'f': fog_enabled = !fog_enabled; message = fog_enabled ? "Fog of War ON" : "Fog of War OFF"; break;
-            case 'Q': game_running = 0; message = "Quitting game..."; break;
+            case 'Q': case 'q': game_running = 0; message = "Quitting game..."; break; // Updated to handle both Q and q
             default: message = "Unknown command"; break;
         }
 
