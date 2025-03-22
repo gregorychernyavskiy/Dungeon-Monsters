@@ -146,12 +146,8 @@ int move_player(int dx, int dy, const char **message) {
         *message = "A monster blocks your path!";
         return 0;
     }
-    // Set the tile the player is leaving to '.'
-    if (terrain[player_y][player_x] != '<' && terrain[player_y][player_x] != '>') {
-        dungeon[player_y][player_x] = '.'; // Always leave a floor tile
-    } else {
-        dungeon[player_y][player_x] = terrain[player_y][player_x]; // Preserve stairs
-    }
+    // Restore the original tile the player is leaving
+    dungeon[player_y][player_x] = terrain[player_y][player_x];
     // Move player
     player_x = new_x;
     player_y = new_y;
