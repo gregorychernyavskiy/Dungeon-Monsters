@@ -77,8 +77,8 @@ void draw_monster_list(WINDOW *win) {
                 int dy = monsters[i]->y - player_y;
                 int personality = monsters[i]->intelligent +
                                   (monsters[i]->telepathic << 1) +
-                                  (monsterAt[y][x]->tunneling << 2) +
-                                  (monsterAt[y][x]->erratic << 3);
+                                  (monsters[i]->tunneling << 2) +
+                                  (monsters[i]->erratic << 3);
                 char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
                 const char *ns = dy < 0 ? "north" : "south";
                 const char *ew = dx < 0 ? "west" : "east";
@@ -107,6 +107,11 @@ void regenerate_dungeon(int numMonsters) {
     free(monsters);
     monsters = NULL;
     num_monsters = 0;
+
+    // Clear the old player position
+    if (player_x >= 0 && player_y >= 0 && player_x < WIDTH && player_y < HEIGHT) {
+        dungeon[player_y][player_x] = terrain[player_y][player_x] == 0 ? '.' : terrain[player_y][player_x];
+    }
 
     emptyDungeon();
     createRooms();
@@ -192,6 +197,10 @@ int main(int argc, char *argv[]) {
     init_ncurses();
     WINDOW *win = newwin(24, 80, 0, 0);
 
+    // Initialize player position to invalid values to avoid clearing a random position
+    player_x = -1;
+    player_y = -1;
+
     memset(visible, 0, sizeof(visible));
     memset(terrain, 0, sizeof(terrain));
 
@@ -199,7 +208,7 @@ int main(int argc, char *argv[]) {
     createRooms();
     connectRooms();
     placeStairs();
-    // Ensure dungeon has no stray '@' before placing player
+    // Clear any stray '@' before placing player
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             if (dungeon[y][x] == '@') {
