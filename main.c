@@ -232,27 +232,41 @@ int main(int argc, char *argv[]) {
     while (game_running) {
         int ch = getch();
         int moved = 0;
-        switch (ch) {
-            case '7': case 'y': moved = move_player(-1, -1, &message); break;
-            case '8': case 'k': moved = move_player(0, -1, &message); break;
-            case '9': case 'u': moved = move_player(1, -1, &message); break;
-            case '6': case 'l': moved = move_player(1, 0, &message); break;
-            case '3': case 'n': moved = move_player(1, 1, &message); break;
-            case '2': case 'j': moved = move_player(0, 1, &message); break;
-            case '1': case 'b': moved = move_player(-1, 1, &message); break;
-            case '4': case 'h': moved = move_player(-1, 0, &message); break;
-            case '>': moved = use_stairs('>', numMonsters, &message); break;
-            case '<': moved = use_stairs('<', numMonsters, &message); break;
-            case '5': case ' ': case '.': moved = 1; message = "Resting..."; break;
-            case 'm': draw_monster_list(win); message = ""; break;
-            case 'f': fog_enabled = !fog_enabled; message = fog_enabled ? "Fog of War ON" : "Fog of War OFF"; break;
-            case 'Q': case 'q': game_running = 0; message = "Quitting game..."; break;
-            default: message = "Unknown command"; break;
+        int dx = 0, dy = 0;
+        moved = 0;
+
+        if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
+        else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
+        else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
+        else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
+        else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
+        else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
+        else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
+        else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
+
+        if (dx != 0 || dy != 0) {
+            moved = move_player(dx, dy, &message);
+        } else {
+            switch (ch) {
+                case '>': moved = use_stairs('>', numMonsters, &message); break;
+                case '<': moved = use_stairs('<', numMonsters, &message); break;
+                case '5': case ' ': case '.': moved = 1; message = "Resting..."; break;
+                case 'm': draw_monster_list(win); message = ""; break;
+                case 'f': 
+                    fog_enabled = !fog_enabled;
+                    message = fog_enabled ? "Fog of War ON" : "Fog of War OFF";
+                    break;
+                case 'Q': case 'q': game_running = 0; message = "Quitting game..."; break;
+                default: message = "Unknown command"; break;
+            }
         }
+
 
         if (moved && game_running) {
             for (int i = 0; i < num_monsters; i++) {
-                if (monsters[i]->alive) relocateMonster(monsters[i]);
+                if (monsters[i]->alive) {
+                    relocateMonster(monsters[i]);
+                }
             }
             Monster *culprit = NULL;
             if (gameOver(&culprit)) {
