@@ -65,6 +65,18 @@ int main(int argc, char *argv[]) {
     }
     update_visibility();
 
+    // Display initial welcome message and wait for 'f'
+    const char *welcome_message = "Welcome to the dungeon, press f to start";
+    draw_dungeon(win, welcome_message);
+    wrefresh(win);
+    refresh();
+
+    int ch;
+    do {
+        ch = getch();
+    } while (ch != 'f' && ch != 'F');
+
+    // Now start the game with the regular message
     const char *message = "Welcome to the dungeon!";
     draw_dungeon(win, message);
     wrefresh(win);
@@ -72,7 +84,7 @@ int main(int argc, char *argv[]) {
 
     int game_running = 1;
     while (game_running) {
-        int ch = getch();
+        ch = getch();
         int moved = 0;
         int dx = 0, dy = 0;
 
