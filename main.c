@@ -65,8 +65,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Ensure the dungeon is visible from the start
-    fog_enabled = 0; // Disable fog initially to ensure visibility
-    update_visibility();
+    fog_enabled = 0; // Disable fog initially to ensure the dungeon is visible
+    update_visibility(); // Update visibility to show the dungeon
 
     // Display "Press any button to start" and wait for a keypress
     const char *start_message = "Press any button to start";
