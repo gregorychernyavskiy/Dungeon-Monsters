@@ -8,6 +8,7 @@
 #include <time.h>
 #include <endian.h>
 #include <limits.h>
+#include <ncurses.h> // Added for WINDOW type
 #include "minheap.h"
 
 #define WIDTH 80
@@ -73,7 +74,6 @@ extern char *dungeonFile;
 extern struct Stairs upStairs[MAX_ROOMS];
 extern struct Stairs downStairs[MAX_ROOMS];
 
-// Add these declarations
 extern int fog_enabled;
 extern char visible[HEIGHT][WIDTH];
 extern char terrain[HEIGHT][WIDTH];
@@ -106,7 +106,6 @@ int gameOver(Monster **culprit);
 
 void movePlayer(void);
 
-// Functions moved from main.c
 void init_ncurses(void);
 void update_visibility(void);
 void draw_dungeon(WINDOW *win, const char *message);
