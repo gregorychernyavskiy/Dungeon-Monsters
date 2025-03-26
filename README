@@ -3,7 +3,10 @@ Dungeon Generation, Monsters, and Pathfinding
 - This project generates a randomized dungeon with rooms, corridors, and staircases (< for upstairs, > for downstairs), ensuring full accessibility. Dijkstra’s Algorithm is used for pathfinding, allowing non-tunneling monsters to move through open spaces and tunneling monsters to dig through walls, with movement costs based on hardness.
 
 - Monsters have distinct AI traits: intelligence (smart pathfinding), telepathy (always knows player location), tunneling (can dig through walls), and erratic behavior (random movement). The player ('@') moves randomly, and the game runs on an event-driven system where entity speed determines turn order.
-The game can save and load dungeons with './dungeon --save "filename"' and './dungeon --load "filename"'. Running './dungeon "number"' spawns 1-15 monsters. The game ends when the player is defeated.
+The game can save and load dungeons with './dungeon --save "filename"' and './dungeon --load "filename"'. Running './dungeon "number"' spawns 1-15 monsters. The game ends when the player is defeated. 
+
+- After launching the game with ./dungeon "number of monsters", press any button to start the game. Press "F" to toggle Fog of War mode, limiting visibility to a radius around the player. Press 'M' to display a scrollable list of all monsters in the dungeon, showing their symbol and relative position from the player (e.g., "e, 2 south and 6 east"). Scroll through the monster list using the arrow keys, and press ESC to exit the list and return to normal gameplay. Do 25+ monsters to check the Arrow Scrolling.
+
 
 Compile the project:
 make
@@ -24,7 +27,8 @@ Populate dungeon with monsters (between 1 and 15):
 ./dungeon "number of monsters" (1-15)
 
 Start the Game with Fog of War:
-After launching the game with ./dungeon "number of monsters", press f to toggle Fog of War mode, limiting visibility to a radius around the player.
+- Press any button to start the game.
 
 View Monster List:
-Press 'M' to display a scrollable list of all monsters in the dungeon, showing their symbol and relative position from the player (e.g., "e, 2 south and 6 east"). Scroll through the monster list using the arrow keys, and press ESC to exit the list and return to normal gameplay. Do 25+ monsters to check the Arrow Scrolling.
+- Press 'M' to display a scrollable list of all monsters. 
+- Scroll through the monster list using the arrow keys.
