@@ -50,7 +50,6 @@ typedef struct {
     Monster *monster;
 } Event;
 
-
 extern char dungeon[HEIGHT][WIDTH];         
 extern unsigned char hardness[HEIGHT][WIDTH]; 
 extern struct Room rooms[MAX_ROOMS];
@@ -101,5 +100,14 @@ void runGame(int numMonsters);
 int gameOver(Monster **culprit);
 
 void movePlayer(void);
+
+// Functions moved from main.c
+void init_ncurses(void);
+void update_visibility(void);
+void draw_dungeon(WINDOW *win, const char *message);
+void draw_monster_list(WINDOW *win);
+void regenerate_dungeon(int numMonsters);
+int move_player(int dx, int dy, const char **message);
+int use_stairs(char direction, int numMonsters, const char **message);
 
 #endif

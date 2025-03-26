@@ -2,6 +2,7 @@
 #include "minheap.h"
 #include <unistd.h>
 #include <ctype.h>
+#include <ncurses.h> // Added for ncurses functions
 
 char dungeon[HEIGHT][WIDTH];                 
 unsigned char hardness[HEIGHT][WIDTH];     
@@ -25,9 +26,6 @@ int player_room_index = -1;
 
 struct Stairs upStairs[MAX_ROOMS];
 struct Stairs downStairs[MAX_ROOMS];
-
-
-
 
 void printDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
@@ -53,8 +51,6 @@ void printDungeon() {
         printf("\n");
     }
 }
-
-
 
 void emptyDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
@@ -161,7 +157,6 @@ void placeStairs() {
     dungeon[downStairs[0].y][downStairs[0].x] = '>';
 }
 
-
 void initializeHardness() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -177,7 +172,6 @@ void initializeHardness() {
     }
 }
 
-
 void printHardness() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -186,10 +180,6 @@ void printHardness() {
         printf("\n");
     }
 }
-
-
-
-
 
 void placePlayer() {
     int index = rand() % num_rooms;
@@ -200,10 +190,6 @@ void placePlayer() {
     player_y = playerRoom.y + rand() % playerRoom.height;
     dungeon[player_y][player_x] = '@';
 }
-
-
-
-
 
 void movePlayer(void) {
     int curr_x = player_x;
@@ -254,9 +240,6 @@ void movePlayer(void) {
         dungeon[player_y][player_x] = '@';
     }
 }
-
-
-
 
 Monster *generateMonsterByType(char c, int x, int y) {
     Monster *monster = malloc(sizeof(Monster));
@@ -312,9 +295,6 @@ Monster *generateMonster(int x, int y) {
     return monster;
 }
 
-
-
-
 void relocateMonster(Monster *monster) {
     if (!monster->alive) return;
 
@@ -357,8 +337,6 @@ void relocateMonster(Monster *monster) {
     }
 }
 
-
-
 int spawnMonsterByType(char monType) {
     Monster **temp = realloc(monsters, (num_monsters + 1) * sizeof(Monster *));
     if (!temp) {
@@ -393,9 +371,6 @@ int spawnMonsterByType(char monType) {
     fprintf(stderr, "Error: Failed to spawn monster\n");
     return 1;
 }
-
-
-
 
 int spawnMonsters(int numMonsters) {
     if (monsters) {
@@ -484,8 +459,6 @@ int spawnMonsters(int numMonsters) {
     return 0;
 }
 
-
-
 void runGame(int numMonsters) {
     if (spawnMonsters(numMonsters)) {
         printf("Failed to spawn monsters\n");
@@ -513,8 +486,6 @@ void runGame(int numMonsters) {
     printDungeon();
 }
 
-
-
 int gameOver(Monster **culprit) {
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i] && monsters[i]->alive && 
@@ -524,5 +495,170 @@ int gameOver(Monster **culprit) {
         }
     }
     *culprit = NULL;
+    return 0;
+}
+
+// Moved functions from main.c
+static int fog_enabled = 0;
+static char visible[HEIGHT][WIDTH];
+static char terrain[HEIGHT][WIDTH];
+
+void init_ncurses() {
+    initscr();
+    raw();
+    noecho();
+    keypad(stdscr, TRUE);
+    curs_set(0);
+}
+
+void update_visibility() {
+    const int radius = 5;
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            int dx = x - player_x;
+            int dy = y - player_y;
+            if (dx * dx + dy * dy <= radius * radius) {
+                visible[y][x] = 1;
+            }
+        }
+    }
+}
+
+void draw_dungeon(WINDOW *win, const char *message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "%s", message ? message : "");
+
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            if (!fog_enabled || visible[y][x]) {
+                if (monsterAt[y][x]) {
+                    int personality = monsterAt[y][x]->intelligent +
+                                      (monsterAt[y][x]->telepathic << 1) +
+                                      (monsterAt[y][x]->tunneling << 2) +
+                                      (monsterAt[y][x]->erratic << 3);
+                    char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
+                    mvwprintw(win, y + 1, x, "%c", symbol);
+                } else if (x == player_x && y == player_y) {
+                    mvwprintw(win, y + 1, x, "@");
+                } else {
+                    mvwprintw(win, y + 1, x, "%c", dungeon[y][x]);
+                }
+            } else {
+                mvwprintw(win, y + 1, x, " ");
+            }
+        }
+    }
+    mvwprintw(win, 22, 0, "Status Line 1");
+    mvwprintw(win, 23, 0, "Fog of War: %s", fog_enabled ? "ON" : "OFF");
+    wrefresh(win);
+}
+
+void draw_monster_list(WINDOW *win) {
+    werase(win);
+    int start = 0;
+    int max_lines = 22;
+    int ch;
+
+    while (1) {
+        werase(win);
+        mvwprintw(win, 0, 0, "Monster List (Esc to exit):");
+        for (int i = start; i < num_monsters && i - start < max_lines - 1; i++) {
+            if (monsters[i]->alive) {
+                int dx = monsters[i]->x - player_x;
+                int dy = monsters[i]->y - player_y;
+                int personality = monsters[i]->intelligent +
+                                  (monsters[i]->telepathic << 1) +
+                                  (monsters[i]->tunneling << 2) +
+                                  (monsters[i]->erratic << 3);
+                char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
+                const char *ns = dy < 0 ? "north" : "south";
+                const char *ew = dx < 0 ? "west" : "east";
+                mvwprintw(win, i - start + 1, 0, "%c, %d %s and %d %s", 
+                          symbol, abs(dy), ns, abs(dx), ew);
+            }
+        }
+        wrefresh(win);
+
+        ch = getch();
+        if (ch == 27) break;
+        else if (ch == KEY_UP && start > 0) start--;
+        else if (ch == KEY_DOWN && start + max_lines - 1 < num_monsters) start++;
+    }
+}
+
+void regenerate_dungeon(int numMonsters) {
+    for (int i = 0; i < num_monsters; i++) {
+        if (monsters[i]) {
+            if (monsterAt[monsters[i]->y][monsters[i]->x] == monsters[i]) {
+                monsterAt[monsters[i]->y][monsters[i]->x] = NULL;
+            }
+            free(monsters[i]);
+        }
+    }
+    free(monsters);
+    monsters = NULL;
+    num_monsters = 0;
+
+    if (player_x >= 0 && player_y >= 0 && player_x < WIDTH && player_y < HEIGHT) {
+        dungeon[player_y][player_x] = terrain[player_y][player_x] == 0 ? '.' : terrain[player_y][player_x];
+    }
+
+    emptyDungeon();
+    createRooms();
+    connectRooms();
+    placeStairs();
+    
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            terrain[y][x] = dungeon[y][x];
+        }
+    }
+    placePlayer();
+    initializeHardness();
+    spawnMonsters(numMonsters);
+
+    memset(visible, 0, sizeof(visible));
+    update_visibility();
+}
+
+int move_player(int dx, int dy, const char **message) {
+    int new_x = player_x + dx;
+    int new_y = player_y + dy;
+    if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT) {
+        *message = "Edge of dungeon!";
+        return 0;
+    }
+    if (hardness[new_y][new_x] > 0) {
+        *message = "There's a wall in the way!";
+        return 0;
+    }
+    if (monsterAt[new_y][new_x]) {
+        *message = "A monster blocks your path!";
+        return 0;
+    }
+    dungeon[player_y][player_x] = terrain[player_y][player_x];
+    player_x = new_x;
+    player_y = new_y;
+    
+    if (terrain[player_y][player_x] == 0) {
+        terrain[player_y][player_x] = dungeon[player_y][player_x];
+    }
+    dungeon[player_y][player_x] = '@';
+    *message = "";
+    update_visibility();
+    return 1;
+}
+
+int use_stairs(char direction, int numMonsters, const char **message) {
+    if (direction == '>' && terrain[player_y][player_x] == '>') {
+        regenerate_dungeon(numMonsters);
+        *message = "Descended to a new level!";
+        return 1;
+    } else if (direction == '<' && terrain[player_y][player_x] == '<') {
+        regenerate_dungeon(numMonsters);
+        *message = "Ascended to a new level!";
+        return 1;
+    }
+    *message = "Not standing on the correct staircase!";
     return 0;
 }
