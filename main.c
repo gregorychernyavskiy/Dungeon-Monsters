@@ -63,20 +63,21 @@ int main(int argc, char *argv[]) {
     if (numMonsters > 0) {
         spawnMonsters(numMonsters);
     }
+
+    // Ensure the dungeon is visible from the start
+    fog_enabled = 0; // Disable fog initially to ensure visibility
     update_visibility();
 
-    // Display initial welcome message and wait for 'f'
-    const char *welcome_message = "Welcome to the dungeon, press f to start";
-    draw_dungeon(win, welcome_message);
+    // Display "Press any button to start" and wait for a keypress
+    const char *start_message = "Press any button to start";
+    draw_dungeon(win, start_message);
     wrefresh(win);
     refresh();
 
-    int ch;
-    do {
-        ch = getch();
-    } while (ch != 'f' && ch != 'F');
+    // Wait for any keypress
+    getch();
 
-    // Now start the game with the regular message
+    // Now display the welcome message and start the game
     const char *message = "Welcome to the dungeon!";
     draw_dungeon(win, message);
     wrefresh(win);
@@ -84,7 +85,7 @@ int main(int argc, char *argv[]) {
 
     int game_running = 1;
     while (game_running) {
-        ch = getch();
+        int ch = getch();
         int moved = 0;
         int dx = 0, dy = 0;
 
