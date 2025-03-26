@@ -8,7 +8,7 @@
 #include <time.h>
 #include <endian.h>
 #include <limits.h>
-#include <ncurses.h> // Added for WINDOW type
+#include <ncurses.h>
 #include "minheap.h"
 
 #define WIDTH 80
