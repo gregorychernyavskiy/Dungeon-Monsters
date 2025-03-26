@@ -561,7 +561,7 @@ void draw_monster_list(WINDOW *win) {
 
     while (1) {
         werase(win);
-        mvwprintw(win, 0, 0, "Monster List (Esc to exit):");
+        mvwprintw(win, 0, 0, "Monster List (Press ESC to exit):");
         for (int i = start; i < num_monsters && i - start < max_lines - 1; i++) {
             if (monsters[i]->alive) {
                 int dx = monsters[i]->x - player_x;
