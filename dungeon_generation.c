@@ -2,7 +2,7 @@
 #include "minheap.h"
 #include <unistd.h>
 #include <ctype.h>
-#include <ncurses.h> // Added for ncurses functions
+#include <ncurses.h>
 
 char dungeon[HEIGHT][WIDTH];                 
 unsigned char hardness[HEIGHT][WIDTH];     
@@ -26,6 +26,11 @@ int player_room_index = -1;
 
 struct Stairs upStairs[MAX_ROOMS];
 struct Stairs downStairs[MAX_ROOMS];
+
+// Define these globally (remove static)
+int fog_enabled = 0;
+char visible[HEIGHT][WIDTH];
+char terrain[HEIGHT][WIDTH];
 
 void printDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
@@ -497,11 +502,6 @@ int gameOver(Monster **culprit) {
     *culprit = NULL;
     return 0;
 }
-
-// Moved functions from main.c
-static int fog_enabled = 0;
-static char visible[HEIGHT][WIDTH];
-static char terrain[HEIGHT][WIDTH];
 
 void init_ncurses() {
     initscr();
