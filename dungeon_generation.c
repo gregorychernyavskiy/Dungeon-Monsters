@@ -580,9 +580,13 @@ void draw_monster_list(WINDOW *win) {
         wrefresh(win);
 
         ch = getch();
-        if (ch == 27) break;
-        else if (ch == KEY_UP && start > 0) start--;
-        else if (ch == KEY_DOWN && start + max_lines - 1 < num_monsters) start++;
+        if (ch == 27) {
+            break;
+        } else if (ch == KEY_UP && start > 0) {
+            start--;
+        } else if (ch == KEY_DOWN && start + max_lines - 1 < num_monsters) {
+            start++;
+        }
     }
 }
 

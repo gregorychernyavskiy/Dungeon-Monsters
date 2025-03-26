@@ -22,3 +22,9 @@ Load a saved dungeon:
 
 Populate dungeon with monsters (between 1 and 15):
 ./dungeon "number of monsters" (1-15)
+
+Start the Game with Fog of War:
+After launching the game with ./dungeon "number of monsters", press f to toggle Fog of War mode, limiting visibility to a radius around the player.
+
+View Monster List:
+Press 'M' to display a scrollable list of all monsters in the dungeon, showing their symbol and relative position from the player (e.g., "e, 2 south and 6 east"). Scroll through the monster list using the arrow keys, and press ESC to exit the list and return to normal gameplay. Do 25+ monsters to check the Arrow Scrolling.
