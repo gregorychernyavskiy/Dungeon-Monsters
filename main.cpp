@@ -23,7 +23,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Generate the dungeon state regardless of save/load intent
     emptyDungeon();
     createRooms();
     connectRooms();
@@ -34,8 +33,8 @@ int main(int argc, char* argv[]) {
     if (numMonsters > 0) spawnMonsters(numMonsters);
     update_visibility();
 
-    // If save is requested and no gameplay is implied, save and exit
-    if (save && saveFileName && numMonsters == 0 && argc == 3) { // Only --save <filename>
+    
+    if (save && saveFileName && numMonsters == 0 && argc == 3) {
         saveDungeon(saveFileName);
         for (int i = 0; i < num_monsters; i++) delete monsters[i];
         free(monsters);
@@ -43,7 +42,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // Proceed to game loop if not just saving
     init_ncurses();
     WINDOW* win = newwin(24, 80, 0, 0);
     if (!win) {

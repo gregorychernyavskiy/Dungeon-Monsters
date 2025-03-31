@@ -5,7 +5,7 @@ void setupDungeonFile(char* nameOfFile) {
     char* home = getenv("HOME");
     int fileLength = strlen(home) + strlen("/.rlg327/") + strlen(nameOfFile) + 1;
 
-    dungeonFile = new char[fileLength]; // Use new instead of malloc
+    dungeonFile = new char[fileLength];
     if (!dungeonFile) {
         perror("Memory allocation failed...");
         exit(EXIT_FAILURE);
@@ -18,7 +18,7 @@ void setupDungeonFile(char* nameOfFile) {
 
 void saveDungeon(char* nameOfFile) {
     setupDungeonFile(nameOfFile);
-    FILE* file = fopen(dungeonFile, "wb"); // Binary write mode
+    FILE* file = fopen(dungeonFile, "wb");
 
     if (!file) {
         perror("Error! Cannot open the file...");

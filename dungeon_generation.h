@@ -30,7 +30,6 @@ struct Stairs {
     int x, y;
 };
 
-// Base class for characters
 class Character {
 public:
     int x, y;
@@ -40,17 +39,15 @@ public:
 
     Character(int x_, int y_) : x(x_), y(y_), speed(10), alive(1), last_seen_x(-1), last_seen_y(-1) {}
     virtual ~Character() = default;
-    virtual void move() = 0; // Pure virtual function
+    virtual void move() = 0;
 };
 
-// Derived class for Player Character (PC)
 class PC : public Character {
 public:
     PC(int x_, int y_) : Character(x_, y_) {}
-    void move() override; // Implementation in .cpp
+    void move() override;
 };
 
-// Derived class for Non-Player Character (NPC)
 class NPC : public Character {
 public:
     int intelligent, tunneling, telepathic, erratic;
@@ -59,7 +56,7 @@ public:
                           telepathic(rand() % 2), erratic(rand() % 2) {
         speed = rand() % 16 + 5;
     }
-    void move() override; // Implementation in .cpp
+    void move() override;
 };
 
 extern char dungeon[HEIGHT][WIDTH];
@@ -72,7 +69,7 @@ extern NPC* monsterAt[HEIGHT][WIDTH];
 extern NPC** monsters;
 extern int num_monsters;
 
-extern PC* player; // Global PC object replacing player_x, player_y
+extern PC* player;
 extern int num_rooms;
 extern int randRoomNum;
 extern int upStairsCount;
@@ -86,7 +83,7 @@ extern struct Stairs downStairs[MAX_ROOMS];
 extern int fog_enabled;
 extern char visible[HEIGHT][WIDTH];
 extern char terrain[HEIGHT][WIDTH];
-extern char remembered[HEIGHT][WIDTH]; // New map for remembered terrain
+extern char remembered[HEIGHT][WIDTH];
 
 void printDungeon();
 void emptyDungeon();
