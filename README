@@ -7,6 +7,7 @@ The game can save and load dungeons with './dungeon --save "filename"' and './du
 
 - After launching the game with ./dungeon "number of monsters", press any button to start the game. Press "F" to toggle Fog of War mode, limiting visibility to a radius around the player. Press 'M' to display a scrollable list of all monsters in the dungeon, showing their symbol and relative position from the player (e.g., "e, 2 south and 6 east"). Scroll through the monster list using the arrow keys, and press ESC to exit the list and return to normal gameplay. Do 25+ monsters to check the Arrow Scrolling.
 
+- This project is now fully written in C++ and follows an object-oriented design using classes for the PC, NPCs, and general characters. As of version 1.06, a Fog of War mechanic has been introduced—players can only see dungeon tiles within a radius of 3, and previously seen terrain is remembered. Debugging features like fog toggling (f) and teleportation (g) have also been added for easier navigation and testing.
 
 Compile the project:
 make
@@ -32,3 +33,7 @@ Start the Game with Fog of War:
 View Monster List:
 - Press 'M' to display a scrollable list of all monsters. 
 - Scroll through the monster list using the arrow keys.
+
+New Controls:
+- Press 'F' for Fog of War.
+- Press 'G' for Teleportation.
