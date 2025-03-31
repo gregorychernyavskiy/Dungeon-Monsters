@@ -1,204 +1,215 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <ncurses.h>
 #include "dungeon_generation.h"
-#include "minheap.h"
+#include <cstring>
 
-int main(int argc, char* argv[]) {
-    srand(time(NULL));
-    int numMonsters = 0;
-    char* saveFileName = nullptr;
-    int save = 0;
+void setupDungeonFile(char* nameOfFile) {
+    char* home = getenv("HOME");
+    int fileLength = strlen(home) + strlen("/.rlg327/") + strlen(nameOfFile) + 1;
 
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--save") == 0) {
-            save = 1;
-            if (i + 1 < argc) saveFileName = argv[++i];
-        } else {
-            numMonsters = atoi(argv[i]);
+    dungeonFile = new char[fileLength]; // Use new instead of malloc
+    if (!dungeonFile) {
+        perror("Memory allocation failed...");
+        exit(EXIT_FAILURE);
+    }
+
+    strcpy(dungeonFile, home);
+    strcat(dungeonFile, "/.rlg327/");
+    strcat(dungeonFile, nameOfFile);
+}
+
+void saveDungeon(char* nameOfFile) {
+    setupDungeonFile(nameOfFile);
+    FILE* file = fopen(dungeonFile, "wb"); // Binary write mode
+
+    if (!file) {
+        perror("Error! Cannot open the file...");
+        delete[] dungeonFile;
+        exit(EXIT_FAILURE);
+    }
+
+    // Offset 0: File marker
+    fwrite("RLG327-S2025", 1, 12, file);
+
+    // Offset 12: Version
+    uint32_t version = htobe32(0);
+    fwrite(&version, sizeof(version), 1, file);
+
+    // Offset 16: File size (updated for consistency)
+    uint32_t sizeOfTheFile = htobe32(12 + 4 + 4 + 2 + (HEIGHT * WIDTH) + 2 + (num_rooms * 4) + 2 + (upStairsCount * 2) + 2 + (downStairsCount * 2));
+    fwrite(&sizeOfTheFile, sizeof(sizeOfTheFile), 1, file);
+
+    // Offset 20: Player position
+    uint8_t position[2] = {(uint8_t)player->x, (uint8_t)player->y};
+    fwrite(position, sizeof(position), 1, file);
+
+    // Offset 22: Hardness map
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            fwrite(&hardness[y][x], sizeof(hardness[y][x]), 1, file);
         }
     }
 
-    // Generate the dungeon state regardless of save/load intent
-    emptyDungeon();
-    createRooms();
-    connectRooms();
-    placeStairs();
-    memcpy(terrain, dungeon, sizeof(dungeon));
-    placePlayer();
-    initializeHardness();
-    if (numMonsters > 0) spawnMonsters(numMonsters);
+    // Offset 1702: Number of rooms
+    uint16_t r = htobe16(num_rooms);
+    fwrite(&r, sizeof(r), 1, file);
+
+    // Offset 1704: Room data
+    for (int i = 0; i < num_rooms; i++) {
+        uint8_t room[4] = {(uint8_t)rooms[i].x, (uint8_t)rooms[i].y, (uint8_t)rooms[i].width, (uint8_t)rooms[i].height};
+        fwrite(room, sizeof(room), 1, file);
+    }
+
+    // Offset 1704 + r * 4: Upstairs count and data
+    uint16_t upstairs = htobe16(upStairsCount);
+    fwrite(&upstairs, sizeof(upstairs), 1, file);
+    for (int i = 0; i < upStairsCount; i++) {
+        uint8_t upStairsNum[2] = {(uint8_t)upStairs[i].x, (uint8_t)upStairs[i].y};
+        fwrite(upStairsNum, sizeof(upStairsNum), 1, file);
+    }
+
+    // Offset 1704 + r * 4 + u * 2: Downstairs count and data
+    uint16_t downstairs = htobe16(downStairsCount);
+    fwrite(&downstairs, sizeof(downstairs), 1, file);
+    for (int i = 0; i < downStairsCount; i++) {
+        uint8_t downPos[2] = {(uint8_t)downStairs[i].x, (uint8_t)downStairs[i].y};
+        fwrite(downPos, sizeof(downPos), 1, file);
+    }
+
+    printf("Dungeon saved to %s\n", dungeonFile);
+    fclose(file);
+    delete[] dungeonFile;
+    dungeonFile = nullptr;
+}
+
+void loadDungeon(char* nameOfFile) {
+    setupDungeonFile(nameOfFile);
+    FILE* file = fopen(dungeonFile, "rb"); // Binary read mode
+
+    if (!file) {
+        perror("Error! Cannot open the file...");
+        delete[] dungeonFile;
+        exit(EXIT_FAILURE);
+    }
+
+    // Offset 0: Verify file marker
+    char marker[12];
+    fread(marker, 1, 12, file);
+    if (strncmp(marker, "RLG327-S2025", 12) != 0) {
+        fprintf(stderr, "Error: Invalid file marker in %s\n", dungeonFile);
+        fclose(file);
+        delete[] dungeonFile;
+        exit(EXIT_FAILURE);
+    }
+
+    // Offset 12: Version
+    uint32_t version;
+    fread(&version, sizeof(version), 1, file);
+    version = be32toh(version);
+    if (version != 0) {
+        fprintf(stderr, "Error: Unsupported file version %u in %s\n", version, dungeonFile);
+        fclose(file);
+        delete[] dungeonFile;
+        exit(EXIT_FAILURE);
+    }
+
+    // Offset 16: File size
+    uint32_t sizeOfTheFile;
+    fread(&sizeOfTheFile, sizeof(sizeOfTheFile), 1, file);
+    sizeOfTheFile = be32toh(sizeOfTheFile);
+
+    // Offset 20: Player position
+    uint8_t position[2];
+    fread(position, sizeof(position), 1, file);
+    if (player) delete player;
+    player = new PC(position[0], position[1]);
+
+    // Offset 22: Hardness map
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            fread(&hardness[y][x], sizeof(hardness[y][x]), 1, file);
+            if (hardness[y][x] == 0) {
+                dungeon[y][x] = '#';
+                terrain[y][x] = '#';
+            } else if (hardness[y][x] == 255) {
+                dungeon[y][x] = '+';
+                terrain[y][x] = '+';
+            } else {
+                dungeon[y][x] = ' ';
+                terrain[y][x] = ' ';
+            }
+        }
+    }
+
+    // Offset 1702: Number of rooms
+    uint16_t r;
+    fread(&r, sizeof(r), 1, file);
+    num_rooms = be16toh(r);
+
+    // Offset 1704: Room data
+    for (int i = 0; i < num_rooms; i++) {
+        uint8_t room[4];
+        fread(room, sizeof(room), 1, file);
+        rooms[i].x = room[0];
+        rooms[i].y = room[1];
+        rooms[i].width = room[2];
+        rooms[i].height = room[3];
+        for (int y = rooms[i].y; y < rooms[i].y + rooms[i].height; y++) {
+            for (int x = rooms[i].x; x < rooms[i].x + rooms[i].width; x++) {
+                dungeon[y][x] = '.';
+                terrain[y][x] = '.';
+            }
+        }
+    }
+
+    // Offset 1704 + r * 4: Upstairs
+    uint16_t upstairs;
+    fread(&upstairs, sizeof(upstairs), 1, file);
+    upStairsCount = be16toh(upstairs);
+    for (int i = 0; i < upStairsCount; i++) {
+        uint8_t upPos[2];
+        fread(upPos, sizeof(upPos), 1, file);
+        upStairs[i].x = upPos[0];
+        upStairs[i].y = upPos[1];
+        dungeon[upStairs[i].y][upStairs[i].x] = '<';
+        terrain[upStairs[i].y][upStairs[i].x] = '<';
+    }
+
+    // Offset 1704 + r * 4 + u * 2: Downstairs
+    uint16_t downstairs;
+    fread(&downstairs, sizeof(downstairs), 1, file);
+    downStairsCount = be16toh(downstairs);
+    for (int i = 0; i < downStairsCount; i++) {
+        uint8_t downPos[2];
+        fread(downPos, sizeof(downPos), 1, file);
+        downStairs[i].x = downPos[0];
+        downStairs[i].y = downPos[1];
+        dungeon[downStairs[i].y][downStairs[i].x] = '>';
+        terrain[downStairs[i].y][downStairs[i].x] = '>';
+    }
+
+    // Place player and reset visibility
+    dungeon[player->y][player->x] = '@';
+    terrain[player->y][player->x] = '@';
+
+    // Clear and update visibility and remembered maps
+    memset(visible, 0, sizeof(visible));
+    memset(remembered, 0, sizeof(remembered));
     update_visibility();
 
-    // If save is requested and no gameplay is implied, save and exit
-    if (save && saveFileName && numMonsters == 0 && argc == 3) { // Only --save <filename>
-        saveDungeon(saveFileName);
-        for (int i = 0; i < num_monsters; i++) delete monsters[i];
+    // Reset monsters (not saved in this version)
+    if (monsters) {
+        for (int i = 0; i < num_monsters; i++) {
+            if (monsters[i] && monsterAt[monsters[i]->y][monsters[i]->x]) {
+                monsterAt[monsters[i]->y][monsters[i]->x] = nullptr;
+            }
+            delete monsters[i];
+        }
         free(monsters);
-        delete player;
-        return 0;
+        monsters = nullptr;
+        num_monsters = 0;
     }
 
-    // Proceed to game loop if not just saving
-    init_ncurses();
-    WINDOW* win = newwin(24, 80, 0, 0);
-    if (!win) {
-        endwin();
-        fprintf(stderr, "Error: Failed to create window\n");
-        return 1;
-    }
-
-    const char* message = "Press any button to start";
-    draw_dungeon(win, message);
-    getch();
-
-    message = "Welcome to the dungeon!";
-    draw_dungeon(win, message);
-
-    bool game_running = true;
-    bool teleport_mode = false;
-    int target_x = player->x, target_y = player->y;
-
-    while (game_running) {
-        int ch = getch();
-        int moved = 0;
-        int dx = 0, dy = 0;
-
-        if (teleport_mode) {
-            if (ch == 'g') {
-                if (hardness[target_y][target_x] != 255) {
-                    dungeon[player->y][player->x] = terrain[player->y][player->x];
-                    player->x = target_x;
-                    player->y = target_y;
-                    dungeon[player->y][player->x] = '@';
-                    update_visibility();
-                    message = "Teleported!";
-                } else {
-                    message = "Cannot teleport into immutable rock!";
-                }
-                teleport_mode = false;
-            } else if (ch == 'r') {
-                int new_x, new_y;
-                do {
-                    new_x = rand() % WIDTH;
-                    new_y = rand() % HEIGHT;
-                } while (hardness[new_y][new_x] == 255);
-                dungeon[player->y][player->x] = terrain[player->y][player->x];
-                player->x = new_x;
-                player->y = new_y;
-                dungeon[player->y][player->x] = '@';
-                update_visibility();
-                message = "Teleported to random location!";
-                teleport_mode = false;
-            } else if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
-            else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
-            else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
-            else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
-            else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
-            else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
-            else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
-            else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
-
-            if (dx != 0 || dy != 0) {
-                int new_tx = target_x + dx, new_ty = target_y + dy;
-                if (new_tx >= 0 && new_tx < WIDTH && new_ty >= 0 && new_ty < HEIGHT) {
-                    target_x = new_tx;
-                    target_y = new_ty;
-                    werase(win);
-                    draw_dungeon(win, "Teleport mode: Move cursor with movement keys, 'g' to confirm, 'r' for random");
-                    mvwprintw(win, target_y + 1, target_x, "*");
-                    wrefresh(win);
-                }
-            }
-        } else {
-            if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
-            else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
-            else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
-            else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
-            else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
-            else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
-            else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
-            else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
-
-            if (dx != 0 || dy != 0) {
-                moved = move_player(dx, dy, &message);
-            } else {
-                switch (ch) {
-                    case '>':
-                        moved = use_stairs('>', numMonsters, &message);
-                        break;
-                    case '<':
-                        moved = use_stairs('<', numMonsters, &message);
-                        break;
-                    case '5': case ' ': case '.':
-                        moved = 1;
-                        message = "Resting...";
-                        break;
-                    case 'm':
-                        draw_monster_list(win);
-                        message = "";
-                        break;
-                    case 'f':
-                        fog_enabled = !fog_enabled;
-                        message = fog_enabled ? "Fog of War ON" : "Fog of War OFF";
-                        break;
-                    case 'g':
-                        teleport_mode = true;
-                        target_x = player->x;
-                        target_y = player->y;
-                        message = "Teleport mode: Move cursor with movement keys, 'g' to confirm, 'r' for random";
-                        break;
-                    case 'Q': case 'q':
-                        game_running = false;
-                        message = "Quitting game...";
-                        break;
-                    default:
-                        message = "Unknown command";
-                        break;
-                }
-            }
-        }
-
-        if (moved && game_running && !teleport_mode) {
-            for (int i = 0; i < num_monsters; i++) {
-                if (monsters[i]->alive) {
-                    monsters[i]->move();
-                }
-            }
-            NPC* culprit = nullptr;
-            if (gameOver(&culprit)) {
-                int personality = culprit->intelligent + (culprit->telepathic << 1) +
-                                  (culprit->tunneling << 2) + (culprit->erratic << 3);
-                char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
-                char buf[80];
-                snprintf(buf, sizeof(buf), "Killed by monster '%c'!", symbol);
-                message = buf;
-                game_running = false;
-            }
-        }
-
-        if (!teleport_mode) {
-            draw_dungeon(win, message);
-        }
-    }
-
-    draw_dungeon(win, message);
-    sleep(2);
-
-    if (save && saveFileName) {
-        saveDungeon(saveFileName);
-    }
-
-    for (int i = 0; i < num_monsters; i++) {
-        delete monsters[i];
-    }
-    free(monsters);
-    delete player;
-    delwin(win);
-    endwin();
-    return 0;
+    printf("Dungeon loaded from %s\n", dungeonFile);
+    fclose(file);
+    delete[] dungeonFile;
+    dungeonFile = nullptr;
 }

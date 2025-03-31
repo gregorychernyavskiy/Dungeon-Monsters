@@ -23,14 +23,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    init_ncurses();
-    WINDOW* win = newwin(24, 80, 0, 0);
-    if (!win) {
-        endwin();
-        fprintf(stderr, "Error: Failed to create window\n");
-        return 1;
-    }
-
+    // Generate the dungeon state regardless of save/load intent
     emptyDungeon();
     createRooms();
     connectRooms();
@@ -40,6 +33,24 @@ int main(int argc, char* argv[]) {
     initializeHardness();
     if (numMonsters > 0) spawnMonsters(numMonsters);
     update_visibility();
+
+    // If save is requested and no gameplay is implied, save and exit
+    if (save && saveFileName && numMonsters == 0 && argc == 3) { // Only --save <filename>
+        saveDungeon(saveFileName);
+        for (int i = 0; i < num_monsters; i++) delete monsters[i];
+        free(monsters);
+        delete player;
+        return 0;
+    }
+
+    // Proceed to game loop if not just saving
+    init_ncurses();
+    WINDOW* win = newwin(24, 80, 0, 0);
+    if (!win) {
+        endwin();
+        fprintf(stderr, "Error: Failed to create window\n");
+        return 1;
+    }
 
     const char* message = "Press any button to start";
     draw_dungeon(win, message);
@@ -59,7 +70,7 @@ int main(int argc, char* argv[]) {
 
         if (teleport_mode) {
             if (ch == 'g') {
-                if (hardness[target_y][target_x] != 255) { // Not immutable rock
+                if (hardness[target_y][target_x] != 255) {
                     dungeon[player->y][player->x] = terrain[player->y][player->x];
                     player->x = target_x;
                     player->y = target_y;
