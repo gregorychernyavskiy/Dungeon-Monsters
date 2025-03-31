@@ -62,7 +62,11 @@
 03/24/2025
 1. Implemented full user interface with ncurses.
 2. Player character now responds to vi-keys and numeric keypad inputs.
-3. Fog of war toggle (f) now implemented and visually rendered.
 4. Added 'm' key to show monster list with directional info from PC.
 5. Stairs (<, >) now regenerate new dungeons when used by PC.
 6. Dungeon regeneration fully resets rooms, monsters, and player position.
+
+03/26/25
+1. Ported entire project from C to C++ using class-based design (Character, PC, NPC).
+2. Implemented "Fog of War" system with visible and remembered terrain for the PC.
+3. Added debug features: 'f' to toggle fog, 'g' to teleport.
