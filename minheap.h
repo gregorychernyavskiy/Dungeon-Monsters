@@ -13,7 +13,7 @@ typedef struct {
 } HeapNode;
 
 typedef struct {
-    HeapNode *nodes;
+    HeapNode* nodes;
     int size;
     int capacity;
 } MinHeap;
