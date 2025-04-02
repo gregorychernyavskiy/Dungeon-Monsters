@@ -24,13 +24,12 @@ char* dungeonFile = nullptr;
 struct Stairs upStairs[MAX_ROOMS];
 struct Stairs downStairs[MAX_ROOMS];
 
-int fog_enabled = 1; // Enabled by default
+int fog_enabled = 1;
 char visible[HEIGHT][WIDTH] = {0};
 char terrain[HEIGHT][WIDTH] = {0};
 char remembered[HEIGHT][WIDTH] = {0};
 
 void PC::move() {
-    // Actual movement handled in move_player(), this is a placeholder
 }
 
 void NPC::move() {
