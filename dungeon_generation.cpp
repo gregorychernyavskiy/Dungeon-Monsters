@@ -395,7 +395,7 @@ void draw_dungeon(WINDOW* win, const char* message) {
         for (int x = 0; x < WIDTH; x++) {
             if (fog_enabled && !visible[y][x] && !remembered[y][x]) {
                 mvwprintw(win, y + 1, x, " ");
-            } else if (visible[y][x] && monsterAt[y][x]) {
+            } else if (monsterAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int personality = monsterAt[y][x]->intelligent + (monsterAt[y][x]->telepathic << 1) +
                                   (monsterAt[y][x]->tunneling << 2) + (monsterAt[y][x]->erratic << 3);
                 char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
@@ -403,7 +403,7 @@ void draw_dungeon(WINDOW* win, const char* message) {
             } else if (x == player->x && y == player->y) {
                 mvwprintw(win, y + 1, x, "@");
             } else {
-                char display = remembered[y][x] && !visible[y][x] ? remembered[y][x] : dungeon[y][x];
+                char display = (fog_enabled && remembered[y][x] && !visible[y][x]) ? remembered[y][x] : dungeon[y][x];
                 mvwprintw(win, y + 1, x, "%c", display);
             }
         }
