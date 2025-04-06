@@ -4,6 +4,7 @@
 #include <sstream>
 #include <cstring>
 #include <stdlib.h>
+#include <set> // Added for duplicate ability checking
 
 std::string Dice::toString() const {
     return std::to_string(base) + "+" + std::to_string(dice) + "d" + std::to_string(sides);
@@ -133,7 +134,11 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            sscanf(diceStr.c_str(), "%d+%dd%d", &current.speed.base, &current.speed.dice, &current.speed.sides);
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.speed.base, &current.speed.dice, &current.speed.sides) != 3) {
+                std::cerr << "Invalid SPEED format, discarding monster\n";
+                inMonster = false;
+                continue;
+            }
             hasSpeed = true;
         } else if (keyword == "ABIL") {
             if (hasAbil) {
@@ -145,10 +150,16 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             std::getline(iss, abilLine);
             std::istringstream abilIss(abilLine);
             std::string ability;
+            std::set<std::string> seenAbilities; // Track unique abilities
             while (abilIss >> ability) {
+                if (!seenAbilities.insert(ability).second) { // Check for duplicates
+                    std::cerr << "Duplicate ability '" << ability << "' in ABIL, discarding monster\n";
+                    inMonster = false;
+                    break;
+                }
                 current.abilities.push_back(ability);
             }
-            hasAbil = true;
+            if (inMonster) hasAbil = true; // Only set if no duplicates found
         } else if (keyword == "HP") {
             if (hasHP) {
                 std::cerr << "Duplicate HP, discarding monster\n";
@@ -157,7 +168,11 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            sscanf(diceStr.c_str(), "%d+%dd%d", &current.hitpoints.base, &current.hitpoints.dice, &current.hitpoints.sides);
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.hitpoints.base, &current.hitpoints.dice, &current.hitpoints.sides) != 3) {
+                std::cerr << "Invalid HP format, discarding monster\n";
+                inMonster = false;
+                continue;
+            }
             hasHP = true;
         } else if (keyword == "DAM") {
             if (hasDam) {
@@ -167,7 +182,11 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            sscanf(diceStr.c_str(), "%d+%dd%d", &current.damage.base, &current.damage.dice, &current.damage.sides);
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.damage.base, &current.damage.dice, &current.damage.sides) != 3) {
+                std::cerr << "Invalid DAM format, discarding monster\n";
+                inMonster = false;
+                continue;
+            }
             hasDam = true;
         } else if (keyword == "SYMB") {
             if (hasSymb) {
