@@ -146,16 +146,16 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             std::getline(iss, abilLine);
             std::istringstream abilIss(abilLine);
             std::string ability;
-            std::set<std::string> seenAbilities;
+            std::set<std::string> seenAbilities; // Track unique abilities
             while (abilIss >> ability) {
-                if (!seenAbilities.insert(ability).second) {
+                if (!seenAbilities.insert(ability).second) { // Check for duplicates
                     std::cerr << "Duplicate ability '" << ability << "' in ABIL, discarding monster\n";
                     inMonster = false;
                     break;
                 }
                 current.abilities.push_back(ability);
             }
-            if (inMonster) hasAbil = true;
+            if (inMonster) hasAbil = true; // Only set if no duplicates found
         } else if (keyword == "HP") {
             if (hasHP) {
                 std::cerr << "Duplicate HP, discarding monster\n";

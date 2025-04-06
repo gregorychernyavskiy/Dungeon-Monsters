@@ -123,7 +123,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             std::getline(iss, typeLine);
             std::istringstream typeIss(typeLine);
             std::string type;
-            std::set<std::string> seenTypes;
+            std::set<std::string> seenTypes; // Check for duplicate types
             while (typeIss >> type) {
                 if (!seenTypes.insert(type).second) {
                     std::cerr << "Duplicate type '" << type << "' in TYPE, discarding object\n";
@@ -139,7 +139,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
                 inObject = false;
                 continue;
             }
-            iss >> current.color;
+            iss >> current.color; // Single color for simplicity
             hasColor = true;
         } else if (keyword == "HIT") {
             if (hasHit) {
@@ -149,7 +149,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", ¤t.hit.base, ¤t.hit.dice, ¤t.hit.sides) != 3) {
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.hit.base, &current.hit.dice, &current.hit.sides) != 3) {
                 std::cerr << "Invalid HIT format, discarding object\n";
                 inObject = false;
                 continue;
@@ -163,13 +163,13 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", ¤t.damage.base, ¤t.damage.dice, ¤t.damage.sides) != 3) {
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.damage.base, &current.damage.dice, &current.damage.sides) != 3) {
                 std::cerr << "Invalid DAM format, discarding object\n";
                 inObject = false;
                 continue;
             }
             hasDam = true;
-        } else if (keyword == "DODGE") {
+        } else if (keyword == "DODGE") { // Corrected from DOOGE to DODGE
             if (hasDodge) {
                 std::cerr << "Duplicate DODGE, discarding object\n";
                 inObject = false;
@@ -177,7 +177,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", ¤t.dodge.base, ¤t.dodge.dice, ¤t.dodge.sides) != 3) {
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.dodge.base, &current.dodge.dice, &current.dodge.sides) != 3) {
                 std::cerr << "Invalid DODGE format, discarding object\n";
                 inObject = false;
                 continue;
@@ -191,7 +191,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", ¤t.defense.base, ¤t.defense.dice, ¤t.defense.sides) != 3) {
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.defense.base, &current.defense.dice, &current.defense.sides) != 3) {
                 std::cerr << "Invalid DEF format, discarding object\n";
                 inObject = false;
                 continue;
@@ -205,7 +205,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", ¤t.weight.base, ¤t.weight.dice, ¤t.weight.sides) != 3) {
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.weight.base, &current.weight.dice, &current.weight.sides) != 3) {
                 std::cerr << "Invalid WEIGHT format, discarding object\n";
                 inObject = false;
                 continue;
@@ -219,7 +219,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", ¤t.speed.base, ¤t.speed.dice, ¤t.speed.sides) != 3) {
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.speed.base, &current.speed.dice, &current.speed.sides) != 3) {
                 std::cerr << "Invalid SPEED format, discarding object\n";
                 inObject = false;
                 continue;
@@ -233,7 +233,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", ¤t.attribute.base, ¤t.attribute.dice, ¤t.attribute.sides) != 3) {
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.attribute.base, &current.attribute.dice, &current.attribute.sides) != 3) {
                 std::cerr << "Invalid ATTR format, discarding object\n";
                 inObject = false;
                 continue;
@@ -247,7 +247,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", ¤t.value.base, ¤t.value.dice, ¤t.value.sides) != 3) {
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.value.base, &current.value.dice, &current.value.sides) != 3) {
                 std::cerr << "Invalid VAL format, discarding object\n";
                 inObject = false;
                 continue;

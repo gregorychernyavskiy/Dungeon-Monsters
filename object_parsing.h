@@ -10,8 +10,8 @@ class ObjectDescription {
 public:
     std::string name;
     std::vector<std::string> description;
-    std::vector<std::string> types;     
-    std::string color;                 
+    std::vector<std::string> types;
+    std::string color;
     Dice hit;
     Dice damage;
     Dice dodge;
@@ -20,7 +20,7 @@ public:
     Dice speed;
     Dice attribute;
     Dice value;
-    std::string artifact;
+    std::string artifact; // "TRUE" or "FALSE"
     int rarity;
 
     ObjectDescription();
