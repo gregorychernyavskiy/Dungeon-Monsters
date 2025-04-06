@@ -17,7 +17,7 @@ struct Dice {
 class MonsterDescription {
 public:
     std::string name;
-    std::vector<std::string> description; // Multi-line description
+    std::vector<std::string> description;
     std::vector<std::string> colors;
     Dice speed;
     std::vector<std::string> abilities;

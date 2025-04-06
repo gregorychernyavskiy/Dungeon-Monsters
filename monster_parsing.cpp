@@ -4,7 +4,7 @@
 #include <sstream>
 #include <cstring>
 #include <stdlib.h>
-#include <set> // Added for duplicate ability checking
+#include <set>
 
 std::string Dice::toString() const {
     return std::to_string(base) + "+" + std::to_string(dice) + "d" + std::to_string(sides);
@@ -150,16 +150,16 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             std::getline(iss, abilLine);
             std::istringstream abilIss(abilLine);
             std::string ability;
-            std::set<std::string> seenAbilities; // Track unique abilities
+            std::set<std::string> seenAbilities;
             while (abilIss >> ability) {
-                if (!seenAbilities.insert(ability).second) { // Check for duplicates
+                if (!seenAbilities.insert(ability).second) {
                     std::cerr << "Duplicate ability '" << ability << "' in ABIL, discarding monster\n";
                     inMonster = false;
                     break;
                 }
                 current.abilities.push_back(ability);
             }
-            if (inMonster) hasAbil = true; // Only set if no duplicates found
+            if (inMonster) hasAbil = true;
         } else if (keyword == "HP") {
             if (hasHP) {
                 std::cerr << "Duplicate HP, discarding monster\n";

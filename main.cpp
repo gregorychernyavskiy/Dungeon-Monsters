@@ -8,6 +8,7 @@
 #include "dungeon_generation.h"
 #include "minheap.h"
 #include "monster_parsing.h"
+#include "object_parsing.h" // Added
 
 int main(int argc, char* argv[]) {
     srand(time(NULL));
@@ -15,6 +16,7 @@ int main(int argc, char* argv[]) {
     char* saveFileName = nullptr;
     int save = 0;
     bool parseMonstersOnly = false;
+    bool parseObjectsOnly = false; // Added
 
     // Parse command-line arguments
     for (int i = 1; i < argc; i++) {
@@ -23,23 +25,33 @@ int main(int argc, char* argv[]) {
             if (i + 1 < argc) saveFileName = argv[++i];
         } else if (strcmp(argv[i], "--parse-monsters") == 0) {
             parseMonstersOnly = true;
+        } else if (strcmp(argv[i], "--parse-objects") == 0) { // Added
+            parseObjectsOnly = true;
         } else {
             numMonsters = atoi(argv[i]);
         }
     }
 
-    // If no arguments or --parse-monsters is specified, parse monsters and exit
-    if (argc == 1 || parseMonstersOnly) {
+    // If no arguments or parsing mode is specified
+    if (argc == 1 || parseMonstersOnly || parseObjectsOnly) {
         char* home = getenv("HOME");
         if (!home) {
             fprintf(stderr, "Error: HOME environment variable not set\n");
             return 1;
         }
-        std::string filename = std::string(home) + "/.rlg327/monster_desc.txt";
-
-        std::vector<MonsterDescription> monsters = parseMonsterDescriptions(filename);
-        for (const auto& monster : monsters) {
-            monster.print();
+        if (parseMonstersOnly || (argc == 1 && !parseObjectsOnly)) {
+            std::string filename = std::string(home) + "/.rlg327/monster_desc.txt";
+            std::vector<MonsterDescription> monsters = parseMonsterDescriptions(filename);
+            for (const auto& monster : monsters) {
+                monster.print();
+            }
+        }
+        if (parseObjectsOnly) { // Added
+            std::string filename = std::string(home) + "/.rlg327/object_desc.txt";
+            std::vector<ObjectDescription> objects = parseObjectDescriptions(filename);
+            for (const auto& object : objects) {
+                object.print();
+            }
         }
         return 0;
     }
