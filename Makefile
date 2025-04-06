@@ -1,7 +1,7 @@
 CC = g++
 CFLAGS = -Wall -Wextra -g -std=c++11
 LDFLAGS = -lncurses
-OBJ = main.o dungeon_generation.o save_load.o findpath.o minheap.o monster_parsing.o object_parsing.o
+OBJ = main.o dungeon_generation.o save_load.o findpath.o minheap.o monster_parsing.o object_parsing.o dice.o
 
 all: dungeon
 
@@ -23,11 +23,14 @@ findpath.o: findpath.cpp dungeon_generation.h minheap.h
 minheap.o: minheap.cpp minheap.h
 	$(CC) $(CFLAGS) -c minheap.cpp
 
-monster_parsing.o: monster_parsing.cpp monster_parsing.h
+monster_parsing.o: monster_parsing.cpp monster_parsing.h dice.h
 	$(CC) $(CFLAGS) -c monster_parsing.cpp
 
-object_parsing.o: object_parsing.cpp object_parsing.h
+object_parsing.o: object_parsing.cpp object_parsing.h dice.h
 	$(CC) $(CFLAGS) -c object_parsing.cpp
+
+dice.o: dice.cpp dice.h
+	$(CC) $(CFLAGS) -c dice.cpp
 
 clean:
 	rm -f dungeon $(OBJ)

@@ -4,15 +4,7 @@
 #include <string>
 #include <vector>
 #include <stdint.h>
-
-struct Dice {
-    int base;
-    int dice;
-    int sides;
-    Dice() : base(0), dice(0), sides(0) {}
-    Dice(int b, int d, int s) : base(b), dice(d), sides(s) {}
-    std::string toString() const;
-};
+#include "dice.h"
 
 class MonsterDescription {
 public:

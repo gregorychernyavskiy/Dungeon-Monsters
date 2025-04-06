@@ -6,10 +6,6 @@
 #include <stdlib.h>
 #include <set>
 
-std::string Dice::toString() const {
-    return std::to_string(base) + "+" + std::to_string(dice) + "d" + std::to_string(sides);
-}
-
 MonsterDescription::MonsterDescription()
     : symbol('\0'), rarity(0) {}
 

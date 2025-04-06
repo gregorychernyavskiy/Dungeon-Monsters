@@ -4,22 +4,14 @@
 #include <string>
 #include <vector>
 #include <stdint.h>
-
-struct Dice {
-    int base;
-    int dice;
-    int sides;
-    Dice() : base(0), dice(0), sides(0) {}
-    Dice(int b, int d, int s) : base(b), dice(d), sides(s) {}
-    std::string toString() const;
-};
+#include "dice.h"
 
 class ObjectDescription {
 public:
     std::string name;
     std::vector<std::string> description;
-    std::vector<std::string> types;      
-    std::string color;                    
+    std::vector<std::string> types;     
+    std::string color;                 
     Dice hit;
     Dice damage;
     Dice dodge;
@@ -28,7 +20,7 @@ public:
     Dice speed;
     Dice attribute;
     Dice value;
-    std::string artifact; // "TRUE" or "FALSE"
+    std::string artifact;
     int rarity;
 
     ObjectDescription();

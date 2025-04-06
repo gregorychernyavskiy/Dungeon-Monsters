@@ -6,10 +6,6 @@
 #include <stdlib.h>
 #include <set>
 
-std::string Dice::toString() const {
-    return std::to_string(base) + "+" + std::to_string(dice) + "d" + std::to_string(sides);
-}
-
 ObjectDescription::ObjectDescription()
     : rarity(0) {}
 
