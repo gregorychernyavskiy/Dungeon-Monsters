@@ -370,7 +370,7 @@ void init_ncurses() {
 }
 
 void update_visibility() {
-    const int radius = 3; // Light radius per assignment
+    const int radius = 3;
     memset(visible, 0, sizeof(visible));
     for (int y = player->y - radius; y <= player->y + radius; y++) {
         for (int x = player->x - radius; x <= player->x + radius; x++) {

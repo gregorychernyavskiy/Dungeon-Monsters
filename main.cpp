@@ -7,22 +7,44 @@
 #include <ncurses.h>
 #include "dungeon_generation.h"
 #include "minheap.h"
+#include "monster_parsing.h"
 
 int main(int argc, char* argv[]) {
     srand(time(NULL));
     int numMonsters = 0;
     char* saveFileName = nullptr;
     int save = 0;
+    bool parseMonstersOnly = false;
 
+    // Parse command-line arguments
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--save") == 0) {
             save = 1;
             if (i + 1 < argc) saveFileName = argv[++i];
+        } else if (strcmp(argv[i], "--parse-monsters") == 0) {
+            parseMonstersOnly = true;
         } else {
             numMonsters = atoi(argv[i]);
         }
     }
 
+    // If no arguments or --parse-monsters is specified, parse monsters and exit
+    if (argc == 1 || parseMonstersOnly) {
+        char* home = getenv("HOME");
+        if (!home) {
+            fprintf(stderr, "Error: HOME environment variable not set\n");
+            return 1;
+        }
+        std::string filename = std::string(home) + "/.rlg327/monster_desc.txt";
+
+        std::vector<MonsterDescription> monsters = parseMonsterDescriptions(filename);
+        for (const auto& monster : monsters) {
+            monster.print();
+        }
+        return 0;
+    }
+
+    // Original dungeon generation and game logic
     emptyDungeon();
     createRooms();
     connectRooms();
@@ -33,7 +55,6 @@ int main(int argc, char* argv[]) {
     if (numMonsters > 0) spawnMonsters(numMonsters);
     update_visibility();
 
-    
     if (save && saveFileName && numMonsters == 0 && argc == 3) {
         saveDungeon(saveFileName);
         for (int i = 0; i < num_monsters; i++) delete monsters[i];
