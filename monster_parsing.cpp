@@ -53,7 +53,6 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
 
     MonsterDescription current;
     bool inMonster = false;
-    bool inDescription = false;
     bool hasName = false, hasDesc = false, hasColor = false, hasSpeed = false;
     bool hasAbil = false, hasHP = false, hasDam = false, hasSymb = false, hasRarity = false;
 
@@ -66,7 +65,6 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             }
             current = MonsterDescription();
             inMonster = true;
-            inDescription = false;
             hasName = hasDesc = hasColor = hasSpeed = hasAbil = hasHP = hasDam = hasSymb = hasRarity = false;
             continue;
         }
@@ -103,19 +101,16 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
                 continue;
             }
             hasDesc = true;
-            inDescription = true;
             current.description.clear();
             while (std::getline(file, line) && line != ".") {
                 if (line.length() > 77) {
                     std::cerr << "Description line exceeds 77 characters, discarding monster\n";
                     inMonster = false;
-                    inDescription = false;
                     break;
                 }
                 current.description.push_back(line);
             }
             if (!inMonster) continue;
-            inDescription = false;
         } else if (keyword == "COLOR") {
             if (hasColor) {
                 std::cerr << "Duplicate COLOR, discarding monster\n";
