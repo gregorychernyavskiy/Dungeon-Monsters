@@ -1,13 +1,9 @@
 Dungeon Generation, Monsters, and Pathfinding
+- This project is a fully object-oriented C++ roguelike dungeon crawler that generates randomized dungeons featuring rooms, corridors, and staircases ('<' for upstairs, '>' for downstairs), ensuring full accessibility across the map. It employs Dijkstra’s Algorithm for pathfinding, enabling non-tunneling monsters to navigate open spaces and tunneling monsters to dig through walls, with movement costs determined by terrain hardness. Monsters possess distinct AI traits: intelligence (smart pathfinding to the player), telepathy (constant awareness of player location), tunneling (ability to break through walls), and erratic behavior (random movement), adding variety to gameplay. The player, represented by '@', navigates the dungeon, while an event-driven system dictates turn order based on entity speed. The game supports saving and loading dungeons using ./dungeon --save "filename" and ./dungeon --load "filename", and running ./dungeon "number" spawns monsters, ending when the player is defeated.
 
-- This project generates a randomized dungeon with rooms, corridors, and staircases (< for upstairs, > for downstairs), ensuring full accessibility. Dijkstra’s Algorithm is used for pathfinding, allowing non-tunneling monsters to move through open spaces and tunneling monsters to dig through walls, with movement costs based on hardness.
+- To start the game, launch ./dungeon "number of monsters" and press any key to begin. Players can toggle Fog of War mode with 'F', restricting visibility to a 3-tile radius around the player, with previously seen terrain remembered for strategic navigation. Pressing 'M' displays a scrollable list of all monsters in the dungeon, detailing their symbol and relative position (e.g., "e, 2 south and 6 east"); use arrow keys to scroll (test with 25+ monsters to verify scrolling) and ESC to return to gameplay. Debugging features enhance testing: 'F' toggles fog, and 'G' activates teleportation mode for quick repositioning. As of version 1.06, these mechanics were introduced alongside a shift to C++ classes for the PC, NPCs, and general characters, ensuring a modular design.
 
-- Monsters have distinct AI traits: intelligence (smart pathfinding), telepathy (always knows player location), tunneling (can dig through walls), and erratic behavior (random movement). The player ('@') moves randomly, and the game runs on an event-driven system where entity speed determines turn order.
-The game can save and load dungeons with './dungeon --save "filename"' and './dungeon --load "filename"'. Running './dungeon "number"' spawns 1-15 monsters. The game ends when the player is defeated. 
-
-- After launching the game with ./dungeon "number of monsters", press any button to start the game. Press "F" to toggle Fog of War mode, limiting visibility to a radius around the player. Press 'M' to display a scrollable list of all monsters in the dungeon, showing their symbol and relative position from the player (e.g., "e, 2 south and 6 east"). Scroll through the monster list using the arrow keys, and press ESC to exit the list and return to normal gameplay. Do 25+ monsters to check the Arrow Scrolling.
-
-- This project is now fully written in C++ and follows an object-oriented design using classes for the PC, NPCs, and general characters. As of version 1.06, a Fog of War mechanic has been introduced—players can only see dungeon tiles within a radius of 3, and previously seen terrain is remembered. Debugging features like fog toggling (f) and teleportation (g) have also been added for easier navigation and testing.
+- New to version 1.07, the project includes robust parsing capabilities for monster and item definitions, accessible via ./dungeon --parse-monsters and ./dungeon --parse-objects. These commands read from $HOME/.rlg327/monster_desc.txt and $HOME/.rlg327/object_desc.txt.
 
 Compile the project:
 make
@@ -34,6 +30,10 @@ View Monster List:
 - Press 'M' to display a scrollable list of all monsters. 
 - Scroll through the monster list using the arrow keys.
 
-New Controls:
+Fog and Teleportation:
 - Press 'F' for Fog of War.
 - Press 'G' for Teleportation.
+
+Parse files:
+- ./dungeon --parse-monsters
+- ./dungeon --parse-objects

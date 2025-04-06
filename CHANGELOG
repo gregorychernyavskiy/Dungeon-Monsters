@@ -70,3 +70,9 @@
 1. Ported entire project from C to C++ using class-based design (Character, PC, NPC).
 2. Implemented "Fog of War" system with visible and remembered terrain for the PC.
 3. Added debug features: 'f' to toggle fog, 'g' to teleport.
+
+04/06/2025
+1. Implemented monster parsing with --parse-monsters, reading definitions from $HOME/.rlg327/monster_desc.txt and ensuring proper validation of fields like hitpoints and abilities.
+2. Added optional object parsing via --parse-objects, processing item data from $HOME/.rlg327/object_desc.txt with support for attributes like type and weight.
+3. Fixed Dice struct redefinition by moving it to separate dice.h and dice.cpp files for shared use.
+4. Updated main.cpp to handle new parsing flags, printing results and exiting cleanly.
