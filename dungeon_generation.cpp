@@ -467,12 +467,10 @@ void init_ncurses() {
 
 int getColorIndex(const std::string& color) {
     std::string upper_color = color;
-    // Convert to uppercase for case-insensitive comparison
     for (char& c : upper_color) {
         c = std::toupper(c);
     }
 
-    // Debug: Print the color being mapped
     FILE* debug_file = fopen("color_debug.txt", "a");
     if (debug_file) {
         fprintf(debug_file, "Mapping color: %s\n", upper_color.c_str());
