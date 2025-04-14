@@ -12,6 +12,8 @@
 #include <vector>
 #include "minheap.h"
 #include "dice.h"
+#include "monster_parsing.h" // Added for MonsterDescription
+#include "object_parsing.h"  // Added for ObjectDescription
 
 #define WIDTH 80
 #define HEIGHT 21
