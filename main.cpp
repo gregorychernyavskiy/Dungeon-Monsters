@@ -8,7 +8,7 @@
 #include "dungeon_generation.h"
 #include "minheap.h"
 #include "monster_parsing.h"
-#include "object_parsing.h" // Added
+#include "object_parsing.h"
 
 int main(int argc, char* argv[]) {
     srand(time(NULL));
@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
     char* saveFileName = nullptr;
     int save = 0;
     bool parseMonstersOnly = false;
-    bool parseObjectsOnly = false; // Added
+    bool parseObjectsOnly = false;
 
     // Parse command-line arguments
     for (int i = 1; i < argc; i++) {
@@ -25,38 +25,40 @@ int main(int argc, char* argv[]) {
             if (i + 1 < argc) saveFileName = argv[++i];
         } else if (strcmp(argv[i], "--parse-monsters") == 0) {
             parseMonstersOnly = true;
-        } else if (strcmp(argv[i], "--parse-objects") == 0) { // Added
+        } else if (strcmp(argv[i], "--parse-objects") == 0) {
             parseObjectsOnly = true;
         } else {
             numMonsters = atoi(argv[i]);
         }
     }
 
-    // If no arguments or parsing mode is specified
+    // Load descriptions
+    char* home = getenv("HOME");
+    if (!home) {
+        fprintf(stderr, "Error: HOME environment variable not set\n");
+        return 1;
+    }
+    std::string monster_file = std::string(home) + "/.rlg327/monster_desc.txt";
+    std::string object_file = std::string(home) + "/.rlg327/object_desc.txt";
+    monster_descriptions = parseMonsterDescriptions(monster_file);
+    object_descriptions = parseObjectDescriptions(object_file);
+
+    // Handle parsing modes
     if (argc == 1 || parseMonstersOnly || parseObjectsOnly) {
-        char* home = getenv("HOME");
-        if (!home) {
-            fprintf(stderr, "Error: HOME environment variable not set\n");
-            return 1;
-        }
         if (parseMonstersOnly || (argc == 1 && !parseObjectsOnly)) {
-            std::string filename = std::string(home) + "/.rlg327/monster_desc.txt";
-            std::vector<MonsterDescription> monsters = parseMonsterDescriptions(filename);
-            for (const auto& monster : monsters) {
+            for (const auto& monster : monster_descriptions) {
                 monster.print();
             }
         }
-        if (parseObjectsOnly) { // Added
-            std::string filename = std::string(home) + "/.rlg327/object_desc.txt";
-            std::vector<ObjectDescription> objects = parseObjectDescriptions(filename);
-            for (const auto& object : objects) {
+        if (parseObjectsOnly) {
+            for (const auto& object : object_descriptions) {
                 object.print();
             }
         }
         return 0;
     }
 
-    // Original dungeon generation and game logic
+    // Dungeon setup
     emptyDungeon();
     createRooms();
     connectRooms();
@@ -65,12 +67,15 @@ int main(int argc, char* argv[]) {
     placePlayer();
     initializeHardness();
     if (numMonsters > 0) spawnMonsters(numMonsters);
+    spawnObjects();
     update_visibility();
 
     if (save && saveFileName && numMonsters == 0 && argc == 3) {
         saveDungeon(saveFileName);
         for (int i = 0; i < num_monsters; i++) delete monsters[i];
         free(monsters);
+        for (int i = 0; i < num_objects; i++) delete objects[i];
+        free(objects);
         delete player;
         return 0;
     }
@@ -202,11 +207,8 @@ int main(int argc, char* argv[]) {
             }
             NPC* culprit = nullptr;
             if (gameOver(&culprit)) {
-                int personality = culprit->intelligent + (culprit->telepathic << 1) +
-                                  (culprit->tunneling << 2) + (culprit->erratic << 3);
-                char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
                 char buf[80];
-                snprintf(buf, sizeof(buf), "Killed by monster '%c'!", symbol);
+                snprintf(buf, sizeof(buf), "Killed by monster '%s'!", culprit->name.c_str());
                 message = buf;
                 game_running = false;
             }
@@ -228,6 +230,10 @@ int main(int argc, char* argv[]) {
         delete monsters[i];
     }
     free(monsters);
+    for (int i = 0; i < num_objects; i++) {
+        delete objects[i];
+    }
+    free(objects);
     delete player;
     delwin(win);
     endwin();
