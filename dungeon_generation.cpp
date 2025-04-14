@@ -4,8 +4,8 @@
 #include <ncurses.h>
 #include <random>
 #include <ctime>
-#include <cstring> // Added for memset
-#include <cstdlib> // Added for rand, srand
+#include <cstring>
+#include <cstdlib>
 
 char dungeon[HEIGHT][WIDTH];
 unsigned char hardness[HEIGHT][WIDTH];
@@ -52,8 +52,8 @@ PC::PC(int x_, int y_) : Character(x_, y_) {
     color = "WHITE";
 }
 
-NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(rand() % 2),
-    tunneling(rand() % 2), telepathic(rand() % 2), erratic(rand() % 2),
+NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(0),
+    tunneling(0), telepathic(0), erratic(0),
     pass_wall(0), pickup(0), destroy(0), is_unique(false), hitpoints(10) {
     speed = rand() % 16 + 5;
 }
@@ -250,54 +250,6 @@ void placePlayer() {
     if (player) delete player;
     player = new PC(px, py);
     dungeon[player->y][player->x] = '@';
-}
-
-NPC* generateMonsterByType(char c, int x, int y) {
-    NPC* monster = new NPC(x, y);
-    c = tolower(c);
-    int num = (c >= '0' && c <= '9') ? (c - '0') : (c >= 'a' && c <= 'f') ? (c - 'a' + 10) : -1;
-    if (num == -1) {
-        delete monster;
-        printf("Error: Invalid hex character '%c'\n", c);
-        return nullptr;
-    }
-    monster->intelligent = num & 1;
-    monster->telepathic = (num >> 1) & 1;
-    monster->tunneling = (num >> 2) & 1;
-    monster->erratic = (num >> 3) & 1;
-    return monster;
-}
-
-NPC* generateMonster(int x, int y) {
-    return new NPC(x, y);
-}
-
-int spawnMonsterByType(char monType) {
-    NPC** temp = (NPC**)realloc(monsters, (num_monsters + 1) * sizeof(NPC*));
-    if (!temp) {
-        fprintf(stderr, "Error: Failed to allocate memory for monsters\n");
-        return 1;
-    }
-    monsters = temp;
-
-    int attempts = 100;
-    for (int j = 0; j < attempts; j++) {
-        int x = rand() % WIDTH;
-        int y = rand() % HEIGHT;
-        struct Room playerRoom = rooms[player_room_index];
-        bool in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
-                               y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
-        if (dungeon[y][x] != '.' || (x == player->x && y == player->y) || monsterAt[y][x] || in_player_room) {
-            continue;
-        }
-        monsters[num_monsters] = generateMonsterByType(monType, x, y);
-        if (!monsters[num_monsters]) return 1;
-        monsterAt[y][x] = monsters[num_monsters];
-        num_monsters++;
-        return 0;
-    }
-    fprintf(stderr, "Error: Failed to spawn monster\n");
-    return 1;
 }
 
 void loadDescriptions() {
@@ -504,7 +456,7 @@ int getColorIndex(const std::string& color) {
     if (color == "CYAN") return COLOR_CYAN;
     if (color == "WHITE") return COLOR_WHITE;
     if (color == "BLACK") return COLOR_WHITE; // Render black as white
-    return COLOR_WHITE;
+    return COLOR_WHITE; // Default to white if unknown
 }
 
 void update_visibility() {

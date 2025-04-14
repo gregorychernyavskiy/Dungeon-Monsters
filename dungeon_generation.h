@@ -121,13 +121,10 @@ void saveDungeon(char* filename);
 void loadDungeon(char* filename);
 
 void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]);
-void printNonTunnelingMap();
 void dijkstraTunneling(int dist[HEIGHT][WIDTH]);
+void printNonTunnelingMap();
 void printTunnelingMap();
 
-NPC* generateMonsterByType(char c, int x, int y);
-NPC* generateMonster(int x, int y);
-int spawnMonsterByType(char monType);
 int spawnMonsters(int count);
 void runGame(int numMonsters);
 
