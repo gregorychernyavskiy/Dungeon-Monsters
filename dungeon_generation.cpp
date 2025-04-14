@@ -3,9 +3,9 @@
 #include <ctype.h>
 #include <ncurses.h>
 #include <random>
+#include <ctime>
 #include <cstring> // Added for memset
 #include <cstdlib> // Added for rand, srand
-#include <ctime>
 
 char dungeon[HEIGHT][WIDTH];
 unsigned char hardness[HEIGHT][WIDTH];
