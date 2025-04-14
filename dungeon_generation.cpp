@@ -515,16 +515,19 @@ void draw_dungeon(WINDOW* win, const char* message) {
                 mvwprintw(win, y + 1, x, " ");
             } else if (x == player->x && y == player->y) {
                 int color = getColorIndex(player->color);
+                fprintf(stderr, "Player color: %d\n", color); // Debug
                 attron(COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "@");
                 attroff(COLOR_PAIR(color));
             } else if (monsterAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(monsterAt[y][x]->color);
+                fprintf(stderr, "Monster at (%d,%d) color: %d\n", x, y, color); // Debug
                 attron(COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "%c", monsterAt[y][x]->symbol);
                 attroff(COLOR_PAIR(color));
             } else if (objectAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(objectAt[y][x]->color);
+                fprintf(stderr, "Object at (%d,%d) color: %d\n", x, y, color); // Debug
                 attron(COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "%c", objectAt[y][x]->symbol);
                 attroff(COLOR_PAIR(color));
