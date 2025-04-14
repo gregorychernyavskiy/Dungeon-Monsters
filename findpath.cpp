@@ -4,7 +4,7 @@
 void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
-            dist[y][x] = INFINITY;
+            dist[y][x] = HEAP_INFINITY; // Changed from INFINITY
         }
     }
     dist[player->y][player->x] = 0;
@@ -48,7 +48,7 @@ void dijkstraNonTunneling(int dist[HEIGHT][WIDTH]) {
 void dijkstraTunneling(int dist[HEIGHT][WIDTH]) {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
-            dist[y][x] = INFINITY;
+            dist[y][x] = HEAP_INFINITY; // Changed from INFINITY
         }
     }
     dist[player->y][player->x] = 0;
@@ -97,7 +97,7 @@ void printNonTunnelingMap() {
         for (int x = 0; x < WIDTH; x++) {
             if (x == player->x && y == player->y) {
                 printf("@");
-            } else if (dist[y][x] == INFINITY) {
+            } else if (dist[y][x] == HEAP_INFINITY) { // Changed from INFINITY
                 printf("%c", dungeon[y][x]);
             } else {
                 printf("%d", dist[y][x] % 10);
@@ -114,7 +114,7 @@ void printTunnelingMap() {
         for (int x = 0; x < WIDTH; x++) {
             if (x == player->x && y == player->y) {
                 printf("@");
-            } else if (dist[y][x] == INFINITY) {
+            } else if (dist[y][x] == HEAP_INFINITY) { // Changed from INFINITY
                 printf("%c", dungeon[y][x]);
             } else {
                 printf("%d", dist[y][x] % 10);

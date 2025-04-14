@@ -1,10 +1,11 @@
+// minheap.h
 #ifndef MINHEAP_H
 #define MINHEAP_H
 
 #include <stdlib.h>
 #include <limits.h>
 
-#define HEAP_INFINITY INT_MAX // Changed from INFINITY
+#define HEAP_INFINITY INT_MAX
 
 typedef struct {
     int x;
