@@ -431,7 +431,17 @@ int gameOver(NPC** culprit) {
 
 void init_ncurses() {
     initscr();
-    start_color();
+    if (!has_colors()) {
+        endwin();
+        fprintf(stderr, "Error: Terminal does not support colors!\n");
+        exit(EXIT_FAILURE);
+    }
+    int ret = start_color();
+    if (ret == ERR) {
+        endwin();
+        fprintf(stderr, "Error: Failed to start color mode!\n");
+        exit(EXIT_FAILURE);
+    }
     raw();
     noecho();
     keypad(stdscr, TRUE);
@@ -445,17 +455,36 @@ void init_ncurses() {
     init_pair(COLOR_MAGENTA, COLOR_MAGENTA, COLOR_BLACK);
     init_pair(COLOR_CYAN, COLOR_CYAN, COLOR_BLACK);
     init_pair(COLOR_WHITE, COLOR_WHITE, COLOR_BLACK);
+
+    // Debug: Test if colors are initialized
+    mvprintw(0, 0, "Color support: %s", can_change_color() ? "Yes" : "No");
+    mvprintw(1, 0, "Number of colors: %d", COLORS);
+    mvprintw(2, 0, "Number of color pairs: %d", COLOR_PAIRS);
+    refresh();
 }
 
 int getColorIndex(const std::string& color) {
-    if (color == "RED") return COLOR_RED;
-    if (color == "GREEN") return COLOR_GREEN;
-    if (color == "YELLOW") return COLOR_YELLOW;
-    if (color == "BLUE") return COLOR_BLUE;
-    if (color == "MAGENTA") return COLOR_MAGENTA;
-    if (color == "CYAN") return COLOR_CYAN;
-    if (color == "WHITE") return COLOR_WHITE;
-    if (color == "BLACK") return COLOR_WHITE; // Render black as white
+    std::string upper_color = color;
+    // Convert to uppercase for case-insensitive comparison
+    for (char& c : upper_color) {
+        c = std::toupper(c);
+    }
+
+    // Debug: Print the color being mapped
+    FILE* debug_file = fopen("color_debug.txt", "a");
+    if (debug_file) {
+        fprintf(debug_file, "Mapping color: %s\n", upper_color.c_str());
+        fclose(debug_file);
+    }
+
+    if (upper_color == "RED") return COLOR_RED;
+    if (upper_color == "GREEN") return COLOR_GREEN;
+    if (upper_color == "YELLOW") return COLOR_YELLOW;
+    if (upper_color == "BLUE") return COLOR_BLUE;
+    if (upper_color == "MAGENTA") return COLOR_MAGENTA;
+    if (upper_color == "CYAN") return COLOR_CYAN;
+    if (upper_color == "WHITE") return COLOR_WHITE;
+    if (upper_color == "BLACK") return COLOR_WHITE; // Render black as white
     return COLOR_WHITE; // Default to white if unknown
 }
 
@@ -485,9 +514,10 @@ void draw_dungeon(WINDOW* win, const char* message) {
             if (fog_enabled && !visible[y][x] && !remembered[y][x]) {
                 mvwprintw(win, y + 1, x, " ");
             } else if (x == player->x && y == player->y) {
-                attron(COLOR_PAIR(COLOR_WHITE));
+                int color = getColorIndex(player->color);
+                attron(COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "@");
-                attroff(COLOR_PAIR(COLOR_WHITE));
+                attroff(COLOR_PAIR(color));
             } else if (monsterAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(monsterAt[y][x]->color);
                 attron(COLOR_PAIR(color));
