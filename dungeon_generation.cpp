@@ -471,13 +471,12 @@ void init_ncurses() {
         fclose(debug_file);
     }
 
-
     // Add terminal info for debugging
-    mvprintw(4, 0, "Terminal supports %d colors", COLORS);
-    mvprintw(5, 0, "Terminal supports %d color pairs", COLOR_PAIRS);
+    mvprintw(0, 0, "Terminal supports %d colors", COLORS);
+    mvprintw(1, 0, "Terminal supports %d color pairs", COLOR_PAIRS);
 
     refresh();
-    getch(); // Wait for user input to verify colors
+    getch(); // Wait for user input to verify terminal setup
 }
 
 int getColorIndex(const std::string& color) {
