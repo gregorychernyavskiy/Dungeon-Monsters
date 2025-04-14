@@ -443,7 +443,6 @@ void init_ncurses() {
         exit(EXIT_FAILURE);
     }
 
-    start_color();
     raw();
     noecho();
     keypad(stdscr, TRUE);
@@ -458,22 +457,39 @@ void init_ncurses() {
     init_pair(COLOR_CYAN, COLOR_CYAN, COLOR_BLACK);
     init_pair(COLOR_WHITE, COLOR_WHITE, COLOR_BLACK);
 
-    // Debug: Test if colors are initialized
-    mvprintw(0, 0, "Color support: %s", can_change_color() ? "Yes" : "No");
-    mvprintw(1, 0, "Number of colors: %d", COLORS);
-    mvprintw(2, 0, "Number of color pairs: %d", COLOR_PAIRS);
+    // Color test
+    clear();
+    attron(COLOR_PAIR(COLOR_RED));
+    mvprintw(0, 0, "This should be RED");
+    attroff(COLOR_PAIR(COLOR_RED));
+
+    attron(COLOR_PAIR(COLOR_GREEN));
+    mvprintw(1, 0, "This should be GREEN");
+    attroff(COLOR_PAIR(COLOR_GREEN));
+
+    attron(COLOR_PAIR(COLOR_CYAN));
+    mvprintw(2, 0, "This should be CYAN");
+    attroff(COLOR_PAIR(COLOR_CYAN));
+
     refresh();
+    getch(); // Wait for user input
 }
 
 int getColorIndex(const std::string& color) {
-    std::string upper_color = color;
+    std::string trimmed_color = color;
+    // Trim leading and trailing whitespace
+    trimmed_color.erase(0, trimmed_color.find_first_not_of(" \t"));
+    trimmed_color.erase(trimmed_color.find_last_not_of(" \t") + 1);
+
+    std::string upper_color = trimmed_color;
     for (char& c : upper_color) {
         c = std::toupper(c);
     }
 
     FILE* debug_file = fopen("color_debug.txt", "a");
     if (debug_file) {
-        fprintf(debug_file, "Mapping color: %s\n", upper_color.c_str());
+        fprintf(debug_file, "Raw color: '%s', Trimmed color: '%s', Mapped color: '%s'\n", 
+                color.c_str(), trimmed_color.c_str(), upper_color.c_str());
         fclose(debug_file);
     }
 
@@ -484,7 +500,7 @@ int getColorIndex(const std::string& color) {
     if (upper_color == "MAGENTA") return COLOR_MAGENTA;
     if (upper_color == "CYAN") return COLOR_CYAN;
     if (upper_color == "WHITE") return COLOR_WHITE;
-    if (upper_color == "BLACK") return COLOR_WHITE; // Render black as white
+    if (upper_color == "BLACK") return COLOR_WHITE;
     return COLOR_WHITE; // Default to white if unknown
 }
 
