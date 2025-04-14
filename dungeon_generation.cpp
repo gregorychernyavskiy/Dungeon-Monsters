@@ -457,22 +457,40 @@ void init_ncurses() {
     init_pair(COLOR_CYAN, COLOR_CYAN, COLOR_BLACK);
     init_pair(COLOR_WHITE, COLOR_WHITE, COLOR_BLACK);
 
-    // Color test
+    // Debug: Log color pair initialization
+    FILE* debug_file = fopen("color_init_debug.txt", "w");
+    if (debug_file) {
+        fprintf(debug_file, "Initialized color pairs:\n");
+        fprintf(debug_file, "RED: %d\n", COLOR_RED);
+        fprintf(debug_file, "GREEN: %d\n", COLOR_GREEN);
+        fprintf(debug_file, "YELLOW: %d\n", COLOR_YELLOW);
+        fprintf(debug_file, "BLUE: %d\n", COLOR_BLUE);
+        fprintf(debug_file, "MAGENTA: %d\n", COLOR_MAGENTA);
+        fprintf(debug_file, "CYAN: %d\n", COLOR_CYAN);
+        fprintf(debug_file, "WHITE: %d\n", COLOR_WHITE);
+        fclose(debug_file);
+    }
+
+    // Color test to verify terminal support
     clear();
-    attron(COLOR_PAIR(COLOR_RED));
+    wattron(stdscr, COLOR_PAIR(COLOR_RED));
     mvprintw(0, 0, "This should be RED");
-    attroff(COLOR_PAIR(COLOR_RED));
+    wattroff(stdscr, COLOR_PAIR(COLOR_RED));
 
-    attron(COLOR_PAIR(COLOR_GREEN));
+    wattron(stdscr, COLOR_PAIR(COLOR_GREEN));
     mvprintw(1, 0, "This should be GREEN");
-    attroff(COLOR_PAIR(COLOR_GREEN));
+    wattroff(stdscr, COLOR_PAIR(COLOR_GREEN));
 
-    attron(COLOR_PAIR(COLOR_CYAN));
+    wattron(stdscr, COLOR_PAIR(COLOR_CYAN));
     mvprintw(2, 0, "This should be CYAN");
-    attroff(COLOR_PAIR(COLOR_CYAN));
+    wattroff(stdscr, COLOR_PAIR(COLOR_CYAN));
+
+    // Add terminal info for debugging
+    mvprintw(4, 0, "Terminal supports %d colors", COLORS);
+    mvprintw(5, 0, "Terminal supports %d color pairs", COLOR_PAIRS);
 
     refresh();
-    getch(); // Wait for user input
+    getch(); // Wait for user input to verify colors
 }
 
 int getColorIndex(const std::string& color) {
@@ -486,6 +504,7 @@ int getColorIndex(const std::string& color) {
         c = std::toupper(c);
     }
 
+    // Debug: Log color mapping
     FILE* debug_file = fopen("color_debug.txt", "a");
     if (debug_file) {
         fprintf(debug_file, "Raw color: '%s', Trimmed color: '%s', Mapped color: '%s'\n", 
@@ -500,7 +519,7 @@ int getColorIndex(const std::string& color) {
     if (upper_color == "MAGENTA") return COLOR_MAGENTA;
     if (upper_color == "CYAN") return COLOR_CYAN;
     if (upper_color == "WHITE") return COLOR_WHITE;
-    if (upper_color == "BLACK") return COLOR_WHITE;
+    if (upper_color == "BLACK") return COLOR_WHITE; // Render black as white per assignment
     return COLOR_WHITE; // Default to white if unknown
 }
 
@@ -531,19 +550,39 @@ void draw_dungeon(WINDOW* win, const char* message) {
                 mvwprintw(win, y + 1, x, " ");
             } else if (x == player->x && y == player->y) {
                 int color = getColorIndex(player->color);
-                attron(COLOR_PAIR(color));
+                // Debug: Log color for player
+                FILE* debug_file = fopen("render_debug.txt", "a");
+                if (debug_file) {
+                    fprintf(debug_file, "Player at (%d,%d) color index: %d\n", x, y, color);
+                    fclose(debug_file);
+                }
+                wattron(win, COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "@");
-                attroff(COLOR_PAIR(color));
+                wattroff(win, COLOR_PAIR(color));
             } else if (monsterAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(monsterAt[y][x]->color);
-                attron(COLOR_PAIR(color));
+                // Debug: Log color for monster
+                FILE* debug_file = fopen("render_debug.txt", "a");
+                if (debug_file) {
+                    fprintf(debug_file, "Monster at (%d,%d) symbol: %c, color index: %d\n", 
+                            x, y, monsterAt[y][x]->symbol, color);
+                    fclose(debug_file);
+                }
+                wattron(win, COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "%c", monsterAt[y][x]->symbol);
-                attroff(COLOR_PAIR(color));
+                wattroff(win, COLOR_PAIR(color));
             } else if (objectAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(objectAt[y][x]->color);
-                attron(COLOR_PAIR(color));
+                // Debug: Log color for object
+                FILE* debug_file = fopen("render_debug.txt", "a");
+                if (debug_file) {
+                    fprintf(debug_file, "Object at (%d,%d) symbol: %c, color index: %d\n", 
+                            x, y, objectAt[y][x]->symbol, color);
+                    fclose(debug_file);
+                }
+                wattron(win, COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "%c", objectAt[y][x]->symbol);
-                attroff(COLOR_PAIR(color));
+                wattroff(win, COLOR_PAIR(color));
             } else {
                 char display = (fog_enabled && remembered[y][x] && !visible[y][x]) ? remembered[y][x] : dungeon[y][x];
                 mvwprintw(win, y + 1, x, "%c", display);
