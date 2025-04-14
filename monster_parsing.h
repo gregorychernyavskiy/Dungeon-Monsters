@@ -5,7 +5,6 @@
 #include <vector>
 #include <stdint.h>
 #include "dice.h"
-#include "dungeon_generation.h"
 
 class MonsterDescription {
 public:
@@ -21,7 +20,6 @@ public:
 
     MonsterDescription();
     void print() const;
-    NPC* createInstance(int x, int y) const;
 };
 
 std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& filename);

@@ -32,10 +32,6 @@ void MonsterDescription::print() const {
     std::cout << "\n";
 }
 
-NPC* MonsterDescription::createInstance(int x, int y) const {
-    return new NPC(*this, x, y);
-}
-
 std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& filename) {
     std::vector<MonsterDescription> monsters;
     std::ifstream file(filename);
@@ -150,16 +146,16 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             std::getline(iss, abilLine);
             std::istringstream abilIss(abilLine);
             std::string ability;
-            std::set<std::string> seenAbilities;
+            std::set<std::string> seenAbilities; // Track unique abilities
             while (abilIss >> ability) {
-                if (!seenAbilities.insert(ability).second) {
+                if (!seenAbilities.insert(ability).second) { // Check for duplicates
                     std::cerr << "Duplicate ability '" << ability << "' in ABIL, discarding monster\n";
                     inMonster = false;
                     break;
                 }
                 current.abilities.push_back(ability);
             }
-            if (inMonster) hasAbil = true;
+            if (inMonster) hasAbil = true; // Only set if no duplicates found
         } else if (keyword == "HP") {
             if (hasHP) {
                 std::cerr << "Duplicate HP, discarding monster\n";

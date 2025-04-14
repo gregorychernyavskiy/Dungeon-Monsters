@@ -1,14 +1,15 @@
-#include "dice.h"
-#include <cstdlib>
+#ifndef DICE_H
+#define DICE_H
 
-std::string Dice::toString() const {
-    return std::to_string(base) + "+" + std::to_string(dice) + "d" + std::to_string(sides);
-}
+#include <string>
 
-int Dice::roll() const {
-    int result = base;
-    for (int i = 0; i < dice; i++) {
-        result += (rand() % sides) + 1;
-    }
-    return result;
-}
+struct Dice {
+    int base;
+    int dice;
+    int sides;
+    Dice() : base(0), dice(0), sides(0) {}
+    Dice(int b, int d, int s) : base(b), dice(d), sides(s) {}
+    std::string toString() const;
+};
+
+#endif
