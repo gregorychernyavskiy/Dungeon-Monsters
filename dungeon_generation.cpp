@@ -580,6 +580,7 @@ void draw_dungeon(WINDOW* win, const char* message) {
     wrefresh(win);
 }
 
+
 void draw_monster_list(WINDOW* win) {
     werase(win);
     int start = 0;
