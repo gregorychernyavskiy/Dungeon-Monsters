@@ -471,19 +471,6 @@ void init_ncurses() {
         fclose(debug_file);
     }
 
-    // Color test to verify terminal support
-    clear();
-    wattron(stdscr, COLOR_PAIR(COLOR_RED));
-    mvprintw(0, 0, "This should be RED");
-    wattroff(stdscr, COLOR_PAIR(COLOR_RED));
-
-    wattron(stdscr, COLOR_PAIR(COLOR_GREEN));
-    mvprintw(1, 0, "This should be GREEN");
-    wattroff(stdscr, COLOR_PAIR(COLOR_GREEN));
-
-    wattron(stdscr, COLOR_PAIR(COLOR_CYAN));
-    mvprintw(2, 0, "This should be CYAN");
-    wattroff(stdscr, COLOR_PAIR(COLOR_CYAN));
 
     // Add terminal info for debugging
     mvprintw(4, 0, "Terminal supports %d colors", COLORS);
