@@ -5,9 +5,10 @@
 #include <cstring>
 #include <stdlib.h>
 #include <set>
+#include <random>
 
 MonsterDescription::MonsterDescription()
-    : symbol('\0'), rarity(0) {}
+    : symbol('\0'), rarity(0), is_unique(false), is_alive(false) {}
 
 void MonsterDescription::print() const {
     std::cout << name << "\n";
@@ -29,7 +30,51 @@ void MonsterDescription::print() const {
     std::cout << hitpoints.toString() << "\n";
     std::cout << damage.toString() << "\n";
     std::cout << rarity << "\n";
+    std::cout << (is_unique ? "UNIQUE" : "") << "\n";
     std::cout << "\n";
+}
+
+NPC* MonsterDescription::createNPC(int x, int y) {
+    NPC* npc = new NPC(x, y);
+    npc->name = name;
+    npc->symbol = symbol;
+    npc->color = colors.empty() ? "WHITE" : colors[0]; // Use first color
+    npc->damage = damage; // Keep as dice
+
+    // Roll dice for speed and hitpoints
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    npc->speed = speed.base;
+    for (int i = 0; i < speed.dice; ++i) {
+        std::uniform_int_distribution<> dis(1, speed.sides);
+        npc->speed += dis(gen);
+    }
+    npc->hitpoints = hitpoints.base;
+    for (int i = 0; i < hitpoints.dice; ++i) {
+        std::uniform_int_distribution<> dis(1, hitpoints.sides);
+        npc->hitpoints += dis(gen);
+    }
+
+    // Set abilities
+    for (const auto& ability : abilities) {
+        if (ability == "SMART") npc->intelligent = 1;
+        else if (ability == "TELE") npc->telepathic = 1;
+        else if (ability == "TUNNEL") npc->tunneling = 1;
+        else if (ability == "ERRATIC") npc->erratic = 1;
+        else if (ability == "PASS") npc->pass_wall = 1;
+        else if (ability == "PICKUP") npc->pickup = 1;
+        else if (ability == "DESTROY") npc->destroy = 1;
+        else if (ability == "UNIQ") {
+            is_unique = true;
+            npc->is_unique = true;
+        }
+    }
+
+    if (is_unique) {
+        is_alive = true;
+    }
+
+    return npc;
 }
 
 std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& filename) {
@@ -146,16 +191,16 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             std::getline(iss, abilLine);
             std::istringstream abilIss(abilLine);
             std::string ability;
-            std::set<std::string> seenAbilities; // Track unique abilities
+            std::set<std::string> seenAbilities;
             while (abilIss >> ability) {
-                if (!seenAbilities.insert(ability).second) { // Check for duplicates
+                if (!seenAbilities.insert(ability).second) {
                     std::cerr << "Duplicate ability '" << ability << "' in ABIL, discarding monster\n";
                     inMonster = false;
                     break;
                 }
                 current.abilities.push_back(ability);
             }
-            if (inMonster) hasAbil = true; // Only set if no duplicates found
+            if (inMonster) hasAbil = true;
         } else if (keyword == "HP") {
             if (hasHP) {
                 std::cerr << "Duplicate HP, discarding monster\n";

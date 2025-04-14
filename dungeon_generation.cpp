@@ -1,7 +1,10 @@
 #include "dungeon_generation.h"
+#include "monster_parsing.h"
+#include "object_parsing.h"
 #include <unistd.h>
 #include <ctype.h>
 #include <ncurses.h>
+#include <random>
 
 char dungeon[HEIGHT][WIDTH];
 unsigned char hardness[HEIGHT][WIDTH];
@@ -9,9 +12,12 @@ struct Room rooms[MAX_ROOMS];
 int distance_non_tunnel[HEIGHT][WIDTH];
 int distance_tunnel[HEIGHT][WIDTH];
 NPC* monsterAt[HEIGHT][WIDTH] = {nullptr};
+Object* objectAt[HEIGHT][WIDTH] = {nullptr};
 
 NPC** monsters = nullptr;
 int num_monsters = 0;
+Object** objects = nullptr;
+int num_objects = 0;
 
 PC* player = nullptr;
 int num_rooms = 0;
@@ -29,13 +35,34 @@ char visible[HEIGHT][WIDTH] = {0};
 char terrain[HEIGHT][WIDTH] = {0};
 char remembered[HEIGHT][WIDTH] = {0};
 
-void PC::move() {
+std::vector<MonsterDescription> monsterDescs;
+std::vector<ObjectDescription> objectDescs;
+
+Object::Object(int x_, int y_) : x(x_), y(y_), hit(0), dodge(0), defense(0),
+    weight(0), speed(0), attribute(0), value(0), is_artifact(false) {}
+
+Object::~Object() {}
+
+Character::Character(int x_, int y_) : x(x_), y(y_), speed(10), alive(1),
+    last_seen_x(-1), last_seen_y(-1) {}
+
+PC::PC(int x_, int y_) : Character(x_, y_) {
+    symbol = '@';
+    color = "WHITE";
 }
+
+NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(rand() % 2),
+    tunneling(rand() % 2), telepathic(rand() % 2), erratic(rand() % 2),
+    pass_wall(0), pickup(0), destroy(0), is_unique(false), hitpoints(10) {
+    speed = rand() % 16 + 5;
+}
+
+void PC::move() {}
 
 void NPC::move() {
     if (!alive) return;
     int dist[HEIGHT][WIDTH];
-    if (tunneling) dijkstraTunneling(dist);
+    if (tunneling || pass_wall) dijkstraTunneling(dist);
     else dijkstraNonTunneling(dist);
     int curr_x = x, curr_y = y;
     int min_dist = dist[curr_y][curr_x];
@@ -44,18 +71,44 @@ void NPC::move() {
     int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
     int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-    for (int i = 0; i < 8; i++) {
-        int nx = curr_x + dx[i];
-        int ny = curr_y + dy[i];
-        if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
-            if (dist[ny][nx] < min_dist && (tunneling || hardness[ny][nx] == 0) && !monsterAt[ny][nx]) {
-                min_dist = dist[ny][nx];
-                next_x = nx;
-                next_y = ny;
+    if (erratic && rand() % 2) {
+        int i = rand() % 8;
+        next_x = curr_x + dx[i];
+        next_y = curr_y + dy[i];
+    } else {
+        for (int i = 0; i < 8; i++) {
+            int nx = curr_x + dx[i];
+            int ny = curr_y + dy[i];
+            if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
+                if (dist[ny][nx] < min_dist && (tunneling || pass_wall || hardness[ny][nx] == 0) && !monsterAt[ny][nx]) {
+                    min_dist = dist[ny][nx];
+                    next_x = nx;
+                    next_y = ny;
+                }
             }
         }
     }
+
     if (next_x != curr_x || next_y != curr_y) {
+        if (hardness[next_y][next_x] > 0 && tunneling && !pass_wall) {
+            hardness[next_y][next_x] = 0;
+            dungeon[next_y][next_x] = '#';
+            terrain[next_y][next_x] = '#';
+        }
+        if (objectAt[next_y][next_x]) {
+            if (destroy) {
+                for (int i = 0; i < num_objects; ++i) {
+                    if (objects[i] && objects[i]->x == next_x && objects[i]->y == next_y) {
+                        delete objects[i];
+                        objects[i] = nullptr;
+                        objectAt[next_y][next_x] = nullptr;
+                        break;
+                    }
+                }
+            } else if (pickup) {
+                // Optional: Implement inventory later
+            }
+        }
         monsterAt[curr_y][curr_x] = nullptr;
         x = next_x;
         y = next_y;
@@ -67,12 +120,11 @@ void printDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             if (monsterAt[y][x]) {
-                int personality = monsterAt[y][x]->intelligent + (monsterAt[y][x]->telepathic << 1) +
-                                  (monsterAt[y][x]->tunneling << 2) + (monsterAt[y][x]->erratic << 3);
-                char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
-                printf("%c", symbol);
+                printf("%c", monsterAt[y][x]->symbol);
             } else if (x == player->x && y == player->y) {
                 printf("@");
+            } else if (objectAt[y][x]) {
+                printf("%c", objectAt[y][x]->symbol);
             } else {
                 printf("%c", dungeon[y][x]);
             }
@@ -247,11 +299,30 @@ int spawnMonsterByType(char monType) {
     return 1;
 }
 
+void loadDescriptions() {
+    char* home = getenv("HOME");
+    if (!home) {
+        fprintf(stderr, "Error: HOME environment variable not set\n");
+        exit(EXIT_FAILURE);
+    }
+    std::string monsterFile = std::string(home) + "/.rlg327/monster_desc.txt";
+    std::string objectFile = std::string(home) + "/.rlg327/object_desc.txt";
+    monsterDescs = parseMonsterDescriptions(monsterFile);
+    objectDescs = parseObjectDescriptions(objectFile);
+}
+
 int spawnMonsters(int numMonsters) {
     if (monsters) {
-        for (int i = 0; i < num_monsters; i++) {
+        for (int i = 0; i < num_monsters; ++i) {
             if (monsters[i] && monsterAt[monsters[i]->y][monsters[i]->x]) {
                 monsterAt[monsters[i]->y][monsters[i]->x] = nullptr;
+            }
+            if (monsters[i]->is_unique && !monsters[i]->alive) {
+                for (auto& desc : monsterDescs) {
+                    if (desc.name == monsters[i]->name) {
+                        desc.is_alive = false;
+                    }
+                }
             }
             delete monsters[i];
         }
@@ -265,65 +336,132 @@ int spawnMonsters(int numMonsters) {
         return 1;
     }
 
-    int tunneling_count = numMonsters / 2;
-    int nontunneling_count = numMonsters - tunneling_count;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 99);
+    std::uniform_int_distribution<> desc_dis(0, monsterDescs.size() - 1);
 
-    for (int i = 0; i < tunneling_count; i++) {
-        int placed = 0;
-        for (int j = 0; j < 100; j++) {
-            int x = rand() % WIDTH;
-            int y = rand() % HEIGHT;
-            struct Room playerRoom = rooms[player_room_index];
-            bool in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
-                                   y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
-            if (dungeon[y][x] == '.' && !(x == player->x && y == player->y) && !monsterAt[y][x] && !in_player_room) {
-                NPC** temp = (NPC**)realloc(monsters, (num_monsters + 1) * sizeof(NPC*));
-                if (!temp) continue;
-                monsters = temp;
-                monsters[num_monsters] = generateMonster(x, y);
-                if (monsters[num_monsters]) {
-                    monsters[num_monsters]->tunneling = 1;
-                    monsterAt[y][x] = monsters[num_monsters];
-                    num_monsters++;
-                    placed = 1;
+    for (int i = 0; i < numMonsters; ++i) {
+        NPC* npc = nullptr;
+        int attempts = 100;
+        while (attempts--) {
+            int idx = desc_dis(gen);
+            MonsterDescription& desc = monsterDescs[idx];
+            if (desc.is_unique && desc.is_alive) continue;
+            if (desc.rarity <= dis(gen)) continue;
+
+            int x, y;
+            int place_attempts = 100;
+            bool placed = false;
+            while (place_attempts--) {
+                x = rand() % WIDTH;
+                y = rand() % HEIGHT;
+                struct Room playerRoom = rooms[player_room_index];
+                bool in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
+                                      y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
+                if (dungeon[y][x] == '.' && !(x == player->x && y == player->y) && !monsterAt[y][x] && !in_player_room) {
+                    npc = desc.createNPC(x, y);
+                    placed = true;
+                    break;
                 }
-                break;
+            }
+            if (placed) break;
+        }
+        if (npc) {
+            NPC** temp = (NPC**)realloc(monsters, (num_monsters + 1) * sizeof(NPC*));
+            if (temp) {
+                monsters = temp;
+                monsters[num_monsters] = npc;
+                monsterAt[npc->y][npc->x] = npc;
+                num_monsters++;
             }
         }
-        if (!placed) {
-            fprintf(stderr, "Error: Failed to place tunneling monster\n");
-            return 1;
-        }
     }
+    return num_monsters < numMonsters;
+}
 
-    for (int i = 0; i < nontunneling_count; i++) {
-        int placed = 0;
-        for (int j = 0; j < 100; j++) {
-            int x = rand() % WIDTH;
-            int y = rand() % HEIGHT;
-            struct Room playerRoom = rooms[player_room_index];
-            bool in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
-                                   y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
-            if (dungeon[y][x] == '.' && !(x == player->x && y == player->y) && !monsterAt[y][x] && !in_player_room) {
-                NPC** temp = (NPC**)realloc(monsters, (num_monsters + 1) * sizeof(NPC*));
-                if (!temp) continue;
-                monsters = temp;
-                monsters[num_monsters] = generateMonster(x, y);
-                if (monsters[num_monsters]) {
-                    monsters[num_monsters]->tunneling = 0;
-                    monsterAt[y][x] = monsters[num_monsters];
-                    num_monsters++;
-                    placed = 1;
+char getObjectSymbol(const std::string& type) {
+    if (type == "WEAPON") return '|';
+    if (type == "OFFHAND") return ')';
+    if (type == "RANGED") return '}';
+    if (type == "ARMOR") return '[';
+    if (type == "HELMET") return ']';
+    if (type == "CLOAK") return '(';
+    if (type == "GLOVES") return '{';
+    if (type == "BOOTS") return '{';
+    if (type == "RING") return '=';
+    if (type == "AMULET") return '"';
+    if (type == "LIGHT") return '_';
+    if (type == "SCROLL") return '~';
+    if (type == "BOOK") return '?';
+    if (type == "FLASK") return '!';
+    if (type == "GOLD") return '$';
+    if (type == "AMMUNITION") return '/';
+    if (type == "FOOD") return ',';
+    if (type == "WAND") return '-';
+    if (type == "CONTAINER") return '%';
+    return '*';
+}
+
+void placeObjects(int count) {
+    cleanupObjects();
+    objects = (Object**)malloc(count * sizeof(Object*));
+    num_objects = 0;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 99);
+    std::uniform_int_distribution<> desc_dis(0, objectDescs.size() - 1);
+
+    for (int i = 0; i < count; ++i) {
+        Object* obj = nullptr;
+        int attempts = 100;
+        while (attempts--) {
+            int idx = desc_dis(gen);
+            ObjectDescription& desc = objectDescs[idx];
+            if (desc.is_artifact && desc.is_created) continue;
+            if (desc.rarity <= dis(gen)) continue;
+
+            int x, y;
+            int place_attempts = 100;
+            bool placed = false;
+            while (place_attempts--) {
+                x = rand() % WIDTH;
+                y = rand() % HEIGHT;
+                struct Room playerRoom = rooms[player_room_index];
+                bool in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
+                                      y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
+                if (dungeon[y][x] == '.' && !monsterAt[y][x] && !objectAt[y][x] && !in_player_room &&
+                    !(x == player->x && y == player->y)) {
+                    obj = desc.createObject(x, y);
+                    placed = true;
+                    break;
                 }
-                break;
+            }
+            if (placed) break;
+        }
+        if (obj) {
+            Object** temp = (Object**)realloc(objects, (num_objects + 1) * sizeof(Object*));
+            if (temp) {
+                objects = temp;
+                objects[num_objects] = obj;
+                objectAt[obj->y][obj->x] = obj;
+                num_objects++;
             }
         }
-        if (!placed) {
-            fprintf(stderr, "Error: Failed to place non-tunneling monster\n");
-            return 1;
+    }
+}
+
+void cleanupObjects() {
+    for (int i = 0; i < num_objects; ++i) {
+        if (objects[i]) {
+            objectAt[objects[i]->y][objects[i]->x] = nullptr;
+            delete objects[i];
         }
     }
-    return 0;
+    free(objects);
+    objects = nullptr;
+    num_objects = 0;
 }
 
 void runGame(int numMonsters) {
@@ -363,10 +501,32 @@ int gameOver(NPC** culprit) {
 
 void init_ncurses() {
     initscr();
+    start_color();
     raw();
     noecho();
     keypad(stdscr, TRUE);
     curs_set(0);
+
+    // Initialize color pairs
+    init_pair(COLOR_RED, COLOR_RED, COLOR_BLACK);
+    init_pair(COLOR_GREEN, COLOR_GREEN, COLOR_BLACK);
+    init_pair(COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(COLOR_BLUE, COLOR_BLUE, COLOR_BLACK);
+    init_pair(COLOR_MAGENTA, COLOR_MAGENTA, COLOR_BLACK);
+    init_pair(COLOR_CYAN, COLOR_CYAN, COLOR_BLACK);
+    init_pair(COLOR_WHITE, COLOR_WHITE, COLOR_BLACK);
+}
+
+int getColorIndex(const std::string& color) {
+    if (color == "RED") return COLOR_RED;
+    if (color == "GREEN") return COLOR_GREEN;
+    if (color == "YELLOW") return COLOR_YELLOW;
+    if (color == "BLUE") return COLOR_BLUE;
+    if (color == "MAGENTA") return COLOR_MAGENTA;
+    if (color == "CYAN") return COLOR_CYAN;
+    if (color == "WHITE") return COLOR_WHITE;
+    if (color == "BLACK") return COLOR_WHITE; // Render black as white
+    return COLOR_WHITE;
 }
 
 void update_visibility() {
@@ -394,13 +554,20 @@ void draw_dungeon(WINDOW* win, const char* message) {
         for (int x = 0; x < WIDTH; x++) {
             if (fog_enabled && !visible[y][x] && !remembered[y][x]) {
                 mvwprintw(win, y + 1, x, " ");
-            } else if (monsterAt[y][x] && (!fog_enabled || visible[y][x])) {
-                int personality = monsterAt[y][x]->intelligent + (monsterAt[y][x]->telepathic << 1) +
-                                  (monsterAt[y][x]->tunneling << 2) + (monsterAt[y][x]->erratic << 3);
-                char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
-                mvwprintw(win, y + 1, x, "%c", symbol);
             } else if (x == player->x && y == player->y) {
+                attron(COLOR_PAIR(COLOR_WHITE));
                 mvwprintw(win, y + 1, x, "@");
+                attroff(COLOR_PAIR(COLOR_WHITE));
+            } else if (monsterAt[y][x] && (!fog_enabled || visible[y][x])) {
+                int color = getColorIndex(monsterAt[y][x]->color);
+                attron(COLOR_PAIR(color));
+                mvwprintw(win, y + 1, x, "%c", monsterAt[y][x]->symbol);
+                attroff(COLOR_PAIR(color));
+            } else if (objectAt[y][x] && (!fog_enabled || visible[y][x])) {
+                int color = getColorIndex(objectAt[y][x]->color);
+                attron(COLOR_PAIR(color));
+                mvwprintw(win, y + 1, x, "%c", objectAt[y][x]->symbol);
+                attroff(COLOR_PAIR(color));
             } else {
                 char display = (fog_enabled && remembered[y][x] && !visible[y][x]) ? remembered[y][x] : dungeon[y][x];
                 mvwprintw(win, y + 1, x, "%c", display);
@@ -425,12 +592,10 @@ void draw_monster_list(WINDOW* win) {
             if (monsters[i]->alive) {
                 int dx = monsters[i]->x - player->x;
                 int dy = monsters[i]->y - player->y;
-                int personality = monsters[i]->intelligent + (monsters[i]->telepathic << 1) +
-                                  (monsters[i]->tunneling << 2) + (monsters[i]->erratic << 3);
-                char symbol = personality < 10 ? '0' + personality : 'A' + (personality - 10);
                 const char* ns = dy < 0 ? "north" : "south";
                 const char* ew = dx < 0 ? "west" : "east";
-                mvwprintw(win, i - start + 1, 0, "%c, %d %s and %d %s", symbol, abs(dy), ns, abs(dx), ew);
+                mvwprintw(win, i - start + 1, 0, "%c (%s), %d %s and %d %s", 
+                          monsters[i]->symbol, monsters[i]->name.c_str(), abs(dy), ns, abs(dx), ew);
             }
         }
         wrefresh(win);
@@ -448,12 +613,21 @@ void regenerate_dungeon(int numMonsters) {
             if (monsterAt[monsters[i]->y][monsters[i]->x] == monsters[i]) {
                 monsterAt[monsters[i]->y][monsters[i]->x] = nullptr;
             }
+            if (monsters[i]->is_unique && !monsters[i]->alive) {
+                for (auto& desc : monsterDescs) {
+                    if (desc.name == monsters[i]->name) {
+                        desc.is_alive = false;
+                    }
+                }
+            }
             delete monsters[i];
         }
     }
     free(monsters);
     monsters = nullptr;
     num_monsters = 0;
+
+    cleanupObjects();
 
     if (player->x >= 0 && player->y >= 0 && player->x < WIDTH && player->y < HEIGHT) {
         dungeon[player->y][player->x] = terrain[player->y][player->x] == 0 ? '.' : terrain[player->y][player->x];
@@ -472,6 +646,7 @@ void regenerate_dungeon(int numMonsters) {
     placePlayer();
     initializeHardness();
     spawnMonsters(numMonsters);
+    placeObjects(10); // At least 10 objects
 
     memset(visible, 0, sizeof(visible));
     memset(remembered, 0, sizeof(remembered));
@@ -494,6 +669,9 @@ int move_player(int dx, int dy, const char** message) {
         return 0;
     }
     dungeon[player->y][player->x] = terrain[player->y][player->x];
+    if (objectAt[player->y][player->x]) {
+        terrain[player->y][player->x] = objectAt[player->y][player->x]->symbol;
+    }
     player->x = new_x;
     player->y = new_y;
 

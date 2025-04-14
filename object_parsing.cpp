@@ -5,9 +5,10 @@
 #include <cstring>
 #include <stdlib.h>
 #include <set>
+#include <random>
 
 ObjectDescription::ObjectDescription()
-    : rarity(0) {}
+    : rarity(0), is_artifact(false), is_created(false) {}
 
 void ObjectDescription::print() const {
     std::cout << name << "\n";
@@ -31,6 +32,43 @@ void ObjectDescription::print() const {
     std::cout << artifact << "\n";
     std::cout << rarity << "\n";
     std::cout << "\n";
+}
+
+Object* ObjectDescription::createObject(int x, int y) {
+    Object* obj = new Object(x, y);
+    obj->name = name;
+    obj->color = color;
+    obj->damage = damage; // Keep as dice
+    obj->types = types;
+    obj->symbol = getObjectSymbol(types.empty() ? "" : types[0]); // Use first type for symbol
+
+    // Roll dice for other attributes
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    auto rollDice = [&](Dice d) -> int {
+        int result = d.base;
+        for (int i = 0; i < d.dice; ++i) {
+            std::uniform_int_distribution<> dis(1, d.sides);
+            result += dis(gen);
+        }
+        return result;
+    };
+
+    obj->hit = rollDice(hit);
+    obj->dodge = rollDice(dodge);
+    obj->defense = rollDice(defense);
+    obj->weight = rollDice(weight);
+    obj->speed = rollDice(speed);
+    obj->attribute = rollDice(attribute);
+    obj->value = rollDice(value);
+
+    if (artifact == "TRUE") {
+        is_artifact = true;
+        obj->is_artifact = true;
+        is_created = true;
+    }
+
+    return obj;
 }
 
 std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filename) {
@@ -123,7 +161,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             std::getline(iss, typeLine);
             std::istringstream typeIss(typeLine);
             std::string type;
-            std::set<std::string> seenTypes; // Check for duplicate types
+            std::set<std::string> seenTypes;
             while (typeIss >> type) {
                 if (!seenTypes.insert(type).second) {
                     std::cerr << "Duplicate type '" << type << "' in TYPE, discarding object\n";
@@ -139,7 +177,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
                 inObject = false;
                 continue;
             }
-            iss >> current.color; // Single color for simplicity
+            iss >> current.color;
             hasColor = true;
         } else if (keyword == "HIT") {
             if (hasHit) {
@@ -169,7 +207,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
                 continue;
             }
             hasDam = true;
-        } else if (keyword == "DODGE") { // Corrected from DOOGE to DODGE
+        } else if (keyword == "DODGE") {
             if (hasDodge) {
                 std::cerr << "Duplicate DODGE, discarding object\n";
                 inObject = false;

@@ -9,7 +9,9 @@
 #include <endian.h>
 #include <limits.h>
 #include <ncurses.h>
+#include <vector>
 #include "minheap.h"
+#include "dice.h"
 
 #define WIDTH 80
 #define HEIGHT 21
@@ -30,32 +32,51 @@ struct Stairs {
     int x, y;
 };
 
+class Object {
+public:
+    int x, y;
+    std::string name;
+    std::vector<std::string> types;
+    std::string color;
+    char symbol;
+    Dice damage;
+    int hit, dodge, defense, weight, speed, attribute, value;
+    bool is_artifact;
+
+    Object(int x_, int y_);
+    ~Object();
+};
+
 class Character {
 public:
     int x, y;
     int speed;
     int alive;
     int last_seen_x, last_seen_y;
+    std::string name;
+    std::string color;
+    char symbol;
 
-    Character(int x_, int y_) : x(x_), y(y_), speed(10), alive(1), last_seen_x(-1), last_seen_y(-1) {}
+    Character(int x_, int y_);
     virtual ~Character() = default;
     virtual void move() = 0;
 };
 
 class PC : public Character {
 public:
-    PC(int x_, int y_) : Character(x_, y_) {}
+    PC(int x_, int y_);
     void move() override;
 };
 
 class NPC : public Character {
 public:
     int intelligent, tunneling, telepathic, erratic;
-    
-    NPC(int x_, int y_) : Character(x_, y_), intelligent(rand() % 2), tunneling(rand() % 2),
-                          telepathic(rand() % 2), erratic(rand() % 2) {
-        speed = rand() % 16 + 5;
-    }
+    int pass_wall, pickup, destroy;
+    bool is_unique;
+    Dice damage;
+    int hitpoints;
+
+    NPC(int x_, int y_);
     void move() override;
 };
 
@@ -65,9 +86,12 @@ extern struct Room rooms[MAX_ROOMS];
 extern int distance_non_tunnel[HEIGHT][WIDTH];
 extern int distance_tunnel[HEIGHT][WIDTH];
 extern NPC* monsterAt[HEIGHT][WIDTH];
+extern Object* objectAt[HEIGHT][WIDTH];
 
 extern NPC** monsters;
 extern int num_monsters;
+extern Object** objects;
+extern int num_objects;
 
 extern PC* player;
 extern int num_rooms;
@@ -84,6 +108,9 @@ extern int fog_enabled;
 extern char visible[HEIGHT][WIDTH];
 extern char terrain[HEIGHT][WIDTH];
 extern char remembered[HEIGHT][WIDTH];
+
+extern std::vector<MonsterDescription> monsterDescs;
+extern std::vector<ObjectDescription> objectDescs;
 
 void printDungeon();
 void emptyDungeon();
@@ -117,5 +144,10 @@ void draw_monster_list(WINDOW* win);
 void regenerate_dungeon(int numMonsters);
 int move_player(int dx, int dy, const char** message);
 int use_stairs(char direction, int numMonsters, const char** message);
+
+char getObjectSymbol(const std::string& type);
+void placeObjects(int count);
+void cleanupObjects();
+void loadDescriptions();
 
 #endif

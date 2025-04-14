@@ -5,6 +5,7 @@
 #include <vector>
 #include <stdint.h>
 #include "dice.h"
+#include "dungeon_generation.h"
 
 class MonsterDescription {
 public:
@@ -17,9 +18,12 @@ public:
     Dice damage;
     char symbol;
     int rarity;
+    bool is_unique; // Track if monster is unique
+    bool is_alive;  // Track if unique monster is alive
 
     MonsterDescription();
     void print() const;
+    NPC* createNPC(int x, int y); // Factory method to create NPC instance
 };
 
 std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& filename);
