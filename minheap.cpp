@@ -46,7 +46,7 @@ void insertHeap(MinHeap* heap, HeapNode node) {
 }
 
 HeapNode extractMin(MinHeap* heap) {
-    if (heap->size <= 0) return {-1, -1, INFINITY};
+    if (heap->size <= 0) return {-1, -1, HEAP_INFINITY}; // Changed from INFINITY
     if (heap->size == 1) return heap->nodes[--heap->size];
 
     HeapNode root = heap->nodes[0];

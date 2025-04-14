@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <limits.h>
 
-#define INFINITY INT_MAX
+#define HEAP_INFINITY INT_MAX // Changed from INFINITY
 
 typedef struct {
     int x;
