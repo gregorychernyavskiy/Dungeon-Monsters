@@ -442,6 +442,8 @@ void init_ncurses() {
         fprintf(stderr, "Error: Failed to start color mode!\n");
         exit(EXIT_FAILURE);
     }
+
+    start_color();
     raw();
     noecho();
     keypad(stdscr, TRUE);
