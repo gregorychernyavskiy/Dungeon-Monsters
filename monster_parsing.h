@@ -1,5 +1,5 @@
-#ifndef OBJECT_PARSING_H
-#define OBJECT_PARSING_H
+#ifndef MONSTER_PARSING_H
+#define MONSTER_PARSING_H
 
 #include <string>
 #include <vector>
@@ -7,28 +7,23 @@
 #include "dice.h"
 #include "dungeon_generation.h"
 
-class ObjectDescription {
+class MonsterDescription {
 public:
     std::string name;
     std::vector<std::string> description;
-    std::vector<std::string> types;
-    std::string color;
-    Dice hit;
-    Dice damage;
-    Dice dodge;
-    Dice defense;
-    Dice weight;
+    std::vector<std::string> colors;
     Dice speed;
-    Dice attribute;
-    Dice value;
-    std::string artifact;
+    std::vector<std::string> abilities;
+    Dice hitpoints;
+    Dice damage;
+    char symbol;
     int rarity;
 
-    ObjectDescription();
+    MonsterDescription();
     void print() const;
-    Object* createInstance(int x, int y) const;
+    NPC* createInstance(int x, int y) const;
 };
 
-std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filename);
+std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& filename);
 
 #endif

@@ -57,7 +57,7 @@ void Object::render(WINDOW* win) const {
     else if (color == "BLACK") color_pair = COLOR_PAIR(COLOR_WHITE);
     else color_pair = COLOR_PAIR(COLOR_WHITE);
 
-    char symbol = '*'; // Default for debugging
+    char symbol = '*';
     for (const auto& type : types) {
         if (type == "WEAPON") symbol = '|';
         else if (type == "OFFHAND") symbol = ')';
@@ -77,7 +77,7 @@ void Object::render(WINDOW* win) const {
         else if (type == "FOOD") symbol = ',';
         else if (type == "WAND") symbol = '-';
         else if (type == "CONTAINER") symbol = '%';
-        break; // Use first matching type
+        break;
     }
 
     wattron(win, color_pair);
@@ -122,7 +122,6 @@ void PC::move() {}
 void NPC::move() {
     if (!alive) return;
     if (pass_wall && telepathic) {
-        // Move directly toward player, ignoring walls
         int dx = player->x > x ? 1 : player->x < x ? -1 : 0;
         int dy = player->y > y ? 1 : player->y < y ? -1 : 0;
         int nx = x + dx, ny = y + dy;
@@ -321,7 +320,8 @@ void placePlayer() {
 }
 
 NPC* generateMonsterByType(char c, int x, int y) {
-    NPC* monster = new NPC(monster_descriptions[0], x, y); // Fallback
+    if (monster_descriptions.empty()) return nullptr;
+    NPC* monster = new NPC(monster_descriptions[0], x, y);
     c = tolower(c);
     int num = (c >= '0' && c <= '9') ? (c - '0') : (c >= 'a' && c <= 'f') ? (c - 'a' + 10) : -1;
     if (num == -1) {
@@ -337,7 +337,8 @@ NPC* generateMonsterByType(char c, int x, int y) {
 }
 
 NPC* generateMonster(int x, int y) {
-    return new NPC(monster_descriptions[0], x, y); // Fallback
+    if (monster_descriptions.empty()) return nullptr;
+    return new NPC(monster_descriptions[0], x, y);
 }
 
 int spawnMonsterByType(char monType) {
@@ -389,6 +390,10 @@ int spawnMonsters(int numMonsters) {
     for (int i = 0; i < numMonsters; i++) {
         int attempts = 100;
         while (attempts--) {
+            if (monster_descriptions.empty()) {
+                fprintf(stderr, "Error: No monster descriptions available\n");
+                return 1;
+            }
             int desc_idx = rand() % monster_descriptions.size();
             const auto& desc = monster_descriptions[desc_idx];
             if (desc.rarity <= 50 && std::find(spawned_unique_monsters.begin(), 
@@ -445,6 +450,10 @@ int spawnObjects() {
     for (int i = 0; i < MIN_OBJECTS; i++) {
         int attempts = 100;
         while (attempts--) {
+            if (object_descriptions.empty()) {
+                fprintf(stderr, "Error: No object descriptions available\n");
+                return 1;
+            }
             int desc_idx = rand() % object_descriptions.size();
             const auto& desc = object_descriptions[desc_idx];
             if (desc.artifact == "TRUE" && std::find(spawned_artifacts.begin(), 
@@ -694,9 +703,9 @@ int use_stairs(char direction, int numMonsters, const char** message) {
 }
 
 void saveDungeon(char* filename) {
-    // Placeholder: Implement if needed
+    // Placeholder
 }
 
 void loadDungeon(char* filename) {
-    // Placeholder: Implement if needed
+    // Placeholder
 }

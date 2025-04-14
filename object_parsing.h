@@ -5,6 +5,7 @@
 #include <vector>
 #include <stdint.h>
 #include "dice.h"
+#include "dungeon_generation.h"
 
 class ObjectDescription {
 public:
@@ -20,11 +21,12 @@ public:
     Dice speed;
     Dice attribute;
     Dice value;
-    std::string artifact; // "TRUE" or "FALSE"
+    std::string artifact;
     int rarity;
 
     ObjectDescription();
     void print() const;
+    Object* createInstance(int x, int y) const;
 };
 
 std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filename);

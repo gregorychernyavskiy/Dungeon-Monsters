@@ -41,14 +41,14 @@ public:
     std::string name;
     std::string color;
     std::vector<std::string> types;
-    int hit;        // Rolled from dice
-    Dice damage;    // Remains as dice
-    int dodge;      // Rolled
-    int defense;    // Rolled
-    int weight;     // Rolled
-    int speed;      // Rolled
-    int attribute;  // Rolled
-    int value;      // Rolled
+    int hit;
+    Dice damage;
+    int dodge;
+    int defense;
+    int weight;
+    int speed;
+    int attribute;
+    int value;
     bool is_artifact;
     int rarity;
     int x, y;
@@ -80,7 +80,7 @@ public:
 class NPC : public Character {
 public:
     std::string name;
-    std::string color; // First color
+    std::string color;
     char symbol;
     int hitpoints;
     Dice damage;

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <ncurses.h>
+#include <vector>
 #include "dungeon_generation.h"
 #include "minheap.h"
 #include "monster_parsing.h"

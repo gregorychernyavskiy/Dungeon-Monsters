@@ -1,4 +1,4 @@
-#include "object_parsing.h"
+#include "monster_parsing.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -6,86 +6,81 @@
 #include <stdlib.h>
 #include <set>
 
-ObjectDescription::ObjectDescription()
-    : rarity(0) {}
+MonsterDescription::MonsterDescription()
+    : symbol('\0'), rarity(0) {}
 
-void ObjectDescription::print() const {
+void MonsterDescription::print() const {
     std::cout << name << "\n";
     for (const auto& line : description) {
         std::cout << line << "\n";
     }
-    for (size_t i = 0; i < types.size(); ++i) {
-        std::cout << types[i];
-        if (i < types.size() - 1) std::cout << " ";
+    std::cout << symbol << "\n";
+    for (size_t i = 0; i < colors.size(); ++i) {
+        std::cout << colors[i];
+        if (i < colors.size() - 1) std::cout << " ";
     }
     std::cout << "\n";
-    std::cout << color << "\n";
-    std::cout << hit.toString() << "\n";
-    std::cout << damage.toString() << "\n";
-    std::cout << dodge.toString() << "\n";
-    std::cout << defense.toString() << "\n";
-    std::cout << weight.toString() << "\n";
     std::cout << speed.toString() << "\n";
-    std::cout << attribute.toString() << "\n";
-    std::cout << value.toString() << "\n";
-    std::cout << artifact << "\n";
+    for (size_t i = 0; i < abilities.size(); ++i) {
+        std::cout << abilities[i];
+        if (i < abilities.size() - 1) std::cout << " ";
+    }
+    std::cout << "\n";
+    std::cout << hitpoints.toString() << "\n";
+    std::cout << damage.toString() << "\n";
     std::cout << rarity << "\n";
     std::cout << "\n";
 }
 
-Object* ObjectDescription::createInstance(int x, int y) const {
-    return new Object(*this, x, y);
+NPC* MonsterDescription::createInstance(int x, int y) const {
+    return new NPC(*this, x, y);
 }
 
-std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filename) {
-    std::vector<ObjectDescription> objects;
+std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& filename) {
+    std::vector<MonsterDescription> monsters;
     std::ifstream file(filename);
     if (!file.is_open()) {
         std::cerr << "Error: Cannot open " << filename << "\n";
-        return objects;
+        return monsters;
     }
 
     std::string line;
     std::getline(file, line);
-    if (line != "RLG327 OBJECT DESCRIPTION 1") {
+    if (line != "RLG327 MONSTER DESCRIPTION 1") {
         std::cerr << "Error: Invalid file header in " << filename << "\n";
         file.close();
         exit(EXIT_FAILURE);
     }
 
-    ObjectDescription current;
-    bool inObject = false;
-    bool hasName = false, hasDesc = false, hasType = false, hasColor = false;
-    bool hasHit = false, hasDam = false, hasDodge = false, hasDef = false;
-    bool hasWeight = false, hasSpeed = false, hasAttr = false, hasVal = false;
-    bool hasArt = false, hasRarity = false;
+    MonsterDescription current;
+    bool inMonster = false;
+    bool hasName = false, hasDesc = false, hasColor = false, hasSpeed = false;
+    bool hasAbil = false, hasHP = false, hasDam = false, hasSymb = false, hasRarity = false;
 
     while (std::getline(file, line)) {
         if (line.empty()) continue;
 
-        if (line == "BEGIN OBJECT") {
-            if (inObject) {
-                std::cerr << "Nested BEGIN OBJECT detected, skipping previous object\n";
+        if (line == "BEGIN MONSTER") {
+            if (inMonster) {
+                std::cerr << "Nested BEGIN MONSTER detected, skipping previous monster\n";
             }
-            current = ObjectDescription();
-            inObject = true;
-            hasName = hasDesc = hasType = hasColor = hasHit = hasDam = hasDodge = hasDef = false;
-            hasWeight = hasSpeed = hasAttr = hasVal = hasArt = hasRarity = false;
+            current = MonsterDescription();
+            inMonster = true;
+            hasName = hasDesc = hasColor = hasSpeed = hasAbil = hasHP = hasDam = hasSymb = hasRarity = false;
             continue;
         }
 
-        if (line == "END" && inObject) {
-            if (hasName && hasDesc && hasType && hasColor && hasHit && hasDam && hasDodge && hasDef &&
-                hasWeight && hasSpeed && hasAttr && hasVal && hasArt && hasRarity) {
-                objects.push_back(current);
+        if (line == "END" && inMonster) {
+            if (hasName && hasDesc && hasColor && hasSpeed && hasAbil && hasHP && hasDam && hasSymb && hasRarity) {
+                monsters.push_back(current);
             } else {
-                std::cerr << "Object missing required fields, discarded\n";
+                std::cerr << "Monster missing required fields, discarded\n";
             }
-            inObject = false;
+            inMonster = false;
             continue;
         }
 
-        if (!inObject) continue;
+        if (!inMonster) continue;
 
         std::istringstream iss(line);
         std::string keyword;
@@ -93,8 +88,8 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
 
         if (keyword == "NAME") {
             if (hasName) {
-                std::cerr << "Duplicate NAME, discarding object\n";
-                inObject = false;
+                std::cerr << "Duplicate NAME, discarding monster\n";
+                inMonster = false;
                 continue;
             }
             std::getline(iss, current.name);
@@ -102,190 +97,128 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             hasName = true;
         } else if (keyword == "DESC") {
             if (hasDesc) {
-                std::cerr << "Duplicate DESC, discarding object\n";
-                inObject = false;
+                std::cerr << "Duplicate DESC, discarding monster\n";
+                inMonster = false;
                 continue;
             }
             hasDesc = true;
             current.description.clear();
             while (std::getline(file, line) && line != ".") {
                 if (line.length() > 77) {
-                    std::cerr << "Description line exceeds 77 characters, discarding object\n";
-                    inObject = false;
+                    std::cerr << "Description line exceeds 77 characters, discarding monster\n";
+                    inMonster = false;
                     break;
                 }
                 current.description.push_back(line);
             }
-            if (!inObject) continue;
-        } else if (keyword == "TYPE") {
-            if (hasType) {
-                std::cerr << "Duplicate TYPE, discarding object\n";
-                inObject = false;
-                continue;
-            }
-            std::string typeLine;
-            std::getline(iss, typeLine);
-            std::istringstream typeIss(typeLine);
-            std::string type;
-            std::set<std::string> seenTypes;
-            while (typeIss >> type) {
-                if (!seenTypes.insert(type).second) {
-                    std::cerr << "Duplicate type '" << type << "' in TYPE, discarding object\n";
-                    inObject = false;
-                    break;
-                }
-                current.types.push_back(type);
-            }
-            if (inObject) hasType = true;
+            if (!inMonster) continue;
         } else if (keyword == "COLOR") {
             if (hasColor) {
-                std::cerr << "Duplicate COLOR, discarding object\n";
-                inObject = false;
+                std::cerr << "Duplicate COLOR, discarding monster\n";
+                inMonster = false;
                 continue;
             }
-            iss >> current.color;
+            std::string colorLine;
+            std::getline(iss, colorLine);
+            std::istringstream colorIss(colorLine);
+            std::string color;
+            while (colorIss >> color) {
+                current.colors.push_back(color);
+            }
             hasColor = true;
-        } else if (keyword == "HIT") {
-            if (hasHit) {
-                std::cerr << "Duplicate HIT, discarding object\n";
-                inObject = false;
-                continue;
-            }
-            std::string diceStr;
-            std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.hit.base, &current.hit.dice, &current.hit.sides) != 3) {
-                std::cerr << "Invalid HIT format, discarding object\n";
-                inObject = false;
-                continue;
-            }
-            hasHit = true;
-        } else if (keyword == "DAM") {
-            if (hasDam) {
-                std::cerr << "Duplicate DAM, discarding object\n";
-                inObject = false;
-                continue;
-            }
-            std::string diceStr;
-            std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.damage.base, &current.damage.dice, &current.damage.sides) != 3) {
-                std::cerr << "Invalid DAM format, discarding object\n";
-                inObject = false;
-                continue;
-            }
-            hasDam = true;
-        } else if (keyword == "DODGE") {
-            if (hasDodge) {
-                std::cerr << "Duplicate DODGE, discarding object\n";
-                inObject = false;
-                continue;
-            }
-            std::string diceStr;
-            std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.dodge.base, &current.dodge.dice, &current.dodge.sides) != 3) {
-                std::cerr << "Invalid DODGE format, discarding object\n";
-                inObject = false;
-                continue;
-            }
-            hasDodge = true;
-        } else if (keyword == "DEF") {
-            if (hasDef) {
-                std::cerr << "Duplicate DEF, discarding object\n";
-                inObject = false;
-                continue;
-            }
-            std::string diceStr;
-            std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.defense.base, &current.defense.dice, &current.defense.sides) != 3) {
-                std::cerr << "Invalid DEF format, discarding object\n";
-                inObject = false;
-                continue;
-            }
-            hasDef = true;
-        } else if (keyword == "WEIGHT") {
-            if (hasWeight) {
-                std::cerr << "Duplicate WEIGHT, discarding object\n";
-                inObject = false;
-                continue;
-            }
-            std::string diceStr;
-            std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.weight.base, &current.weight.dice, &current.weight.sides) != 3) {
-                std::cerr << "Invalid WEIGHT format, discarding object\n";
-                inObject = false;
-                continue;
-            }
-            hasWeight = true;
         } else if (keyword == "SPEED") {
             if (hasSpeed) {
-                std::cerr << "Duplicate SPEED, discarding object\n";
-                inObject = false;
+                std::cerr << "Duplicate SPEED, discarding monster\n";
+                inMonster = false;
                 continue;
             }
             std::string diceStr;
             std::getline(iss, diceStr);
             if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.speed.base, &current.speed.dice, &current.speed.sides) != 3) {
-                std::cerr << "Invalid SPEED format, discarding object\n";
-                inObject = false;
+                std::cerr << "Invalid SPEED format, discarding monster\n";
+                inMonster = false;
                 continue;
             }
             hasSpeed = true;
-        } else if (keyword == "ATTR") {
-            if (hasAttr) {
-                std::cerr << "Duplicate ATTR, discarding object\n";
-                inObject = false;
+        } else if (keyword == "ABIL") {
+            if (hasAbil) {
+                std::cerr << "Duplicate ABIL, discarding monster\n";
+                inMonster = false;
+                continue;
+            }
+            std::string abilLine;
+            std::getline(iss, abilLine);
+            std::istringstream abilIss(abilLine);
+            std::string ability;
+            std::set<std::string> seenAbilities;
+            while (abilIss >> ability) {
+                if (!seenAbilities.insert(ability).second) {
+                    std::cerr << "Duplicate ability '" << ability << "' in ABIL, discarding monster\n";
+                    inMonster = false;
+                    break;
+                }
+                current.abilities.push_back(ability);
+            }
+            if (inMonster) hasAbil = true;
+        } else if (keyword == "HP") {
+            if (hasHP) {
+                std::cerr << "Duplicate HP, discarding monster\n";
+                inMonster = false;
                 continue;
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.attribute.base, &current.attribute.dice, &current.attribute.sides) != 3) {
-                std::cerr << "Invalid ATTR format, discarding object\n";
-                inObject = false;
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.hitpoints.base, &current.hitpoints.dice, &current.hitpoints.sides) != 3) {
+                std::cerr << "Invalid HP format, discarding monster\n";
+                inMonster = false;
                 continue;
             }
-            hasAttr = true;
-        } else if (keyword == "VAL") {
-            if (hasVal) {
-                std::cerr << "Duplicate VAL, discarding object\n";
-                inObject = false;
+            hasHP = true;
+        } else if (keyword == "DAM") {
+            if (hasDam) {
+                std::cerr << "Duplicate DAM, discarding monster\n";
+                inMonster = false;
                 continue;
             }
             std::string diceStr;
             std::getline(iss, diceStr);
-            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.value.base, &current.value.dice, &current.value.sides) != 3) {
-                std::cerr << "Invalid VAL format, discarding object\n";
-                inObject = false;
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.damage.base, &current.damage.dice, &current.damage.sides) != 3) {
+                std::cerr << "Invalid DAM format, discarding monster\n";
+                inMonster = false;
                 continue;
             }
-            hasVal = true;
-        } else if (keyword == "ART") {
-            if (hasArt) {
-                std::cerr << "Duplicate ART, discarding object\n";
-                inObject = false;
+            hasDam = true;
+        } else if (keyword == "SYMB") {
+            if (hasSymb) {
+                std::cerr << "Duplicate SYMB, discarding monster\n";
+                inMonster = false;
                 continue;
             }
-            iss >> current.artifact;
-            if (current.artifact != "TRUE" && current.artifact != "FALSE") {
-                std::cerr << "ART must be TRUE or FALSE, discarding object\n";
-                inObject = false;
-                continue;
+            std::string symb;
+            iss >> symb;
+            if (symb.length() == 1) {
+                current.symbol = symb[0];
+                hasSymb = true;
+            } else {
+                std::cerr << "SYMB must be a single character, discarding monster\n";
+                inMonster = false;
             }
-            hasArt = true;
         } else if (keyword == "RRTY") {
             if (hasRarity) {
-                std::cerr << "Duplicate RRTY, discarding object\n";
-                inObject = false;
+                std::cerr << "Duplicate RRTY, discarding monster\n";
+                inMonster = false;
                 continue;
             }
             iss >> current.rarity;
             if (current.rarity >= 1 && current.rarity <= 100) {
                 hasRarity = true;
             } else {
-                std::cerr << "RRTY must be between 1 and 100, discarding object\n";
-                inObject = false;
+                std::cerr << "RRTY must be between 1 and 100, discarding monster\n";
+                inMonster = false;
             }
         }
     }
 
     file.close();
-    return objects;
+    return monsters;
 }

@@ -33,6 +33,10 @@ void ObjectDescription::print() const {
     std::cout << "\n";
 }
 
+Object* ObjectDescription::createInstance(int x, int y) const {
+    return new Object(*this, x, y);
+}
+
 std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filename) {
     std::vector<ObjectDescription> objects;
     std::ifstream file(filename);
@@ -123,7 +127,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             std::getline(iss, typeLine);
             std::istringstream typeIss(typeLine);
             std::string type;
-            std::set<std::string> seenTypes; // Check for duplicate types
+            std::set<std::string> seenTypes;
             while (typeIss >> type) {
                 if (!seenTypes.insert(type).second) {
                     std::cerr << "Duplicate type '" << type << "' in TYPE, discarding object\n";
@@ -139,7 +143,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
                 inObject = false;
                 continue;
             }
-            iss >> current.color; // Single color for simplicity
+            iss >> current.color;
             hasColor = true;
         } else if (keyword == "HIT") {
             if (hasHit) {
@@ -169,7 +173,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
                 continue;
             }
             hasDam = true;
-        } else if (keyword == "DODGE") { // Corrected from DOOGE to DODGE
+        } else if (keyword == "DODGE") {
             if (hasDodge) {
                 std::cerr << "Duplicate DODGE, discarding object\n";
                 inObject = false;
