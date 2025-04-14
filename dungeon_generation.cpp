@@ -1,10 +1,9 @@
 #include "dungeon_generation.h"
-#include "monster_parsing.h"
-#include "object_parsing.h"
 #include <unistd.h>
 #include <ctype.h>
 #include <ncurses.h>
 #include <random>
+#include <ctime>
 
 char dungeon[HEIGHT][WIDTH];
 unsigned char hardness[HEIGHT][WIDTH];
@@ -378,29 +377,6 @@ int spawnMonsters(int numMonsters) {
         }
     }
     return num_monsters < numMonsters;
-}
-
-char getObjectSymbol(const std::string& type) {
-    if (type == "WEAPON") return '|';
-    if (type == "OFFHAND") return ')';
-    if (type == "RANGED") return '}';
-    if (type == "ARMOR") return '[';
-    if (type == "HELMET") return ']';
-    if (type == "CLOAK") return '(';
-    if (type == "GLOVES") return '{';
-    if (type == "BOOTS") return '{';
-    if (type == "RING") return '=';
-    if (type == "AMULET") return '"';
-    if (type == "LIGHT") return '_';
-    if (type == "SCROLL") return '~';
-    if (type == "BOOK") return '?';
-    if (type == "FLASK") return '!';
-    if (type == "GOLD") return '$';
-    if (type == "AMMUNITION") return '/';
-    if (type == "FOOD") return ',';
-    if (type == "WAND") return '-';
-    if (type == "CONTAINER") return '%';
-    return '*';
 }
 
 void placeObjects(int count) {

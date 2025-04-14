@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <set>
 #include <random>
+#include "dungeon_generation.h" // Added for NPC definition
 
 MonsterDescription::MonsterDescription()
     : symbol('\0'), rarity(0), is_unique(false), is_alive(false) {}

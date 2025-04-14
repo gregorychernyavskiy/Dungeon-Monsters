@@ -5,7 +5,9 @@
 #include <vector>
 #include <stdint.h>
 #include "dice.h"
-#include "dungeon_generation.h"
+
+// Forward declaration of NPC
+class NPC;
 
 class MonsterDescription {
 public:

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <set>
 #include <random>
+#include "dungeon_generation.h" // Added for Object definition
 
 ObjectDescription::ObjectDescription()
     : rarity(0), is_artifact(false), is_created(false) {}
@@ -69,6 +70,29 @@ Object* ObjectDescription::createObject(int x, int y) {
     }
 
     return obj;
+}
+
+char getObjectSymbol(const std::string& type) {
+    if (type == "WEAPON") return '|';
+    if (type == "OFFHAND") return ')';
+    if (type == "RANGED") return '}';
+    if (type == "ARMOR") return '[';
+    if (type == "HELMET") return ']';
+    if (type == "CLOAK") return '(';
+    if (type == "GLOVES") return '{';
+    if (type == "BOOTS") return '{';
+    if (type == "RING") return '=';
+    if (type == "AMULET") return '"';
+    if (type == "LIGHT") return '_';
+    if (type == "SCROLL") return '~';
+    if (type == "BOOK") return '?';
+    if (type == "FLASK") return '!';
+    if (type == "GOLD") return '$';
+    if (type == "AMMUNITION") return '/';
+    if (type == "FOOD") return ',';
+    if (type == "WAND") return '-';
+    if (type == "CONTAINER") return '%';
+    return '*';
 }
 
 std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filename) {

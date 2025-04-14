@@ -7,8 +7,6 @@
 #include <ncurses.h>
 #include "dungeon_generation.h"
 #include "minheap.h"
-#include "monster_parsing.h"
-#include "object_parsing.h"
 
 int main(int argc, char* argv[]) {
     srand(time(NULL));

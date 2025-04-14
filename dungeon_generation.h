@@ -1,19 +1,13 @@
 #ifndef DUNGEON_GENERATION_H
 #define DUNGEON_GENERATION_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <time.h>
-#include <endian.h>
-#include <limits.h>
 #include <ncurses.h>
+#include <string>
 #include <vector>
 #include "minheap.h"
 #include "dice.h"
-#include "monster_parsing.h" // Added for MonsterDescription
-#include "object_parsing.h"  // Added for ObjectDescription
+#include "monster_parsing.h"
+#include "object_parsing.h"
 
 #define WIDTH 80
 #define HEIGHT 21
@@ -147,7 +141,6 @@ void regenerate_dungeon(int numMonsters);
 int move_player(int dx, int dy, const char** message);
 int use_stairs(char direction, int numMonsters, const char** message);
 
-char getObjectSymbol(const std::string& type);
 void placeObjects(int count);
 void cleanupObjects();
 void loadDescriptions();

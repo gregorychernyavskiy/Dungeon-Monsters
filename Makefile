@@ -11,7 +11,7 @@ dungeon: $(OBJ)
 main.o: main.cpp dungeon_generation.h minheap.h monster_parsing.h object_parsing.h
 	$(CC) $(CFLAGS) -c main.cpp
 
-dungeon_generation.o: dungeon_generation.cpp dungeon_generation.h minheap.h
+dungeon_generation.o: dungeon_generation.cpp dungeon_generation.h minheap.h monster_parsing.h object_parsing.h
 	$(CC) $(CFLAGS) -c dungeon_generation.cpp
 
 save_load.o: save_load.cpp dungeon_generation.h
@@ -23,10 +23,10 @@ findpath.o: findpath.cpp dungeon_generation.h minheap.h
 minheap.o: minheap.cpp minheap.h
 	$(CC) $(CFLAGS) -c minheap.cpp
 
-monster_parsing.o: monster_parsing.cpp monster_parsing.h dice.h
+monster_parsing.o: monster_parsing.cpp monster_parsing.h dice.h dungeon_generation.h
 	$(CC) $(CFLAGS) -c monster_parsing.cpp
 
-object_parsing.o: object_parsing.cpp object_parsing.h dice.h
+object_parsing.o: object_parsing.cpp object_parsing.h dice.h dungeon_generation.h
 	$(CC) $(CFLAGS) -c object_parsing.cpp
 
 dice.o: dice.cpp dice.h

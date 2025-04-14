@@ -5,7 +5,9 @@
 #include <vector>
 #include <stdint.h>
 #include "dice.h"
-#include "dungeon_generation.h"
+
+// Forward declaration of Object
+class Object;
 
 class ObjectDescription {
 public:
@@ -32,5 +34,6 @@ public:
 };
 
 std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filename);
+char getObjectSymbol(const std::string& type); // Declare here
 
 #endif
