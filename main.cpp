@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
     // Load descriptions
     loadDescriptions();
 
-    // If no arguments or parsing mode is specified
+    // Handle parsing modes
     if (argc == 1 || parseMonstersOnly || parseObjectsOnly) {
         char* home = getenv("HOME");
         if (!home) {
@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // Original dungeon generation and game logic
+    // Initialize dungeon
     emptyDungeon();
     createRooms();
     connectRooms();
@@ -69,6 +69,7 @@ int main(int argc, char* argv[]) {
     placeObjects(10); // At least 10 objects
     update_visibility();
 
+    // Handle save-only mode
     if (save && saveFileName && numMonsters == 0 && argc == 3) {
         saveDungeon(saveFileName);
         for (int i = 0; i < num_monsters; i++) delete monsters[i];
@@ -78,6 +79,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    // Initialize ncurses
     init_ncurses();
     WINDOW* win = newwin(24, 80, 0, 0);
     if (!win) {
@@ -86,6 +88,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // Display start screen
     const char* message = "Press any button to start";
     draw_dungeon(win, message);
     getch();
@@ -192,6 +195,30 @@ int main(int argc, char* argv[]) {
                         target_y = player->y;
                         message = "Teleport mode: Move cursor with movement keys, 'g' to confirm, 'r' for random";
                         break;
+                    case 'w':
+                        wear_item(win, &message);
+                        break;
+                    case 't':
+                        take_off_item(win, &message);
+                        break;
+                    case 'd':
+                        drop_item(win, &message);
+                        break;
+                    case 'x':
+                        expunge_item(win, &message);
+                        break;
+                    case 'i':
+                        list_inventory(win, &message);
+                        break;
+                    case 'e':
+                        list_equipment(win, &message);
+                        break;
+                    case 'I':
+                        inspect_item(win, &message);
+                        break;
+                    case 'L':
+                        look_at_monster(win, &message);
+                        break;
                     case 'Q': case 'q':
                         game_running = false;
                         message = "Quitting game...";
@@ -205,17 +232,23 @@ int main(int argc, char* argv[]) {
 
         if (moved && game_running && !teleport_mode) {
             for (int i = 0; i < num_monsters; i++) {
-                if (monsters[i]->alive) {
+                if (monsters[i] && monsters[i]->alive) {
                     monsters[i]->move();
                 }
             }
             NPC* culprit = nullptr;
             if (gameOver(&culprit)) {
                 char buf[80];
-                snprintf(buf, sizeof(buf), "Killed by monster '%s'!", culprit->name.c_str());
+                snprintf(buf, sizeof(buf), "Killed by monster '%s'!", culprit ? culprit->name.c_str() : "unknown");
                 message = buf;
                 game_running = false;
             }
+        }
+
+        if (!game_running || !player->alive) {
+            draw_dungeon(win, message);
+            sleep(2);
+            break;
         }
 
         if (!teleport_mode) {
@@ -223,18 +256,22 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    draw_dungeon(win, message);
-    sleep(2);
-
+    // Cleanup
     if (save && saveFileName) {
         saveDungeon(saveFileName);
     }
 
     for (int i = 0; i < num_monsters; i++) {
-        delete monsters[i];
+        if (monsters[i]) delete monsters[i];
     }
     free(monsters);
     cleanupObjects();
+    for (int i = 0; i < 10; ++i) {
+        if (player->carry[i]) delete player->carry[i];
+    }
+    for (int i = 0; i < 12; ++i) {
+        if (player->equipment[i]) delete player->equipment[i];
+    }
     delete player;
     delwin(win);
     endwin();

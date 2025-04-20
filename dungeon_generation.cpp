@@ -45,11 +45,33 @@ Object::Object(int x_, int y_) : x(x_), y(y_), hit(0), dodge(0), defense(0),
 Object::~Object() {}
 
 Character::Character(int x_, int y_) : x(x_), y(y_), speed(10), alive(1),
-    last_seen_x(-1), last_seen_y(-1) {}
+    last_seen_x(-1), last_seen_y(-1), hitpoints(0) {}
 
 PC::PC(int x_, int y_) : Character(x_, y_) {
     symbol = '@';
     color = "WHITE";
+    hitpoints = 100; // Default hitpoints
+    damage = Dice(0, 1, 4); // Default damage: 0+1d4
+    for (int i = 0; i < 12; ++i) equipment[i] = nullptr;
+    for (int i = 0; i < 10; ++i) carry[i] = nullptr;
+}
+
+int PC::getTotalSpeed() const {
+    int total = speed;
+    for (int i = 0; i < 12; ++i) {
+        if (equipment[i]) total += equipment[i]->speed;
+    }
+    return total;
+}
+
+int PC::rollTotalDamage() const {
+    int total = 0;
+    bool has_weapon = equipment[0] != nullptr; // WEAPON slot
+    if (!has_weapon) total += damage.roll(); // Roll base damage if no weapon
+    for (int i = 0; i < 12; ++i) {
+        if (equipment[i]) total += equipment[i]->damage.roll();
+    }
+    return total;
 }
 
 NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(0),
@@ -91,6 +113,38 @@ void NPC::move() {
     }
 
     if (next_x != curr_x || next_y != curr_y) {
+        // Handle NPC-NPC collision: displace or swap
+        if (monsterAt[next_y][next_x]) {
+            int displace_x = next_x, displace_y = next_y;
+            bool displaced = false;
+            for (int i = 0; i < 8; ++i) {
+                int nx = next_x + dx[i];
+                int ny = next_y + dy[i];
+                if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT && !monsterAt[ny][nx] &&
+                    (tunneling || pass_wall || hardness[ny][nx] == 0)) {
+                    monsterAt[next_y][next_x]->x = nx;
+                    monsterAt[next_y][next_x]->y = ny;
+                    monsterAt[ny][nx] = monsterAt[next_y][next_x];
+                    monsterAt[next_y][next_x] = nullptr;
+                    displaced = true;
+                    break;
+                }
+            }
+            if (!displaced) {
+                // Swap positions
+                monsterAt[next_y][next_x]->x = curr_x;
+                monsterAt[next_y][next_x]->y = curr_y;
+                monsterAt[curr_y][curr_x] = monsterAt[next_y][next_x];
+            }
+        } else if (next_x == player->x && next_y == player->y) {
+            // NPC attacks PC
+            int damage = this->damage.roll();
+            player->hitpoints -= damage;
+            if (player->hitpoints <= 0) {
+                player->alive = 0;
+            }
+            return; // Attack uses turn, no movement
+        }
         if (hardness[next_y][next_x] > 0 && tunneling && !pass_wall) {
             hardness[next_y][next_x] = 0;
             dungeon[next_y][next_x] = '#';
@@ -419,6 +473,10 @@ void runGame(int numMonsters) {
 }
 
 int gameOver(NPC** culprit) {
+    if (!player->alive) {
+        *culprit = nullptr; // PC died, culprit set in NPC::move
+        return 1;
+    }
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i] && monsters[i]->alive && monsters[i]->x == player->x && monsters[i]->y == player->y) {
             *culprit = monsters[i];
@@ -448,7 +506,6 @@ void init_ncurses() {
     keypad(stdscr, TRUE);
     curs_set(0);
 
-    // Initialize color pairs
     init_pair(COLOR_RED, COLOR_RED, COLOR_BLACK);
     init_pair(COLOR_GREEN, COLOR_GREEN, COLOR_BLACK);
     init_pair(COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK);
@@ -457,7 +514,6 @@ void init_ncurses() {
     init_pair(COLOR_CYAN, COLOR_CYAN, COLOR_BLACK);
     init_pair(COLOR_WHITE, COLOR_WHITE, COLOR_BLACK);
 
-    // Debug: Log color pair initialization
     FILE* debug_file = fopen("color_init_debug.txt", "w");
     if (debug_file) {
         fprintf(debug_file, "Initialized color pairs:\n");
@@ -472,12 +528,11 @@ void init_ncurses() {
     }
 
     refresh();
-    getch(); // Wait for user input to verify terminal setup
+    getch();
 }
 
 int getColorIndex(const std::string& color) {
     std::string trimmed_color = color;
-    // Trim leading and trailing whitespace
     trimmed_color.erase(0, trimmed_color.find_first_not_of(" \t"));
     trimmed_color.erase(trimmed_color.find_last_not_of(" \t") + 1);
 
@@ -486,7 +541,6 @@ int getColorIndex(const std::string& color) {
         c = std::toupper(c);
     }
 
-    // Debug: Log color mapping
     FILE* debug_file = fopen("color_debug.txt", "a");
     if (debug_file) {
         fprintf(debug_file, "Raw color: '%s', Trimmed color: '%s', Mapped color: '%s'\n", 
@@ -501,8 +555,8 @@ int getColorIndex(const std::string& color) {
     if (upper_color == "MAGENTA") return COLOR_MAGENTA;
     if (upper_color == "CYAN") return COLOR_CYAN;
     if (upper_color == "WHITE") return COLOR_WHITE;
-    if (upper_color == "BLACK") return COLOR_WHITE; // Render black as white per assignment
-    return COLOR_WHITE; // Default to white if unknown
+    if (upper_color == "BLACK") return COLOR_WHITE;
+    return COLOR_WHITE;
 }
 
 void update_visibility() {
@@ -532,7 +586,6 @@ void draw_dungeon(WINDOW* win, const char* message) {
                 mvwprintw(win, y + 1, x, " ");
             } else if (x == player->x && y == player->y) {
                 int color = getColorIndex(player->color);
-                // Debug: Log color for player
                 FILE* debug_file = fopen("render_debug.txt", "a");
                 if (debug_file) {
                     fprintf(debug_file, "Player at (%d,%d) color index: %d\n", x, y, color);
@@ -543,7 +596,6 @@ void draw_dungeon(WINDOW* win, const char* message) {
                 wattroff(win, COLOR_PAIR(color));
             } else if (monsterAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(monsterAt[y][x]->color);
-                // Debug: Log color for monster
                 FILE* debug_file = fopen("render_debug.txt", "a");
                 if (debug_file) {
                     fprintf(debug_file, "Monster at (%d,%d) symbol: %c, color index: %d\n", 
@@ -555,7 +607,6 @@ void draw_dungeon(WINDOW* win, const char* message) {
                 wattroff(win, COLOR_PAIR(color));
             } else if (objectAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(objectAt[y][x]->color);
-                // Debug: Log color for object
                 FILE* debug_file = fopen("render_debug.txt", "a");
                 if (debug_file) {
                     fprintf(debug_file, "Object at (%d,%d) symbol: %c, color index: %d\n", 
@@ -571,11 +622,10 @@ void draw_dungeon(WINDOW* win, const char* message) {
             }
         }
     }
-    mvwprintw(win, 22, 0, "Status Line 1");
+    mvwprintw(win, 22, 0, "HP: %d, Speed: %d", player->hitpoints, player->getTotalSpeed());
     mvwprintw(win, 23, 0, "Fog of War: %s", fog_enabled ? "ON" : "OFF");
     wrefresh(win);
 }
-
 
 void draw_monster_list(WINDOW* win) {
     werase(win);
@@ -644,7 +694,7 @@ void regenerate_dungeon(int numMonsters) {
     placePlayer();
     initializeHardness();
     spawnMonsters(numMonsters);
-    placeObjects(10); // At least 10 objects
+    placeObjects(10);
 
     memset(visible, 0, sizeof(visible));
     memset(remembered, 0, sizeof(remembered));
@@ -663,8 +713,29 @@ int move_player(int dx, int dy, const char** message) {
         return 0;
     }
     if (monsterAt[new_y][new_x]) {
-        *message = "A monster blocks your path!";
-        return 0;
+        // PC attacks NPC
+        NPC* target = monsterAt[new_y][new_x];
+        int damage = player->rollTotalDamage();
+        target->hitpoints -= damage;
+        char buf[80];
+        snprintf(buf, sizeof(buf), "You hit %s for %d damage!", target->name.c_str(), damage);
+        *message = buf;
+        if (target->hitpoints <= 0) {
+            target->alive = 0;
+            monsterAt[new_y][new_x] = nullptr;
+            for (int i = 0; i < num_monsters; ++i) {
+                if (monsters[i] == target) {
+                    delete monsters[i];
+                    monsters[i] = nullptr;
+                    break;
+                }
+            }
+            if (target->name == "SpongeBob SquarePants") {
+                *message = "You defeated SpongeBob SquarePants! You win!";
+                player->alive = 0; // End game with win
+            }
+        }
+        return 1; // Attack uses turn
     }
     dungeon[player->y][player->x] = terrain[player->y][player->x];
     if (objectAt[player->y][player->x]) {
@@ -677,7 +748,29 @@ int move_player(int dx, int dy, const char** message) {
         terrain[player->y][player->x] = dungeon[player->y][player->x];
     }
     dungeon[player->y][player->x] = '@';
-    *message = "";
+    // Auto-pickup objects
+    if (objectAt[new_y][new_x]) {
+        for (int i = 0; i < 10; ++i) {
+            if (!player->carry[i]) {
+                player->carry[i] = objectAt[new_y][new_x];
+                objectAt[new_y][new_x] = nullptr;
+                for (int j = 0; j < num_objects; ++j) {
+                    if (objects[j] && objects[j]->x == new_x && objects[j]->y == new_y) {
+                        objects[j]->x = -1; // Mark as carried
+                        objects[j]->y = -1;
+                        break;
+                    }
+                }
+                char buf[80];
+                snprintf(buf, sizeof(buf), "Picked up %s!", player->carry[i]->name.c_str());
+                *message = buf;
+                break;
+            }
+        }
+        if (objectAt[new_y][new_x]) {
+            *message = "Inventory full!";
+        }
+    }
     update_visibility();
     return 1;
 }
@@ -694,4 +787,336 @@ int use_stairs(char direction, int numMonsters, const char** message) {
     }
     *message = "Not standing on the correct staircase!";
     return 0;
+}
+
+// Helper function to get equipment slot index from type
+int getEquipmentSlot(const std::string& type) {
+    if (type == "WEAPON") return 0;
+    if (type == "OFFHAND") return 1;
+    if (type == "RANGED") return 2;
+    if (type == "ARMOR") return 3;
+    if (type == "HELMET") return 4;
+    if (type == "CLOAK") return 5;
+    if (type == "GLOVES") return 6;
+    if (type == "BOOTS") return 7;
+    if (type == "AMULET") return 8;
+    if (type == "LIGHT") return 9;
+    if (type == "RING") return 10; // First ring slot
+    return -1;
+}
+
+void wear_item(WINDOW* win, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Select carry slot to wear (0-9, ESC to cancel):");
+    for (int i = 0; i < 10; ++i) {
+        if (player->carry[i]) {
+            mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
+        }
+    }
+    wrefresh(win);
+    int ch = getch();
+    if (ch == 27) {
+        *message = "Wear cancelled.";
+        return;
+    }
+    if (ch < '0' || ch > '9') {
+        *message = "Invalid slot!";
+        return;
+    }
+    int slot = ch - '0';
+    if (!player->carry[slot]) {
+        *message = "No item in that slot!";
+        return;
+    }
+    Object* item = player->carry[slot];
+    int equip_slot = getEquipmentSlot(item->types.empty() ? "" : item->types[0]);
+    if (equip_slot == -1) {
+        // Try second ring slot if first is occupied
+        if (item->types[0] == "RING" && player->equipment[10] != nullptr && player->equipment[11] == nullptr) {
+            equip_slot = 11;
+        } else {
+            *message = "Cannot equip this item type!";
+            return;
+        }
+    }
+    if (player->equipment[equip_slot]) {
+        // Swap with carry slot
+        player->carry[slot] = player->equipment[equip_slot];
+    } else {
+        player->carry[slot] = nullptr;
+    }
+    player->equipment[equip_slot] = item;
+    char buf[80];
+    snprintf(buf, sizeof(buf), "Equipped %s!", item->name.c_str());
+    *message = buf;
+}
+
+void take_off_item(WINDOW* win, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Select equipment slot to take off (a-l, ESC to cancel):");
+    const char* slots = "abcdefghijkl";
+    const char* names[] = {"WEAPON", "OFFHAND", "RANGED", "ARMOR", "HELMET", "CLOAK",
+                           "GLOVES", "BOOTS", "AMULET", "LIGHT", "RING1", "RING2"};
+    for (int i = 0; i < 12; ++i) {
+        if (player->equipment[i]) {
+            mvwprintw(win, i + 1, 0, "%c: %s (%s)", slots[i], player->equipment[i]->name.c_str(), names[i]);
+        }
+    }
+    wrefresh(win);
+    int ch = getch();
+    if (ch == 27) {
+        *message = "Take off cancelled.";
+        return;
+    }
+    int slot = -1;
+    for (int i = 0; i < 12; ++i) {
+        if (ch == slots[i]) {
+            slot = i;
+            break;
+        }
+    }
+    if (slot == -1 || !player->equipment[slot]) {
+        *message = "Invalid or empty slot!";
+        return;
+    }
+    for (int i = 0; i < 10; ++i) {
+        if (!player->carry[i]) {
+            player->carry[i] = player->equipment[slot];
+            player->equipment[slot] = nullptr;
+            char buf[80];
+            snprintf(buf, sizeof(buf), "Took off %s!", player->carry[i]->name.c_str());
+            *message = buf;
+            return;
+        }
+    }
+    *message = "No carry slots available!";
+}
+
+void drop_item(WINDOW* win, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Select carry slot to drop (0-9, ESC to cancel):");
+    for (int i = 0; i < 10; ++i) {
+        if (player->carry[i]) {
+            mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
+        }
+    }
+    wrefresh(win);
+    int ch = getch();
+    if (ch == 27) {
+        *message = "Drop cancelled.";
+        return;
+    }
+    if (ch < '0' || ch > '9') {
+        *message = "Invalid slot!";
+        return;
+    }
+    int slot = ch - '0';
+    if (!player->carry[slot]) {
+        *message = "No item in that slot!";
+        return;
+    }
+    Object* item = player->carry[slot];
+    if (objectAt[player->y][player->x]) {
+        *message = "Floor is occupied!";
+        return;
+    }
+    item->x = player->x;
+    item->y = player->y;
+    objectAt[item->y][item->x] = item;
+    Object** temp = (Object**)realloc(objects, (num_objects + 1) * sizeof(Object*));
+    if (temp) {
+        objects = temp;
+        objects[num_objects] = item;
+        num_objects++;
+    }
+    player->carry[slot] = nullptr;
+    terrain[item->y][item->x] = item->symbol;
+    char buf[80];
+    snprintf(buf, sizeof(buf), "Dropped %s!", item->name.c_str());
+    *message = buf;
+}
+
+void expunge_item(WINDOW* win, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Select carry slot to expunge (0-9, ESC to cancel):");
+    for (int i = 0; i < 10; ++i) {
+        if (player->carry[i]) {
+            mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
+        }
+    }
+    wrefresh(win);
+    int ch = getch();
+    if (ch == 27) {
+        *message = "Expunge cancelled.";
+        return;
+    }
+    if (ch < '0' || ch > '9') {
+        *message = "Invalid slot!";
+        return;
+    }
+    int slot = ch - '0';
+    if (!player->carry[slot]) {
+        *message = "No item in that slot!";
+        return;
+    }
+    Object* item = player->carry[slot];
+    for (int i = 0; i < num_objects; ++i) {
+        if (objects[i] == item) {
+            delete objects[i];
+            objects[i] = nullptr;
+            break;
+        }
+    }
+    player->carry[slot] = nullptr;
+    char buf[80];
+    snprintf(buf, sizeof(buf), "Expunged %s!", item->name.c_str());
+    *message = buf;
+}
+
+void list_inventory(WINDOW* win, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Inventory (Press any key to exit):");
+    for (int i = 0; i < 10; ++i) {
+        if (player->carry[i]) {
+            mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
+        } else {
+            mvwprintw(win, i + 1, 0, "%d: (empty)", i);
+        }
+    }
+    wrefresh(win);
+    getch();
+    *message = "";
+}
+
+void list_equipment(WINDOW* win, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Equipment (Press any key to exit):");
+    const char* slots = "abcdefghijkl";
+    const char* names[] = {"WEAPON", "OFFHAND", "RANGED", "ARMOR", "HELMET", "CLOAK",
+                           "GLOVES", "BOOTS", "AMULET", "LIGHT", "RING1", "RING2"};
+    for (int i = 0; i < 12; ++i) {
+        if (player->equipment[i]) {
+            mvwprintw(win, i + 1, 0, "%c: %s (%s)", slots[i], player->equipment[i]->name.c_str(), names[i]);
+        } else {
+            mvwprintw(win, i + 1, 0, "%c: (empty) (%s)", slots[i], names[i]);
+        }
+    }
+    wrefresh(win);
+    getch();
+    *message = "";
+}
+
+void inspect_item(WINDOW* win, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Select carry slot to inspect (0-9, ESC to cancel):");
+    for (int i = 0; i < 10; ++i) {
+        if (player->carry[i]) {
+            mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
+        }
+    }
+    wrefresh(win);
+    int ch = getch();
+    if (ch == 27) {
+        *message = "Inspect cancelled.";
+        return;
+    }
+    if (ch < '0' || ch > '9') {
+        *message = "Invalid slot!";
+        return;
+    }
+    int slot = ch - '0';
+    if (!player->carry[slot]) {
+        *message = "No item in that slot!";
+        return;
+    }
+    Object* item = player->carry[slot];
+    werase(win);
+    mvwprintw(win, 0, 0, "Item: %s", item->name.c_str());
+    int line = 1;
+    for (const auto& desc : objectDescs) {
+        if (desc.name == item->name) {
+            for (const auto& l : desc.description) {
+                mvwprintw(win, line++, 0, "%s", l.c_str());
+            }
+            break;
+        }
+    }
+    mvwprintw(win, line++, 0, "Type: %s", item->types.empty() ? "Unknown" : item->types[0].c_str());
+    mvwprintw(win, line++, 0, "Color: %s", item->color.c_str());
+    mvwprintw(win, line++, 0, "Damage: %s", item->damage.toString().c_str());
+    mvwprintw(win, line++, 0, "Hit: %d", item->hit);
+    mvwprintw(win, line++, 0, "Dodge: %d", item->dodge);
+    mvwprintw(win, line++, 0, "Defense: %d", item->defense);
+    mvwprintw(win, line++, 0, "Weight: %d", item->weight);
+    mvwprintw(win, line++, 0, "Speed: %d", item->speed);
+    mvwprintw(win, line++, 0, "Attribute: %d", item->attribute);
+    mvwprintw(win, line++, 0, "Value: %d", item->value);
+    mvwprintw(win, line++, 0, "Artifact: %s", item->is_artifact ? "Yes" : "No");
+    mvwprintw(win, line++, 0, "Press any key to exit");
+    wrefresh(win);
+    getch();
+    *message = "";
+}
+
+void look_at_monster(WINDOW* win, const char** message) {
+    bool look_mode = true;
+    int target_x = player->x, target_y = player->y;
+    while (look_mode) {
+        werase(win);
+        draw_dungeon(win, "Look mode: Move cursor with movement keys, 't' to select, ESC to cancel");
+        mvwprintw(win, target_y + 1, target_x, "*");
+        wrefresh(win);
+        int ch = getch();
+        int dx = 0, dy = 0;
+        if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
+        else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
+        else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
+        else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
+        else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
+        else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
+        else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
+        else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
+        else if (ch == 't' && monsterAt[target_y][target_x] && visible[target_y][target_x]) {
+            NPC* monster = monsterAt[target_y][target_x];
+            werase(win);
+            mvwprintw(win, 0, 0, "Monster: %s", monster->name.c_str());
+            int line = 1;
+            for (const auto& desc : monsterDescs) {
+                if (desc.name == monster->name) {
+                    for (const auto& l : desc.description) {
+                        mvwprintw(win, line++, 0, "%s", l.c_str());
+                    }
+                    break;
+                }
+            }
+            mvwprintw(win, line++, 0, "Symbol: %c", monster->symbol);
+            mvwprintw(win, line++, 0, "Color: %s", monster->color.c_str());
+            mvwprintw(win, line++, 0, "Speed: %d", monster->speed);
+            mvwprintw(win, line++, 0, "Hitpoints: %d", monster->hitpoints);
+            mvwprintw(win, line++, 0, "Damage: %s", monster->damage.toString().c_str());
+            mvwprintw(win, line++, 0, "Abilities: ");
+            if (monster->intelligent) mvwprintw(win, line++, 0, " SMART");
+            if (monster->telepathic) mvwprintw(win, line++, 0, " TELE");
+            if (monster->tunneling) mvwprintw(win, line++, 0, " TUNNEL");
+            if (monster->erratic) mvwprintw(win, line++, 0, " ERRATIC");
+            if (monster->pass_wall) mvwprintw(win, line++, 0, " PASS");
+            if (monster->pickup) mvwprintw(win, line++, 0, " PICKUP");
+            if (monster->destroy) mvwprintw(win, line++, 0, " DESTROY");
+            if (monster->is_unique) mvwprintw(win, line++, 0, " UNIQUE");
+            mvwprintw(win, line++, 0, "Press any key to exit");
+            wrefresh(win);
+            getch();
+            look_mode = false;
+            *message = "";
+        } else if (ch == 27) {
+            look_mode = false;
+            *message = "Look cancelled.";
+        } else if (dx != 0 || dy != 0) {
+            int new_tx = target_x + dx, new_ty = target_y + dy;
+            if (new_tx >= 0 && new_tx < WIDTH && new_ty >= 0 && new_ty < HEIGHT) {
+                target_x = new_tx;
+                target_y = new_ty;
+            }
+        }
+    }
 }

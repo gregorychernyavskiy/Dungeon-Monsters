@@ -52,6 +52,8 @@ public:
     std::string name;
     std::string color;
     char symbol;
+    int hitpoints; // Moved from NPC to Character
+    Dice damage;   // Moved from NPC to Character
 
     Character(int x_, int y_);
     virtual ~Character() = default;
@@ -62,6 +64,12 @@ class PC : public Character {
 public:
     PC(int x_, int y_);
     void move() override;
+    // Equipment slots (a-l)
+    Object* equipment[12]; // WEAPON, OFFHAND, RANGED, ARMOR, HELMET, CLOAK, GLOVES, BOOTS, AMULET, LIGHT, RING1, RING2
+    // Carry slots (0-9)
+    Object* carry[10];
+    int getTotalSpeed() const; // Calculate speed with equipment bonuses
+    int rollTotalDamage() const; // Roll all damage dice
 };
 
 class NPC : public Character {
@@ -69,8 +77,6 @@ public:
     int intelligent, tunneling, telepathic, erratic;
     int pass_wall, pickup, destroy;
     bool is_unique;
-    Dice damage;
-    int hitpoints;
 
     NPC(int x_, int y_);
     void move() override;

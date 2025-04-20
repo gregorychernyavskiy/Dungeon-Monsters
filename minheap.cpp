@@ -1,4 +1,3 @@
-// minheap.cpp
 #include "minheap.h"
 
 MinHeap* createMinHeap(int capacity) {

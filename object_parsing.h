@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include "dice.h"
 
-// Forward declaration of Object
 class Object;
 
 class ObjectDescription {
@@ -23,14 +22,14 @@ public:
     Dice speed;
     Dice attribute;
     Dice value;
-    std::string artifact; // "TRUE" or "FALSE"
+    std::string artifact;
     int rarity;
-    bool is_artifact;    // Track if object is an artifact
-    bool is_created;     // Track if artifact has been created
+    bool is_artifact;
+    bool is_created;
 
     ObjectDescription();
     void print() const;
-    Object* createObject(int x, int y); // Factory method
+    Object* createObject(int x, int y);
 };
 
 std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filename);

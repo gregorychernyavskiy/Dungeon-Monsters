@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <set>
 #include <random>
-#include "dungeon_generation.h" // Added for Object definition
+#include "dungeon_generation.h"
 
 ObjectDescription::ObjectDescription()
     : rarity(0), is_artifact(false), is_created(false) {}
