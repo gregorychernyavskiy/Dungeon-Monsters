@@ -114,6 +114,14 @@ void NPC::move() {
         }
     }
 
+    // Debug: Log chosen next position
+    FILE* debug_file = fopen("npc_move_debug.txt", "a");
+    if (debug_file) {
+        fprintf(debug_file, "NPC %s at (%d,%d) chose next position (%d,%d), player at (%d,%d)\n",
+                name.c_str(), curr_x, curr_y, next_x, next_y, player->x, player->y);
+        fclose(debug_file);
+    }
+
     if (next_x != curr_x || next_y != curr_y) {
         // Handle NPC-NPC collision: displace or swap
         if (monsterAt[next_y][next_x]) {
@@ -146,6 +154,11 @@ void NPC::move() {
                      name.c_str(), damage, player->hitpoints, this->damage.toString().c_str());
             if (player->hitpoints <= 0) {
                 player->alive = 0;
+            }
+            // Debug: Log combat
+            if (debug_file) {
+                fprintf(debug_file, "Combat triggered: %s\n", buf);
+                fclose(debug_file);
             }
             return; // Attack uses turn, no movement
         }
@@ -1043,6 +1056,10 @@ void inspect_item(WINDOW* win, const char** message) {
 }
 
 void look_at_monster(WINDOW* win, const char** message) {
+    // Ensure keypad is enabled for the window
+    keypad(win, TRUE);
+    nodelay(win, FALSE); // Ensure getch waits for input
+
     bool look_mode = true;
     int target_x = player->x, target_y = player->y;
     while (look_mode) {
@@ -1050,7 +1067,15 @@ void look_at_monster(WINDOW* win, const char** message) {
         draw_dungeon(win, "Look mode: Move cursor with movement keys, 't' to select, ESC to cancel");
         mvwprintw(win, target_y + 1, target_x, "*");
         wrefresh(win);
-        int ch = getch();
+
+        int ch = wgetch(win); // Use wgetch to ensure input from the correct window
+        // Debug: Log key code
+        FILE* debug_file = fopen("key_debug.txt", "a");
+        if (debug_file) {
+            fprintf(debug_file, "Look mode key: %d\n", ch);
+            fclose(debug_file);
+        }
+
         int dx = 0, dy = 0;
         if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
         else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
