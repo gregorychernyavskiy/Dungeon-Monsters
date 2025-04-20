@@ -142,13 +142,14 @@ void NPC::move() {
             int damage = this->damage.roll();
             player->hitpoints -= damage;
             static char buf[80];
-            snprintf(buf, sizeof(buf), "%s hits you for %d damage! HP now %d", name.c_str(), damage, player->hitpoints);
+            snprintf(buf, sizeof(buf), "%s hits you for %d damage! HP now %d (Damage dice: %s)", 
+                     name.c_str(), damage, player->hitpoints, damage.toString().c_str());
             if (player->hitpoints <= 0) {
                 player->alive = 0;
             }
             return; // Attack uses turn, no movement
         }
-        // Only tunnel if the NPC has TUNNEL ability, not PASS
+        // Only tunnel if the NPC has TUNNEL ability and does NOT have PASS
         if (hardness[next_y][next_x] > 0 && tunneling && !pass_wall) {
             hardness[next_y][next_x] = 0;
             dungeon[next_y][next_x] = '#';
