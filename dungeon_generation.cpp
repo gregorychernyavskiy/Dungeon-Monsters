@@ -854,7 +854,7 @@ int forced_combat(Character* attacker, Character* defender, WINDOW* win, const c
 }
 
 void inspect_monster(WINDOW* win, int target_x, int target_y) {
-    if (monsterAt[target_y][target_x] && visible[target_y][target_x]) {
+    if (monsterAt[target_y][target_x]) {
         NPC* monster = monsterAt[target_y][target_x];
         for (const auto& desc : monsterDescs) {
             if (desc.name == monster->name) {
@@ -872,5 +872,10 @@ void inspect_monster(WINDOW* win, int target_x, int target_y) {
                 break;
             }
         }
+    } else {
+        werase(win);
+        mvwprintw(win, 0, 0, "No monster at this location!");
+        wrefresh(win);
+        getch();
     }
 }

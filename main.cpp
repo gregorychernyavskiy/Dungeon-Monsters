@@ -81,10 +81,11 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
     start_color();
-    cbreak();
+    raw();
     noecho();
     keypad(stdscr, TRUE);
     curs_set(0);
+    nodelay(stdscr, FALSE);
 
     init_pair(COLOR_RED, COLOR_RED, COLOR_BLACK);
     init_pair(COLOR_GREEN, COLOR_GREEN, COLOR_BLACK);
@@ -114,6 +115,7 @@ int main(int argc, char* argv[]) {
     bool teleport_mode = false;
     bool inspect_mode = false;
     int target_x = player->x, target_y = player->y;
+    bool fog_toggle_ready = true;
 
     while (game_running) {
         int ch = getch();
@@ -121,7 +123,7 @@ int main(int argc, char* argv[]) {
         int dx = 0, dy = 0;
 
         if (teleport_mode || inspect_mode) {
-            if (inspect_mode && ch == 't' && monsterAt[target_y][target_x] && visible[target_y][target_x]) {
+            if (inspect_mode && ch == 't') {
                 inspect_monster(win, target_x, target_y);
                 inspect_mode = false;
                 message = "";
@@ -414,8 +416,11 @@ int main(int argc, char* argv[]) {
                         message = "";
                         break;
                     case 'f':
-                        fog_enabled = !fog_enabled;
-                        message = fog_enabled ? "Fog of War ON" : "Fog of War OFF";
+                        if (fog_toggle_ready) {
+                            fog_enabled = !fog_enabled;
+                            message = fog_enabled ? "Fog of War ON" : "Fog of War OFF";
+                            fog_toggle_ready = false;
+                        }
                         break;
                     case 'g':
                         teleport_mode = true;
@@ -455,6 +460,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        fog_toggle_ready = true; // Reset debounce for next input
         if (!teleport_mode && !inspect_mode) {
             draw_dungeon(win, message);
         }
