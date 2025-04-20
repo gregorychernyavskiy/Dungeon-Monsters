@@ -52,10 +52,10 @@ public:
     std::string name;
     std::string color;
     char symbol;
-    int hitpoints; // Moved from NPC to Character
-    Dice damage;   // Moved from NPC to Character
+    int hitpoints;
+    Dice damage;
 
-    Character(int x_, int y_, int hp = 0); // Updated constructor
+    Character(int x_, int y_, int hp = 0);
     virtual ~Character() = default;
     virtual void move() = 0;
 };
@@ -64,12 +64,10 @@ class PC : public Character {
 public:
     PC(int x_, int y_);
     void move() override;
-    // Equipment slots (a-l)
     Object* equipment[12]; // WEAPON, OFFHAND, RANGED, ARMOR, HELMET, CLOAK, GLOVES, BOOTS, AMULET, LIGHT, RING1, RING2
-    // Carry slots (0-9)
     Object* carry[10];
-    int getTotalSpeed() const; // Calculate speed with equipment bonuses
-    int rollTotalDamage() const; // Roll all damage dice
+    int getTotalSpeed() const;
+    int rollTotalDamage() const;
 };
 
 class NPC : public Character {
@@ -148,7 +146,6 @@ void placeObjects(int count);
 void cleanupObjects();
 void loadDescriptions();
 
-// New function declarations for equipment and inventory commands
 void wear_item(WINDOW* win, const char** message);
 void take_off_item(WINDOW* win, const char** message);
 void drop_item(WINDOW* win, const char** message);
@@ -157,5 +154,6 @@ void list_inventory(WINDOW* win, const char** message);
 void list_equipment(WINDOW* win, const char** message);
 void inspect_item(WINDOW* win, const char** message);
 void look_at_monster(WINDOW* win, const char** message);
+void pickup_item(WINDOW* win, const char** message);
 
 #endif
