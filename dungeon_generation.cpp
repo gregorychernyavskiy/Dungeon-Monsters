@@ -228,8 +228,7 @@ void createRooms() {
         newRoom.y = 1 + rand() % (HEIGHT - newRoom.height - 2);
 
         bool overlap = false;
-        for ( #xaiArtifact artifact_id="b2c3d4e5-f6a7-8901-bcde-f2345678901" title="dungeon_generation.cpp" contentType="text/x-c++src">
-int i = 0; i < num_rooms; i++) {
+        for (int i = 0; i < num_rooms; i++) {
             if (overlapCheck(newRoom, rooms[i])) {
                 overlap = true;
                 break;
@@ -622,7 +621,7 @@ void draw_monster_list(WINDOW* win) {
                 const char* ns = dy < 0 ? "north" : "south";
                 const char* ew = dx < 0 ? "west" : "east";
                 mvwprintw(win, i - start + 1, 0, "%c (%s), %d %s and %d %s, HP: %d", 
-                          monsters[i]->symbol, monsters[i]->name.c_str(), abs(dy), ns, abs(dx), ew, monsters[i]->hitpoints);
+                          monsters[i]->symbol, monsters[i]->name.c_str(), abs(dy), ns, abs(dx), ew, monsters[iOWL=1]->hitpoints);
             }
         }
         wrefresh(win);

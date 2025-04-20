@@ -224,9 +224,8 @@ int main(int argc, char* argv[]) {
                 const char* slots[] = {"WEAPON", "OFFHAND", "RANGED", "ARMOR", "HELMET", "CLOAK",
                                        "GLOVES", "BOOTS", "AMULET", "LIGHT", "RING1", "RING2"};
                 for (int i = 0; i < 12; i++) {
-                    if (player->equipment[i]) {
-                        mvwprintw(win, i + 1, 0, "%c: %s", 'a' + i, player->equipment[i]->name.c_str());
-                    }
+                    mvwprintw(win, i + 1, 0, "%c: %s%s", 'a' + i, slots[i], 
+                              player->equipment[i] ? (" (" + player->equipment[i]->name + ")").c_str() : "");
                 }
                 wrefresh(win);
                 ch = getch();
