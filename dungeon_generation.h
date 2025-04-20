@@ -148,4 +148,14 @@ void placeObjects(int count);
 void cleanupObjects();
 void loadDescriptions();
 
+// New function declarations for equipment and inventory commands
+void wear_item(WINDOW* win, const char** message);
+void take_off_item(WINDOW* win, const char** message);
+void drop_item(WINDOW* win, const char** message);
+void expunge_item(WINDOW* win, const char** message);
+void list_inventory(WINDOW* win, const char** message);
+void list_equipment(WINDOW* win, const char** message);
+void inspect_item(WINDOW* win, const char** message);
+void look_at_monster(WINDOW* win, const char** message);
+
 #endif
