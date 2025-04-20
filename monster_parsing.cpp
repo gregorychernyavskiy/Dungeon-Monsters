@@ -28,6 +28,8 @@ void MonsterDescription::print() const {
         if (i < abilities.size() - 1) std::cout << " ";
     }
     std::cout << "\n";
+    std::cout << hitpoints.toString() << "\n";
+    std::cout << damage.toString() << "\n";
     std::cout << rarity << "\n";
     std::cout << (is_unique ? "UNIQUE" : "") << "\n";
     std::cout << "\n";
@@ -38,8 +40,8 @@ NPC* MonsterDescription::createNPC(int x, int y) {
     npc->name = name;
     npc->symbol = symbol;
     npc->color = colors.empty() ? "WHITE" : colors[0];
+    npc->damage = damage;
 
-    // Roll dice for speed
     std::random_device rd;
     std::mt19937 gen(rd());
     npc->speed = speed.base;
@@ -47,10 +49,12 @@ NPC* MonsterDescription::createNPC(int x, int y) {
         std::uniform_int_distribution<> dis(1, speed.sides);
         npc->speed += dis(gen);
     }
+    npc->hitpoints = hitpoints.base;
+    for (int i = 0; i < hitpoints.dice; ++i) {
+        std::uniform_int_distribution<> dis(1, hitpoints.sides);
+        npc->hitpoints += dis(gen);
+    }
 
-    // Set abilities and roll hitpoints and damage based on parsed values
-    int hitpoints_base = 0, hitpoints_dice = 0, hitpoints_sides = 0;
-    int damage_base = 0, damage_dice = 0, damage_sides = 0;
     for (const auto& ability : abilities) {
         if (ability == "SMART") npc->intelligent = 1;
         else if (ability == "TELE") npc->telepathic = 1;
@@ -64,33 +68,6 @@ NPC* MonsterDescription::createNPC(int x, int y) {
             npc->is_unique = true;
         }
     }
-    // Find the description to get HP and DAM
-    for (const auto& desc : monsterDescs) {
-        if (desc.name == name) {
-            // Parse HP and DAM from the original description
-            for (const auto& line : desc.description) {
-                std::istringstream iss(line);
-                std::string keyword;
-                iss >> keyword;
-                if (keyword == "HP") {
-                    std::string diceStr;
-                    std::getline(iss, diceStr);
-                    sscanf(diceStr.c_str(), "%d+%dd%d", &hitpoints_base, &hitpoints_dice, &hitpoints_sides);
-                } else if (keyword == "DAM") {
-                    std::string diceStr;
-                    std::getline(iss, diceStr);
-                    sscanf(diceStr.c_str(), "%d+%dd%d", &damage_base, &damage_dice, &damage_sides);
-                }
-            }
-            break;
-        }
-    }
-    npc->hitpoints = hitpoints_base;
-    for (int i = 0; i < hitpoints_dice; ++i) {
-        std::uniform_int_distribution<> dis(1, hitpoints_sides);
-        npc->hitpoints += dis(gen);
-    }
-    npc->damage = Dice(damage_base, damage_dice, damage_sides);
 
     if (is_unique) {
         is_alive = true;
@@ -118,7 +95,7 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
     MonsterDescription current;
     bool inMonster = false;
     bool hasName = false, hasDesc = false, hasColor = false, hasSpeed = false;
-    bool hasAbil = false, hasSymb = false, hasRarity = false;
+    bool hasAbil = false, hasHP = false, hasDam = false, hasSymb = false, hasRarity = false;
 
     while (std::getline(file, line)) {
         if (line.empty()) continue;
@@ -129,12 +106,12 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             }
             current = MonsterDescription();
             inMonster = true;
-            hasName = hasDesc = hasColor = hasSpeed = hasAbil = hasSymb = hasRarity = false;
+            hasName = hasDesc = hasColor = hasSpeed = hasAbil = hasHP = hasDam = hasSymb = hasRarity = false;
             continue;
         }
 
         if (line == "END" && inMonster) {
-            if (hasName && hasDesc && hasColor && hasSpeed && hasAbil && hasSymb && hasRarity) {
+            if (hasName && hasDesc && hasColor && hasSpeed && hasAbil && hasHP && hasDam && hasSymb && hasRarity) {
                 monsters.push_back(current);
             } else {
                 std::cerr << "Monster missing required fields, discarded\n";
@@ -223,6 +200,34 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
                 current.abilities.push_back(ability);
             }
             if (inMonster) hasAbil = true;
+        } else if (keyword == "HP") {
+            if (hasHP) {
+                std::cerr << "Duplicate HP, discarding monster\n";
+                inMonster = false;
+                continue;
+            }
+            std::string diceStr;
+            std::getline(iss, diceStr);
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.hitpoints.base, &current.hitpoints.dice, &current.hitpoints.sides) != 3) {
+                std::cerr << "Invalid HP format, discarding monster\n";
+                inMonster = false;
+                continue;
+            }
+            hasHP = true;
+        } else if (keyword == "DAM") {
+            if (hasDam) {
+                std::cerr << "Duplicate DAM, discarding monster\n";
+                inMonster = false;
+                continue;
+            }
+            std::string diceStr;
+            std::getline(iss, diceStr);
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.damage.base, &current.damage.dice, &current.damage.sides) != 3) {
+                std::cerr << "Invalid DAM format, discarding monster\n";
+                inMonster = false;
+                continue;
+            }
+            hasDam = true;
         } else if (keyword == "SYMB") {
             if (hasSymb) {
                 std::cerr << "Duplicate SYMB, discarding monster\n";

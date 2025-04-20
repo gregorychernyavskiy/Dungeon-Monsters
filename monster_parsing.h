@@ -15,6 +15,8 @@ public:
     std::vector<std::string> colors;
     Dice speed;
     std::vector<std::string> abilities;
+    Dice hitpoints;
+    Dice damage;
     char symbol;
     int rarity;
     bool is_unique;

@@ -39,11 +39,10 @@ Object* ObjectDescription::createObject(int x, int y) {
     Object* obj = new Object(x, y);
     obj->name = name;
     obj->color = color;
-    obj->damage = damage; // Keep as dice
+    obj->damage = damage; // Store dice for combat
     obj->types = types;
-    obj->symbol = getObjectSymbol(types.empty() ? "" : types[0]); // Use first type for symbol
+    obj->symbol = getObjectSymbol(types.empty() ? "" : types[0]);
 
-    // Roll dice for other attributes
     std::random_device rd;
     std::mt19937 gen(rd());
     auto rollDice = [&](Dice d) -> int {

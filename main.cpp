@@ -16,7 +16,6 @@ int main(int argc, char* argv[]) {
     bool parseMonstersOnly = false;
     bool parseObjectsOnly = false;
 
-    // Parse command-line arguments
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--save") == 0) {
             save = 1;
@@ -30,10 +29,8 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Load descriptions
     loadDescriptions();
 
-    // Handle parsing modes
     if (argc == 1 || parseMonstersOnly || parseObjectsOnly) {
         char* home = getenv("HOME");
         if (!home) {
@@ -57,7 +54,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // Initialize dungeon
     emptyDungeon();
     createRooms();
     connectRooms();
@@ -66,10 +62,9 @@ int main(int argc, char* argv[]) {
     placePlayer();
     initializeHardness();
     if (numMonsters > 0) spawnMonsters(numMonsters);
-    placeObjects(10); // At least 10 objects
+    placeObjects(10);
     update_visibility();
 
-    // Handle save-only mode
     if (save && saveFileName && numMonsters == 0 && argc == 3) {
         saveDungeon(saveFileName);
         for (int i = 0; i < num_monsters; i++) delete monsters[i];
@@ -79,7 +74,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // Initialize ncurses
     init_ncurses();
     WINDOW* win = newwin(24, 80, 0, 0);
     if (!win) {
@@ -88,7 +82,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Display start screen
     const char* message = "Press any button to start";
     draw_dungeon(win, message);
     getch();
@@ -98,16 +91,20 @@ int main(int argc, char* argv[]) {
 
     bool game_running = true;
     bool teleport_mode = false;
+    bool inspect_mode = false;
     int target_x = player->x, target_y = player->y;
-    NPC* last_culprit = nullptr; // Track the last monster that attacked the PC
 
     while (game_running) {
         int ch = getch();
         int moved = 0;
         int dx = 0, dy = 0;
 
-        if (teleport_mode) {
-            if (ch == 'g') {
+        if (teleport_mode || inspect_mode) {
+            if (inspect_mode && ch == 't' && monsterAt[target_y][target_x] && visible[target_y][target_x]) {
+                inspect_monster(win, target_x, target_y);
+                inspect_mode = false;
+                message = "";
+            } else if (teleport_mode && ch == 'g') {
                 if (hardness[target_y][target_x] != 255) {
                     dungeon[player->y][player->x] = terrain[player->y][player->x];
                     if (objectAt[player->y][player->x]) {
@@ -122,7 +119,7 @@ int main(int argc, char* argv[]) {
                     message = "Cannot teleport into immutable rock!";
                 }
                 teleport_mode = false;
-            } else if (ch == 'r') {
+            } else if (teleport_mode && ch == 'r') {
                 int new_x, new_y;
                 do {
                     new_x = rand() % WIDTH;
@@ -138,6 +135,10 @@ int main(int argc, char* argv[]) {
                 update_visibility();
                 message = "Teleported to random location!";
                 teleport_mode = false;
+            } else if (ch == 27) { // ESC
+                teleport_mode = false;
+                inspect_mode = false;
+                message = "";
             } else if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
             else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
             else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
@@ -153,7 +154,8 @@ int main(int argc, char* argv[]) {
                     target_x = new_tx;
                     target_y = new_ty;
                     werase(win);
-                    draw_dungeon(win, "Teleport mode: Move cursor with movement keys, 'g' to confirm, 'r' for random");
+                    draw_dungeon(win, inspect_mode ? "Inspect mode: Move cursor, 't' to select, ESC to abort" :
+                                                     "Teleport mode: Move cursor, 'g' to confirm, 'r' for random");
                     mvwprintw(win, target_y + 1, target_x, "*");
                     wrefresh(win);
                 }
@@ -167,8 +169,214 @@ int main(int argc, char* argv[]) {
             else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
             else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
             else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
-
-            if (dx != 0 || dy != 0) {
+            else if (ch == 'w') {
+                werase(win);
+                mvwprintw(win, 0, 0, "Wear item (0-9 or ESC):");
+                for (int i = 0; i < 10; i++) {
+                    if (player->carry[i]) {
+                        mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
+                    }
+                }
+                wrefresh(win);
+                ch = getch();
+                if (ch == 27) {
+                    message = "Wear cancelled";
+                } else if (ch >= '0' && ch <= '9') {
+                    int slot = ch - '0';
+                    if (player->carry[slot]) {
+                        Object* obj = player->carry[slot];
+                        int equip_slot = -1;
+                        if (obj->types[0] == "WEAPON") equip_slot = 0;
+                        else if (obj->types[0] == "OFFHAND") equip_slot = 1;
+                        else if (obj->types[0] == "RANGED") equip_slot = 2;
+                        else if (obj->types[0] == "ARMOR") equip_slot = 3;
+                        else if (obj->types[0] == "HELMET") equip_slot = 4;
+                        else if (obj->types[0] == "CLOAK") equip_slot = 5;
+                        else if (obj->types[0] == "GLOVES") equip_slot = 6;
+                        else if (obj->types[0] == "BOOTS") equip_slot = 7;
+                        else if (obj->types[0] == "AMULET") equip_slot = 8;
+                        else if (obj->types[0] == "LIGHT") equip_slot = 9;
+                        else if (obj->types[0] == "RING") {
+                            equip_slot = player->equipment[10] ? 11 : 10;
+                        }
+                        if (equip_slot >= 0) {
+                            if (player->equipment[equip_slot]) {
+                                // Swap with carry slot
+                                Object* temp = player->equipment[equip_slot];
+                                player->equipment[equip_slot] = obj;
+                                player->carry[slot] = temp;
+                            } else {
+                                player->equipment[equip_slot] = obj;
+                                player->carry[slot] = nullptr;
+                            }
+                            player->recalculate_stats();
+                            message = "Item equipped!";
+                        } else {
+                            message = "Invalid item type!";
+                        }
+                    } else {
+                        message = "No item in that slot!";
+                    }
+                }
+            } else if (ch == 't') {
+                werase(win);
+                mvwprintw(win, 0, 0, "Take off item (a-l or ESC):");
+                const char* slots[] = {"WEAPON", "OFFHAND", "RANGED", "ARMOR", "HELMET", "CLOAK",
+                                       "GLOVES", "BOOTS", "AMULET", "LIGHT", "RING1", "RING2"};
+                for (int i = 0; i < 12; i++) {
+                    if (player->equipment[i]) {
+                        mvwprintw(win, i + 1, 0, "%c: %s", 'a' + i, player->equipment[i]->name.c_str());
+                    }
+                }
+                wrefresh(win);
+                ch = getch();
+                if (ch == 27) {
+                    message = "Take off cancelled";
+                } else if (ch >= 'a' && ch <= 'l') {
+                    int slot = ch - 'a';
+                    if (player->equipment[slot]) {
+                        bool placed = false;
+                        for (int i = 0; i < 10; i++) {
+                            if (!player->carry[i]) {
+                                player->carry[i] = player->equipment[slot];
+                                player->equipment[slot] = nullptr;
+                                placed = true;
+                                break;
+                            }
+                        }
+                        if (placed) {
+                            player->recalculate_stats();
+                            message = "Item taken off!";
+                        } else {
+                            message = "No free carry slots!";
+                        }
+                    } else {
+                        message = "No item in that slot!";
+                    }
+                }
+            } else if (ch == 'd') {
+                werase(win);
+                mvwprintw(win, 0, 0, "Drop item (0-9 or ESC):");
+                for (int i = 0; i < 10; i++) {
+                    if (player->carry[i]) {
+                        mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
+                    }
+                }
+                wrefresh(win);
+                ch = getch();
+                if (ch == 27) {
+                    message = "Drop cancelled";
+                } else if (ch >= '0' && ch <= '9') {
+                    int slot = ch - '0';
+                    if (player->carry[slot]) {
+                        Object* obj = player->carry[slot];
+                        obj->x = player->x;
+                        obj->y = player->y;
+                        objectAt[obj->y][obj->x] = obj;
+                        terrain[obj->y][obj->x] = obj->symbol;
+                        player->carry[slot] = nullptr;
+                        Object** temp = (Object**)realloc(objects, (num_objects + 1) * sizeof(Object*));
+                        if (temp) {
+                            objects = temp;
+                            objects[num_objects] = obj;
+                            num_objects++;
+                        }
+                        message = "Item dropped!";
+                    } else {
+                        message = "No item in that slot!";
+                    }
+                }
+            } else if (ch == 'x') {
+                werase(win);
+                mvwprintw(win, 0, 0, "Expunge item (0-9 or ESC):");
+                for (int i = 0; i < 10; i++) {
+                    if (player->carry[i]) {
+                        mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
+                    }
+                }
+                wrefresh(win);
+                ch = getch();
+                if (ch == 27) {
+                    message = "Expunge cancelled";
+                } else if (ch >= '0' && ch <= '9') {
+                    int slot = ch - '0';
+                    if (player->carry[slot]) {
+                        delete player->carry[slot];
+                        player->carry[slot] = nullptr;
+                        message = "Item expunged!";
+                    } else {
+                        message = "No item in that slot!";
+                    }
+                }
+            } else if (ch == 'i') {
+                werase(win);
+                mvwprintw(win, 0, 0, "Inventory (Press any key to exit):");
+                for (int i = 0; i < 10; i++) {
+                    if (player->carry[i]) {
+                        mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
+                    } else {
+                        mvwprintw(win, i + 1, 0, "%d: Empty", i);
+                    }
+                }
+                wrefresh(win);
+                getch();
+                message = "";
+            } else if (ch == 'e') {
+                werase(win);
+                mvwprintw(win, 0, 0, "Equipment (Press any key to exit):");
+                const char* slots[] = {"WEAPON", "OFFHAND", "RANGED", "ARMOR", "HELMET", "CLOAK",
+                                       "GLOVES", "BOOTS", "AMULET", "LIGHT", "RING1", "RING2"};
+                for (int i = 0; i < 12; i++) {
+                    if (player->equipment[i]) {
+                        mvwprintw(win, i + 1, 0, "%c: %s", 'a' + i, player->equipment[i]->name.c_str());
+                    } else {
+                        mvwprintw(win, i + 1, 0, "%c: Empty (%s)", 'a' + i, slots[i]);
+                    }
+                }
+                wrefresh(win);
+                getch();
+                message = "";
+            } else if (ch == 'I') {
+                werase(win);
+                mvwprintw(win, 0, 0, "Inspect item (0-9 or ESC):");
+                for (int i = 0; i < 10; i++) {
+                    if (player->carry[i]) {
+                        mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
+                    }
+                }
+                wrefresh(win);
+                ch = getch();
+                if (ch == 27) {
+                    message = "Inspect cancelled";
+                } else if (ch >= '0' && ch <= '9') {
+                    int slot = ch - '0';
+                    if (player->carry[slot]) {
+                        Object* obj = player->carry[slot];
+                        werase(win);
+                        mvwprintw(win, 0, 0, "Item: %s", obj->name.c_str());
+                        for (size_t i = 0; i < objectDescs.size(); i++) {
+                            if (objectDescs[i].name == obj->name) {
+                                for (size_t j = 0; j < objectDescs[i].description.size(); j++) {
+                                    mvwprintw(win, j + 1, 0, "%s", objectDescs[i].description[j].c_str());
+                                }
+                                mvwprintw(win, objectDescs[i].description.size() + 1, 0, "Type: %s", obj->types[0].c_str());
+                                mvwprintw(win, objectDescs[i].description.size() + 2, 0, "Damage: %s", objectDescs[i].damage.toString().c_str());
+                                break;
+                            }
+                        }
+                        wrefresh(win);
+                        getch();
+                        message = "";
+                    } else {
+                        message = "No item in that slot!";
+                    }
+                }
+            } else if (ch == 'L') {
+                inspect_mode = true;
+                target_x = player->x;
+                target_y = player->y;
+                message = "Inspect mode: Move cursor, 't' to select, ESC to abort";
+            } else if (dx != 0 || dy != 0) {
                 moved = move_player(dx, dy, &message);
             } else {
                 switch (ch) {
@@ -196,33 +404,6 @@ int main(int argc, char* argv[]) {
                         target_y = player->y;
                         message = "Teleport mode: Move cursor with movement keys, 'g' to confirm, 'r' for random";
                         break;
-                    case 'w':
-                        wear_item(win, &message);
-                        break;
-                    case 't':
-                        take_off_item(win, &message);
-                        break;
-                    case 'd':
-                        drop_item(win, &message);
-                        break;
-                    case 'x':
-                        expunge_item(win, &message);
-                        break;
-                    case 'i':
-                        list_inventory(win, &message);
-                        break;
-                    case 'e':
-                        list_equipment(win, &message);
-                        break;
-                    case 'I':
-                        inspect_item(win, &message);
-                        break;
-                    case 'L':
-                        look_at_monster(win, &message);
-                        break;
-                    case ',':
-                        pickup_item(win, &message);
-                        break;
                     case 'Q': case 'q':
                         game_running = false;
                         message = "Quitting game...";
@@ -234,58 +415,44 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Check if the player is already dead before moving monsters
-        if (!player->alive) {
-            char buf[80];
-            snprintf(buf, sizeof(buf), "Killed by monster '%s'!", last_culprit ? last_culprit->name.c_str() : "unknown");
-            message = buf;
-            game_running = false;
-        }
-
-        if (moved && game_running && !teleport_mode) {
+        if (moved && game_running && !teleport_mode && !inspect_mode) {
             for (int i = 0; i < num_monsters; i++) {
-                if (monsters[i] && monsters[i]->alive) {
+                if (monsters[i]->alive) {
                     monsters[i]->move();
-                    // Check if this monster's move killed the player
-                    if (!player->alive) {
-                        last_culprit = monsters[i]; // Track the monster that killed the PC
-                        char buf[80];
-                        snprintf(buf, sizeof(buf), "Killed by monster '%s'!", last_culprit ? last_culprit->name.c_str() : "unknown");
-                        message = buf;
-                        game_running = false;
-                        break;
-                    }
                 }
+            }
+            NPC* culprit = nullptr;
+            bool boss_killed = false;
+            if (gameOver(&culprit, &boss_killed)) {
+                char buf[80];
+                if (player->hitpoints <= 0) {
+                    snprintf(buf, sizeof(buf), "Killed by %s!", culprit ? culprit->name.c_str() : "an unknown foe");
+                    message = buf;
+                } else if (boss_killed) {
+                    snprintf(buf, sizeof(buf), "You defeated SpongeBob SquarePants! Victory!");
+                    message = buf;
+                }
+                game_running = false;
             }
         }
 
-        if (!game_running) {
-            draw_dungeon(win, message);
-            sleep(2);
-            break;
-        }
-
-        if (!teleport_mode) {
+        if (!teleport_mode && !inspect_mode) {
             draw_dungeon(win, message);
         }
     }
 
-    // Cleanup
+    draw_dungeon(win, message);
+    sleep(2);
+
     if (save && saveFileName) {
         saveDungeon(saveFileName);
     }
 
     for (int i = 0; i < num_monsters; i++) {
-        if (monsters[i]) delete monsters[i];
+        delete monsters[i];
     }
     free(monsters);
     cleanupObjects();
-    for (int i = 0; i < 10; ++i) {
-        if (player->carry[i]) delete player->carry[i];
-    }
-    for (int i = 0; i < 12; ++i) {
-        if (player->equipment[i]) delete player->equipment[i];
-    }
     delete player;
     delwin(win);
     endwin();

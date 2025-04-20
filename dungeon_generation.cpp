@@ -44,36 +44,46 @@ Object::Object(int x_, int y_) : x(x_), y(y_), hit(0), dodge(0), defense(0),
 
 Object::~Object() {}
 
-Character::Character(int x_, int y_, int hp) : x(x_), y(y_), speed(10), alive(1),
-    last_seen_x(-1), last_seen_y(-1), hitpoints(hp) {}
+Character::Character(int x_, int y_) : x(x_), y(y_), speed(10), alive(1),
+    last_seen_x(-1), last_seen_y(-1), hitpoints(10) {}
 
-PC::PC(int x_, int y_) : Character(x_, y_, 100) {
+PC::PC(int x_, int y_) : Character(x_, y_) {
     symbol = '@';
     color = "WHITE";
-    damage = Dice(0, 1, 4); // Default damage: 0+1d4
-    for (int i = 0; i < 12; ++i) equipment[i] = nullptr;
-    for (int i = 0; i < 10; ++i) carry[i] = nullptr;
+    hitpoints = 100; // Default PC hitpoints
+    damage = Dice(0, 1, 4); // Default bare-handed damage: 0+1d4
+    total_speed = speed; // Base speed = 10
+    for (int i = 0; i < 12; i++) equipment[i] = nullptr;
+    for (int i = 0; i < 10; i++) carry[i] = nullptr;
 }
 
-int PC::getTotalSpeed() const {
-    int total = speed;
-    for (int i = 0; i < 12; ++i) {
-        if (equipment[i]) total += equipment[i]->speed;
+PC::~PC() {
+    for (int i = 0; i < 12; i++) delete equipment[i];
+    for (int i = 0; i < 10; i++) delete carry[i];
+}
+
+bool PC::pickup_object(Object* obj) {
+    for (int i = 0; i < 10; i++) {
+        if (!carry[i]) {
+            carry[i] = obj;
+            objectAt[obj->y][obj->x] = nullptr;
+            terrain[obj->y][obj->x] = dungeon[obj->y][obj->x];
+            return true;
+        }
     }
-    return total;
+    return false;
 }
 
-int PC::rollTotalDamage() const {
-    int total = 0;
-    bool has_weapon = equipment[0] != nullptr; // WEAPON slot
-    if (!has_weapon) total += damage.roll(); // Roll base damage if no weapon
-    for (int i = 0; i < 12; ++i) {
-        if (equipment[i]) total += equipment[i]->damage.roll();
+void PC::recalculate_stats() {
+    total_speed = speed; // Base speed
+    for (int i = 0; i < 12; i++) {
+        if (equipment[i]) {
+            total_speed += equipment[i]->speed;
+        }
     }
-    return total;
 }
 
-NPC::NPC(int x_, int y_) : Character(x_, y_, 10), intelligent(0),
+NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(0),
     tunneling(0), telepathic(0), erratic(0),
     pass_wall(0), pickup(0), destroy(0), is_unique(false) {
     speed = rand() % 16 + 5;
@@ -81,191 +91,85 @@ NPC::NPC(int x_, int y_) : Character(x_, y_, 10), intelligent(0),
 
 void PC::move() {}
 
-void cleanupMonsters() {
-    // Create a new array for active monsters
-    int new_count = 0;
-    NPC** new_monsters = (NPC**)malloc(num_monsters * sizeof(NPC*));
-    if (!new_monsters) return;
-
-    for (int i = 0; i < num_monsters; ++i) {
-        if (monsters[i] && monsters[i]->alive) {
-            new_monsters[new_count++] = monsters[i];
-        } else {
-            if (monsters[i] && monsterAt[monsters[i]->y][monsters[i]->x] == monsters[i]) {
-                monsterAt[monsters[i]->y][monsters[i]->x] = nullptr;
-            }
-            delete monsters[i];
-        }
-    }
-
-    free(monsters);
-    monsters = (NPC**)realloc(new_monsters, new_count * sizeof(NPC*));
-    num_monsters = new_count;
-}
-
 void NPC::move() {
     if (!alive) return;
-    if (!player) return; // Null check for player
+    int dist[HEIGHT][WIDTH];
+    if (tunneling || pass_wall) dijkstraTunneling(dist);
+    else dijkstraNonTunneling(dist);
+    int curr_x = x, curr_y = y;
+    int min_dist = dist[curr_y][curr_x];
+    int next_x = curr_x, next_y = curr_y;
 
-    // Ensure monster coordinates are valid before accessing arrays
-    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
-        alive = 0; // Invalidate monster to prevent further crashes
-        return;
-    }
+    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
 
-    // Update last seen position if the player is visible
-    if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT && visible[y][x]) {
-        last_seen_x = player->x;
-        last_seen_y = player->y;
-    }
-
-    int next_x = x, next_y = y;
-
-    // Debug: Log visibility and telepathic status
-    FILE* debug_file = fopen("npc_move_debug.txt", "a");
-    if (debug_file) {
-        fprintf(debug_file, "NPC %s at (%d,%d): visible=%d, telepathic=%d, last_seen_x=%d, last_seen_y=%d\n",
-                name.c_str(), x, y, visible[y][x], telepathic, last_seen_x, last_seen_y);
-    }
-
-    // Telepathic monsters always know the player's position; others need to have seen the player
-    if (telepathic || (last_seen_x != -1 && last_seen_y != -1)) {
-        int target_x = telepathic ? player->x : last_seen_x;
-        int target_y = telepathic ? player->y : last_seen_y;
-
-        // Move directly toward the target
-        int dx = (target_x > x) ? 1 : (target_x < x) ? -1 : 0;
-        int dy = (target_y > y) ? 1 : (target_y < y) ? -1 : 0;
-
-        // Prefer diagonal movement if both dx and dy are non-zero
-        if (dx != 0 && dy != 0) {
-            if (rand() % 2) {
-                next_x = x + dx;
-                next_y = y;
-                if (next_x == target_x) dy = 0;
-            } else {
-                next_x = x;
-                next_y = y + dy;
-                if (next_y == target_y) dx = 0;
-            }
-        } else {
-            next_x = x + dx;
-            next_y = y + dy;
-        }
-
-        // Ensure the move is within bounds and passable
-        if (next_x >= 0 && next_x < WIDTH && next_y >= 0 && next_y < HEIGHT) {
-            if (!(next_x == player->x && next_y == player->y) && // Allow moving to player's cell
-                monsterAt[next_y][next_x]) { // Cell occupied by another monster
-                // Only move if the monster can tunnel, pass walls, or the cell is passable
-                if (!(tunneling || pass_wall || hardness[next_y][next_x] == 0)) {
-                    next_x = x;
-                    next_y = y; // Don't move if blocked
+    if (erratic && rand() % 2) {
+        int i = rand() % 8;
+        next_x = curr_x + dx[i];
+        next_y = curr_y + dy[i];
+    } else {
+        for (int i = 0; i < 8; i++) {
+            int nx = curr_x + dx[i];
+            int ny = curr_y + dy[i];
+            if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
+                if (dist[ny][nx] < min_dist && (tunneling || pass_wall || hardness[ny][nx] == 0)) {
+                    min_dist = dist[ny][nx];
+                    next_x = nx;
+                    next_y = ny;
                 }
             }
-        } else {
-            next_x = x;
-            next_y = y; // Stay in place if out of bounds
         }
     }
 
-    // Debug: Log chosen next position
-    if (debug_file) {
-        fprintf(debug_file, "NPC %s at (%d,%d) chose next position (%d,%d), player at (%d,%d)\n",
-                name.c_str(), x, y, next_x, next_y, player->x, player->y);
-    }
-
-    // Check if the monster is adjacent to the player (including diagonals)
-    bool is_adjacent = false;
-    for (int dy = -1; dy <= 1; dy++) {
-        for (int dx = -1; dx <= 1; dx++) {
-            if (dx == 0 && dy == 0) continue; // Skip the current cell
-            int adj_x = x + dx;
-            int adj_y = y + dy;
-            if (adj_x == player->x && adj_y == player->y) {
-                is_adjacent = true;
-                break;
-            }
+    if (next_x != curr_x || next_y != curr_y) {
+        if (next_x == player->x && next_y == player->y) {
+            const char* message;
+            combat(this, player, &message);
+            return;
         }
-        if (is_adjacent) break;
-    }
-
-    // Debug: Log adjacency check
-    if (debug_file) {
-        fprintf(debug_file, "NPC %s at (%d,%d): is_adjacent=%d\n", name.c_str(), x, y, is_adjacent);
-    }
-
-    // If adjacent or moving into the player's cell, attack the player
-    if (is_adjacent || (next_x == player->x && next_y == player->y)) {
-        int damage = this->damage.roll(); // Use monster's damage roll
-        player->hitpoints -= damage;
-        static char buf[80];
-        snprintf(buf, sizeof(buf), "%s hits you for %d damage! HP now %d (Damage dice: %s)", 
-                 name.c_str(), damage, player->hitpoints, this->damage.toString().c_str());
-        if (player->hitpoints <= 0) {
-            player->alive = 0;
-        }
-        // Debug: Log combat
-        if (debug_file) {
-            fprintf(debug_file, "Combat triggered: %s\n", buf);
-            fclose(debug_file);
-        }
-        return; // Attack uses turn, no movement
-    }
-
-    if (next_x != x || next_y != y) {
-        // Handle NPC-NPC collision: displace or swap
         if (monsterAt[next_y][next_x]) {
-            bool displaced = false;
-            int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
-            int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
-            for (int i = 0; i < 8; ++i) {
+            // Displace or swap with another NPC
+            NPC* other = monsterAt[next_y][next_x];
+            int displace_x = -1, displace_y = -1;
+            for (int i = 0; i < 8; i++) {
                 int nx = next_x + dx[i];
                 int ny = next_y + dy[i];
-                if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT && !monsterAt[ny][nx] &&
-                    (tunneling || pass_wall || hardness[ny][nx] == 0)) {
-                    monsterAt[next_y][next_x]->x = nx;
-                    monsterAt[next_y][next_x]->y = ny;
-                    monsterAt[ny][nx] = monsterAt[next_y][next_x];
-                    monsterAt[next_y][next_x] = nullptr;
-                    displaced = true;
+                if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
+                    !monsterAt[ny][nx] && (tunneling || pass_wall || hardness[ny][nx] == 0)) {
+                    displace_x = nx;
+                    displace_y = ny;
                     break;
                 }
             }
-            if (!displaced) {
-                // Swap positions
-                NPC* temp = monsterAt[next_y][next_x];
-                temp->x = x;
-                temp->y = y;
-                monsterAt[y][x] = temp;
+            if (displace_x != -1 && displace_y != -1) {
+                // Displace
+                monsterAt[other->y][other->x] = nullptr;
+                other->x = displace_x;
+                other->y = displace_y;
+                monsterAt[other->y][other->x] = other;
+            } else {
+                // Swap
+                monsterAt[curr_y][curr_x] = other;
+                other->x = curr_x;
+                other->y = curr_y;
+                monsterAt[next_y][next_x] = this;
+                x = next_x;
+                y = next_y;
+                return;
             }
         }
-
-        // Only tunnel if the NPC has TUNNEL ability and does NOT have PASS
         if (hardness[next_y][next_x] > 0 && tunneling && !pass_wall) {
             hardness[next_y][next_x] = 0;
             dungeon[next_y][next_x] = '#';
             terrain[next_y][next_x] = '#';
         }
-
-        // Handle object interaction
         if (objectAt[next_y][next_x]) {
             if (destroy) {
                 for (int i = 0; i < num_objects; ++i) {
                     if (objects[i] && objects[i]->x == next_x && objects[i]->y == next_y) {
-                        // Check if the object is in the player's inventory
-                        bool in_inventory = false;
-                        for (int j = 0; j < 10; ++j) {
-                            if (player->carry[j] == objects[i]) {
-                                in_inventory = true;
-                                break;
-                            }
-                        }
-                        if (!in_inventory) {
-                            objectAt[next_y][next_x] = nullptr; // Clear reference first
-                            delete objects[i];
-                            objects[i] = nullptr;
-                        }
+                        delete objects[i];
+                        objects[i] = nullptr;
+                        objectAt[next_y][next_x] = nullptr;
                         break;
                     }
                 }
@@ -273,14 +177,11 @@ void NPC::move() {
                 // Optional: Implement inventory later
             }
         }
-
-        monsterAt[y][x] = nullptr;
+        monsterAt[curr_y][curr_x] = nullptr;
         x = next_x;
         y = next_y;
         monsterAt[next_y][next_x] = this;
     }
-
-    if (debug_file) fclose(debug_file);
 }
 
 void printDungeon() {
@@ -288,7 +189,7 @@ void printDungeon() {
         for (int x = 0; x < WIDTH; x++) {
             if (monsterAt[y][x]) {
                 printf("%c", monsterAt[y][x]->symbol);
-            } else if (player && x == player->x && y == player->y) {
+            } else if (x == player->x && y == player->y) {
                 printf("@");
             } else if (objectAt[y][x]) {
                 printf("%c", objectAt[y][x]->symbol);
@@ -327,7 +228,8 @@ void createRooms() {
         newRoom.y = 1 + rand() % (HEIGHT - newRoom.height - 2);
 
         bool overlap = false;
-        for (int i = 0; i < num_rooms; i++) {
+        for ( #xaiArtifact artifact_id="b2c3d4e5-f6a7-8901-bcde-f2345678901" title="dungeon_generation.cpp" contentType="text/x-c++src">
+int i = 0; i < num_rooms; i++) {
             if (overlapCheck(newRoom, rooms[i])) {
                 overlap = true;
                 break;
@@ -551,11 +453,8 @@ void placeObjects(int count) {
 void cleanupObjects() {
     for (int i = 0; i < num_objects; ++i) {
         if (objects[i]) {
-            if (objects[i]->x >= 0 && objects[i]->y >= 0) {
-                objectAt[objects[i]->y][objects[i]->x] = nullptr;
-            }
+            objectAt[objects[i]->y][objects[i]->x] = nullptr;
             delete objects[i];
-            objects[i] = nullptr;
         }
     }
     free(objects);
@@ -576,7 +475,7 @@ void runGame(int numMonsters) {
         printDungeon();
         monsters_alive = 0;
         for (int i = 0; i < num_monsters; i++) {
-            if (monsters[i] && monsters[i]->alive) {
+            if (monsters[i]->alive) {
                 monsters[i]->move();
                 if (monsters[i]->alive) monsters_alive++;
             }
@@ -587,12 +486,21 @@ void runGame(int numMonsters) {
     printDungeon();
 }
 
-int gameOver(NPC** culprit) {
-    if (!player->alive) {
-        *culprit = nullptr; // PC died, culprit set in NPC::move
+int gameOver(NPC** culprit, bool* boss_killed) {
+    if (player->hitpoints <= 0) {
+        *culprit = nullptr;
+        *boss_killed = false;
         return 1;
     }
+    for (int i = 0; i < num_monsters; i++) {
+        if (monsters[i] && monsters[i]->name == "SpongeBob SquarePants" && !monsters[i]->alive) {
+            *culprit = nullptr;
+            *boss_killed = true;
+            return 1;
+        }
+    }
     *culprit = nullptr;
+    *boss_killed = false;
     return 0;
 }
 
@@ -623,21 +531,7 @@ void init_ncurses() {
     init_pair(COLOR_CYAN, COLOR_CYAN, COLOR_BLACK);
     init_pair(COLOR_WHITE, COLOR_WHITE, COLOR_BLACK);
 
-    FILE* debug_file = fopen("color_init_debug.txt", "w");
-    if (debug_file) {
-        fprintf(debug_file, "Initialized color pairs:\n");
-        fprintf(debug_file, "RED: %d\n", COLOR_RED);
-        fprintf(debug_file, "GREEN: %d\n", COLOR_GREEN);
-        fprintf(debug_file, "YELLOW: %d\n", COLOR_YELLOW);
-        fprintf(debug_file, "BLUE: %d\n", COLOR_BLUE);
-        fprintf(debug_file, "MAGENTA: %d\n", COLOR_MAGENTA);
-        fprintf(debug_file, "CYAN: %d\n", COLOR_CYAN);
-        fprintf(debug_file, "WHITE: %d\n", COLOR_WHITE);
-        fclose(debug_file);
-    }
-
     refresh();
-    getch();
 }
 
 int getColorIndex(const std::string& color) {
@@ -648,13 +542,6 @@ int getColorIndex(const std::string& color) {
     std::string upper_color = trimmed_color;
     for (char& c : upper_color) {
         c = std::toupper(c);
-    }
-
-    FILE* debug_file = fopen("color_debug.txt", "a");
-    if (debug_file) {
-        fprintf(debug_file, "Raw color: '%s', Trimmed color: '%s', Mapped color: '%s'\n", 
-                color.c_str(), trimmed_color.c_str(), upper_color.c_str());
-        fclose(debug_file);
     }
 
     if (upper_color == "RED") return COLOR_RED;
@@ -669,9 +556,7 @@ int getColorIndex(const std::string& color) {
 }
 
 void update_visibility() {
-    if (!player) return; // Null check for player
-
-    const int radius = 15; // Increased radius to ensure monsters can see the player
+    const int radius = 3;
     memset(visible, 0, sizeof(visible));
     for (int y = player->y - radius; y <= player->y + radius; y++) {
         for (int x = player->x - radius; x <= player->x + radius; x++) {
@@ -695,35 +580,18 @@ void draw_dungeon(WINDOW* win, const char* message) {
         for (int x = 0; x < WIDTH; x++) {
             if (fog_enabled && !visible[y][x] && !remembered[y][x]) {
                 mvwprintw(win, y + 1, x, " ");
-            } else if (player && x == player->x && y == player->y) {
+            } else if (x == player->x && y == player->y) {
                 int color = getColorIndex(player->color);
-                FILE* debug_file = fopen("render_debug.txt", "a");
-                if (debug_file) {
-                    fprintf(debug_file, "Player at (%d,%d) color index: %d\n", x, y, color);
-                    fclose(debug_file);
-                }
                 wattron(win, COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "@");
                 wattroff(win, COLOR_PAIR(color));
             } else if (monsterAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(monsterAt[y][x]->color);
-                FILE* debug_file = fopen("render_debug.txt", "a");
-                if (debug_file) {
-                    fprintf(debug_file, "Monster at (%d,%d) symbol: %c, color index: %d\n", 
-                            x, y, monsterAt[y][x]->symbol, color);
-                    fclose(debug_file);
-                }
                 wattron(win, COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "%c", monsterAt[y][x]->symbol);
                 wattroff(win, COLOR_PAIR(color));
             } else if (objectAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(objectAt[y][x]->color);
-                FILE* debug_file = fopen("render_debug.txt", "a");
-                if (debug_file) {
-                    fprintf(debug_file, "Object at (%d,%d) symbol: %c, color index: %d\n", 
-                            x, y, objectAt[y][x]->symbol, color);
-                    fclose(debug_file);
-                }
                 wattron(win, COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "%c", objectAt[y][x]->symbol);
                 wattroff(win, COLOR_PAIR(color));
@@ -733,11 +601,7 @@ void draw_dungeon(WINDOW* win, const char* message) {
             }
         }
     }
-    if (player) {
-        mvwprintw(win, 22, 0, "HP: %d, Speed: %d", player->hitpoints, player->getTotalSpeed());
-    } else {
-        mvwprintw(win, 22, 0, "HP: N/A, Speed: N/A");
-    }
+    mvwprintw(win, 22, 0, "HP: %d Speed: %d", player->hitpoints, player->total_speed);
     mvwprintw(win, 23, 0, "Fog of War: %s", fog_enabled ? "ON" : "OFF");
     wrefresh(win);
 }
@@ -752,13 +616,13 @@ void draw_monster_list(WINDOW* win) {
         werase(win);
         mvwprintw(win, 0, 0, "Monster List (Press ESC to exit):");
         for (int i = start; i < num_monsters && i - start < max_lines - 1; i++) {
-            if (monsters[i] && monsters[i]->alive) {
+            if (monsters[i]->alive) {
                 int dx = monsters[i]->x - player->x;
                 int dy = monsters[i]->y - player->y;
                 const char* ns = dy < 0 ? "north" : "south";
                 const char* ew = dx < 0 ? "west" : "east";
-                mvwprintw(win, i - start + 1, 0, "%c (%s), %d %s and %d %s", 
-                          monsters[i]->symbol, monsters[i]->name.c_str(), abs(dy), ns, abs(dx), ew);
+                mvwprintw(win, i - start + 1, 0, "%c (%s), %d %s and %d %s, HP: %d", 
+                          monsters[i]->symbol, monsters[i]->name.c_str(), abs(dy), ns, abs(dx), ew, monsters[i]->hitpoints);
             }
         }
         wrefresh(win);
@@ -792,7 +656,7 @@ void regenerate_dungeon(int numMonsters) {
 
     cleanupObjects();
 
-    if (player && player->x >= 0 && player->y >= 0 && player->x < WIDTH && player->y < HEIGHT) {
+    if (player->x >= 0 && player->y >= 0 && player->x < WIDTH && player->y < HEIGHT) {
         dungeon[player->y][player->x] = terrain[player->y][player->x] == 0 ? '.' : terrain[player->y][player->x];
     }
 
@@ -817,8 +681,6 @@ void regenerate_dungeon(int numMonsters) {
 }
 
 int move_player(int dx, int dy, const char** message) {
-    if (!player) return 0; // Null check for player
-
     int new_x = player->x + dx;
     int new_y = player->y + dy;
     if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT) {
@@ -830,30 +692,8 @@ int move_player(int dx, int dy, const char** message) {
         return 0;
     }
     if (monsterAt[new_y][new_x]) {
-        // PC attacks NPC
-        NPC* target = monsterAt[new_y][new_x];
-        int damage = player->rollTotalDamage(); // Use player's damage roll
-        target->hitpoints -= damage;
-        static char buf[80];
-        snprintf(buf, sizeof(buf), "You hit %s for %d damage!", target->name.c_str(), damage);
-        *message = buf;
-        if (target->hitpoints <= 0) {
-            target->alive = 0;
-            monsterAt[new_y][new_x] = nullptr;
-            for (int i = 0; i < num_monsters; ++i) {
-                if (monsters[i] == target) {
-                    delete monsters[i];
-                    monsters[i] = nullptr;
-                    break;
-                }
-            }
-            cleanupMonsters(); // Clean up null entries in monsters array
-            if (target->name == "SpongeBob SquarePants") {
-                *message = "You defeated SpongeBob SquarePants! You win!";
-                player->alive = 0;
-            }
-        }
-        return 1; // Attack uses turn
+        combat(player, monsterAt[new_y][new_x], message);
+        return 1; // Combat consumes a turn
     }
     dungeon[player->y][player->x] = terrain[player->y][player->x];
     if (objectAt[player->y][player->x]) {
@@ -866,20 +706,21 @@ int move_player(int dx, int dy, const char** message) {
         terrain[player->y][player->x] = dungeon[player->y][player->x];
     }
     dungeon[player->y][player->x] = '@';
-    update_visibility();
-    if (objectAt[new_x][new_y]) {
-        static char buf[80];
-        snprintf(buf, sizeof(buf), "Object at your feet: %s. Press ',' to pick up.", objectAt[new_x][new_y]->name.c_str());
-        *message = buf;
+    // Automatic pickup
+    if (objectAt[new_y][new_x]) {
+        if (player->pickup_object(objectAt[new_y][new_x])) {
+            *message = "Picked up an item!";
+        } else {
+            *message = "Inventory full!";
+        }
     } else {
         *message = "";
     }
+    update_visibility();
     return 1;
 }
 
 int use_stairs(char direction, int numMonsters, const char** message) {
-    if (!player) return 0; // Null check for player
-
     if (direction == '>' && terrain[player->y][player->x] == '>') {
         regenerate_dungeon(numMonsters);
         *message = "Descended to a new level!";
@@ -893,384 +734,77 @@ int use_stairs(char direction, int numMonsters, const char** message) {
     return 0;
 }
 
-// Helper function to get equipment slot index from type
-int getEquipmentSlot(const std::string& type) {
-    if (type == "WEAPON") return 0;
-    if (type == "OFFHAND") return 1;
-    if (type == "RANGED") return 2;
-    if (type == "ARMOR") return 3;
-    if (type == "HELMET") return 4;
-    if (type == "CLOAK") return 5;
-    if (type == "GLOVES") return 6;
-    if (type == "BOOTS") return 7;
-    if (type == "AMULET") return 8;
-    if (type == "LIGHT") return 9;
-    if (type == "RING") return 10; // First ring slot
-    return -1;
-}
+int combat(Character* attacker, Character* defender, const char** message) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    int damage = 0;
+    char buf[80];
 
-void wear_item(WINDOW* win, const char** message) {
-    werase(win);
-    mvwprintw(win, 0, 0, "Select carry slot to wear (0-9, ESC to cancel):");
-    for (int i = 0; i < 10; ++i) {
-        if (player->carry[i]) {
-            mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
+    if (dynamic_cast<PC*>(attacker)) {
+        // PC damage: base (if no weapon) + equipped items
+        if (!player->equipment[0]) { // No weapon
+            damage += player->damage.base;
+            for (int i = 0; i < player->damage.dice; i++) {
+                std::uniform_int_distribution<> dis(1, player->damage.sides);
+                damage += dis(gen);
+            }
         }
-    }
-    wrefresh(win);
-    int ch = getch();
-    if (ch == 27) {
-        *message = "Wear cancelled.";
-        return;
-    }
-    if (ch < '0' || ch > '9') {
-        *message = "Invalid slot!";
-        return;
-    }
-    int slot = ch - '0';
-    if (!player->carry[slot]) {
-        *message = "No item in that slot!";
-        return;
-    }
-    Object* item = player->carry[slot];
-    int equip_slot = getEquipmentSlot(item->types.empty() ? "" : item->types[0]);
-    if (equip_slot == -1) {
-        // Try second ring slot if first is occupied
-        if (item->types[0] == "RING" && player->equipment[10] != nullptr && player->equipment[11] == nullptr) {
-            equip_slot = 11;
-        } else {
-            *message = "Cannot equip this item type!";
-            return;
+        for (int i = 0; i < 12; i++) {
+            if (player->equipment[i]) {
+                damage += player->equipment[i]->damage.base;
+                for (int j = 0; j < player->equipment[i]->damage.dice; j++) {
+                    std::uniform_int_distribution<> dis(1, player->equipment[i]->damage.sides);
+                    damage += dis(gen);
+                }
+            }
         }
-    }
-    if (player->equipment[equip_slot]) {
-        // Swap with carry slot
-        player->carry[slot] = player->equipment[equip_slot];
     } else {
-        player->carry[slot] = nullptr;
+        // NPC damage
+        NPC* npc = dynamic_cast<NPC*>(attacker);
+        damage += npc->damage.base;
+        for (int i = 0; i < npc->damage.dice; i++) {
+            std::uniform_int_distribution<> dis(1, npc->damage.sides);
+            damage += dis(gen);
+        }
     }
-    player->equipment[equip_slot] = item;
-    static char buf[80];
-    snprintf(buf, sizeof(buf), "Equipped %s!", item->name.c_str());
-    *message = buf;
-}
 
-void take_off_item(WINDOW* win, const char** message) {
-    werase(win);
-    mvwprintw(win, 0, 0, "Select equipment slot to take off (a-l, ESC to cancel):");
-    const char* slots = "abcdefghijkl";
-    const char* names[] = {"WEAPON", "OFFHAND", "RANGED", "ARMOR", "HELMET", "CLOAK",
-                           "GLOVES", "BOOTS", "AMULET", "LIGHT", "RING1", "RING2"};
-    for (int i = 0; i < 12; ++i) {
-        if (player->equipment[i]) {
-            mvwprintw(win, i + 1, 0, "%c: %s (%s)", slots[i], player->equipment[i]->name.c_str(), names[i]);
-        }
-    }
-    wrefresh(win);
-    int ch = getch();
-    if (ch == 27) {
-        *message = "Take off cancelled.";
-        return;
-    }
-    int slot = -1;
-    for (int i = 0; i < 12; ++i) {
-        if (ch == slots[i]) {
-            slot = i;
-            break;
-        }
-    }
-    if (slot == -1 || !player->equipment[slot]) {
-        *message = "Invalid or empty slot!";
-        return;
-    }
-    for (int i = 0; i < 10; ++i) {
-        if (!player->carry[i]) {
-            player->carry[i] = player->equipment[slot];
-            player->equipment[slot] = nullptr;
-            static char buf[80];
-            snprintf(buf, sizeof(buf), "Took off %s!", player->carry[i]->name.c_str());
+    defender->hitpoints -= damage;
+    snprintf(buf, sizeof(buf), "%s deals %d damage to %s (HP: %d)", 
+             attacker->name.c_str(), damage, defender->name.c_str(), defender->hitpoints);
+    *message = buf;
+
+    if (defender->hitpoints <= 0) {
+        defender->alive = 0;
+        if (dynamic_cast<PC*>(defender)) {
+            *message = "You died!";
+        } else {
+            NPC* npc = dynamic_cast<NPC*>(defender);
+            monsterAt[npc->y][npc->x] = nullptr;
+            snprintf(buf, sizeof(buf), "%s killed %s!", attacker->name.c_str(), npc->name.c_str());
             *message = buf;
-            return;
         }
     }
-    *message = "No carry slots available!";
+    return 1;
 }
 
-void drop_item(WINDOW* win, const char** message) {
-    werase(win);
-    mvwprintw(win, 0, 0, "Select carry slot to drop (0-9, ESC to cancel):");
-    for (int i = 0; i < 10; ++i) {
-        if (player->carry[i]) {
-            mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
-        }
-    }
-    wrefresh(win);
-    int ch = getch();
-    if (ch == 27) {
-        *message = "Drop cancelled.";
-        return;
-    }
-    if (ch < '0' || ch > '9') {
-        *message = "Invalid slot!";
-        return;
-    }
-    int slot = ch - '0';
-    if (!player->carry[slot]) {
-        *message = "No item in that slot!";
-        return;
-    }
-    Object* item = player->carry[slot];
-    if (objectAt[player->y][player->x]) {
-        *message = "Floor is occupied!";
-        return;
-    }
-    item->x = player->x;
-    item->y = player->y;
-    objectAt[item->y][item->x] = item;
-    Object** temp = (Object**)realloc(objects, (num_objects + 1) * sizeof(Object*));
-    if (temp) {
-        objects = temp;
-        objects[num_objects] = item;
-        num_objects++;
-    }
-    player->carry[slot] = nullptr;
-    terrain[item->y][item->x] = item->symbol;
-    static char buf[80];
-    snprintf(buf, sizeof(buf), "Dropped %s!", item->name.c_str());
-    *message = buf;
-}
-
-void expunge_item(WINDOW* win, const char** message) {
-    werase(win);
-    mvwprintw(win, 0, 0, "Select carry slot to expunge (0-9, ESC to cancel):");
-    for (int i = 0; i < 10; ++i) {
-        if (player->carry[i]) {
-            mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
-        }
-    }
-    wrefresh(win);
-    int ch = getch();
-    if (ch == 27) {
-        *message = "Expunge cancelled.";
-        return;
-    }
-    if (ch < '0' || ch > '9') {
-        *message = "Invalid slot!";
-        return;
-    }
-    int slot = ch - '0';
-    if (!player->carry[slot]) {
-        *message = "No item in that slot!";
-        return;
-    }
-    Object* item = player->carry[slot];
-    for (int i = 0; i < num_objects; ++i) {
-        if (objects[i] == item) {
-            delete objects[i];
-            objects[i] = nullptr;
-            break;
-        }
-    }
-    player->carry[slot] = nullptr;
-    static char buf[80];
-    snprintf(buf, sizeof(buf), "Expunged %s!", item->name.c_str());
-    *message = buf;
-}
-
-void list_inventory(WINDOW* win, const char** message) {
-    werase(win);
-    mvwprintw(win, 0, 0, "Inventory (Press any key to exit):");
-    for (int i = 0; i < 10; ++i) {
-        if (player->carry[i]) {
-            mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
-        } else {
-            mvwprintw(win, i + 1, 0, "%d: (empty)", i);
-        }
-    }
-    wrefresh(win);
-    getch();
-    *message = "";
-}
-
-void list_equipment(WINDOW* win, const char** message) {
-    werase(win);
-    mvwprintw(win, 0, 0, "Equipment (Press any key to exit):");
-    const char* slots = "abcdefghijkl";
-    const char* names[] = {"WEAPON", "OFFHAND", "RANGED", "ARMOR", "HELMET", "CLOAK",
-                           "GLOVES", "BOOTS", "AMULET", "LIGHT", "RING1", "RING2"};
-    for (int i = 0; i < 12; ++i) {
-        if (player->equipment[i]) {
-            mvwprintw(win, i + 1, 0, "%c: %s (%s)", slots[i], player->equipment[i]->name.c_str(), names[i]);
-        } else {
-            mvwprintw(win, i + 1, 0, "%c: (empty) (%s)", slots[i], names[i]);
-        }
-    }
-    wrefresh(win);
-    getch();
-    *message = "";
-}
-
-void inspect_item(WINDOW* win, const char** message) {
-    werase(win);
-    mvwprintw(win, 0, 0, "Select carry slot to inspect (0-9, ESC to cancel):");
-    for (int i = 0; i < 10; ++i) {
-        if (player->carry[i]) {
-            mvwprintw(win, i + 1, 0, "%d: %s", i, player->carry[i]->name.c_str());
-        }
-    }
-    wrefresh(win);
-    int ch = getch();
-    if (ch == 27) {
-        *message = "Inspect cancelled.";
-        return;
-    }
-    if (ch < '0' || ch > '9') {
-        *message = "Invalid slot!";
-        return;
-    }
-    int slot = ch - '0';
-    if (!player->carry[slot]) {
-        *message = "No item in that slot!";
-        return;
-    }
-    Object* item = player->carry[slot];
-    werase(win);
-    mvwprintw(win, 0, 0, "Item: %s", item->name.c_str());
-    int line = 1;
-    for (const auto& desc : objectDescs) {
-        if (desc.name == item->name) {
-            for (const auto& l : desc.description) {
-                mvwprintw(win, line++, 0, "%s", l.c_str());
-            }
-            break;
-        }
-    }
-    mvwprintw(win, line++, 0, "Type: %s", item->types.empty() ? "Unknown" : item->types[0].c_str());
-    mvwprintw(win, line++, 0, "Color: %s", item->color.c_str());
-    mvwprintw(win, line++, 0, "Damage: %s", item->damage.toString().c_str());
-    mvwprintw(win, line++, 0, "Hit: %d", item->hit);
-    mvwprintw(win, line++, 0, "Dodge: %d", item->dodge);
-    mvwprintw(win, line++, 0, "Defense: %d", item->defense);
-    mvwprintw(win, line++, 0, "Weight: %d", item->weight);
-    mvwprintw(win, line++, 0, "Speed: %d", item->speed);
-    mvwprintw(win, line++, 0, "Attribute: %d", item->attribute);
-    mvwprintw(win, line++, 0, "Value: %d", item->value);
-    mvwprintw(win, line++, 0, "Artifact: %s", item->is_artifact ? "Yes" : "No");
-    mvwprintw(win, line++, 0, "Press any key to exit");
-    wrefresh(win);
-    getch();
-    *message = "";
-}
-
-void look_at_monster(WINDOW* win, const char** message) {
-    // Ensure terminal settings are correct
-    clear();
-    refresh();
-    keypad(win, TRUE);
-    nodelay(win, FALSE);
-
-    bool look_mode = true;
-    int target_x = player->x, target_y = player->y;
-    while (look_mode) {
-        werase(win);
-        draw_dungeon(win, "Look mode: Move cursor with movement keys, 't' to select, ESC to cancel");
-        mvwprintw(win, target_y + 1, target_x, "*");
-        wrefresh(win);
-
-        int ch = wgetch(win);
-        // Debug: Log key code
-        FILE* debug_file = fopen("key_debug.txt", "a");
-        if (debug_file) {
-            fprintf(debug_file, "Look mode key: %d\n", ch);
-            fclose(debug_file);
-        }
-
-        int dx = 0, dy = 0;
-        if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
-        else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
-        else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
-        else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
-        else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
-        else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
-        else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
-        else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
-        else if (ch == 't' && monsterAt[target_y][target_x] && visible[target_y][target_x]) {
-            NPC* monster = monsterAt[target_y][target_x];
-            werase(win);
-            mvwprintw(win, 0, 0, "Monster: %s", monster->name.c_str());
-            int line = 1;
-            for (const auto& desc : monsterDescs) {
-                if (desc.name == monster->name) {
-                    for (const auto& l : desc.description) {
-                        mvwprintw(win, line++, 0, "%s", l.c_str());
-                    }
-                    break;
+void inspect_monster(WINDOW* win, int target_x, int target_y) {
+    if (monsterAt[target_y][target_x] && visible[target_y][target_x]) {
+        NPC* monster = monsterAt[target_y][target_x];
+        for (const auto& desc : monsterDescs) {
+            if (desc.name == monster->name) {
+                werase(win);
+                mvwprintw(win, 0, 0, "Monster: %s", desc.name.c_str());
+                for (size_t i = 0; i < desc.description.size(); i++) {
+                    mvwprintw(win, i + 1, 0, "%s", desc.description[i].c_str());
                 }
-            }
-            mvwprintw(win, line++, 0, "Symbol: %c", monster->symbol);
-            mvwprintw(win, line++, 0, "Color: %s", monster->color.c_str());
-            mvwprintw(win, line++, 0, "Speed: %d", monster->speed);
-            mvwprintw(win, line++, 0, "Hitpoints: %d", monster->hitpoints);
-            mvwprintw(win, line++, 0, "Damage: %s", monster->damage.toString().c_str());
-            mvwprintw(win, line++, 0, "Abilities: ");
-            if (monster->intelligent) mvwprintw(win, line++, 0, " SMART");
-            if (monster->telepathic) mvwprintw(win, line++, 0, " TELE");
-            if (monster->tunneling) mvwprintw(win, line++, 0, " TUNNEL");
-            if (monster->erratic) mvwprintw(win, line++, 0, " ERRATIC");
-            if (monster->pass_wall) mvwprintw(win, line++, 0, " PASS");
-            if (monster->pickup) mvwprintw(win, line++, 0, " PICKUP");
-            if (monster->destroy) mvwprintw(win, line++, 0, " DESTROY");
-            if (monster->is_unique) mvwprintw(win, line++, 0, " UNIQUE");
-            mvwprintw(win, line++, 0, "Press any key to exit");
-            wrefresh(win);
-            getch();
-            look_mode = false;
-            *message = "";
-        } else if (ch == 27) {
-            look_mode = false;
-            *message = "Look cancelled.";
-        } else if (dx != 0 || dy != 0) {
-            int new_tx = target_x + dx, new_ty = target_y + dy;
-            if (new_tx >= 0 && new_tx < WIDTH && new_ty >= 0 && new_ty < HEIGHT) {
-                target_x = new_tx;
-                target_y = new_ty;
+                mvwprintw(win, desc.description.size() + 1, 0, "Symbol: %c", desc.symbol);
+                mvwprintw(win, desc.description.size() + 2, 0, "HP: %d", monster->hitpoints);
+                mvwprintw(win, desc.description.size() + 3, 0, "Damage: %s", desc.damage.toString().c_str());
+                mvwprintw(win, desc.description.size() + 4, 0, "Speed: %s", desc.speed.toString().c_str());
+                wrefresh(win);
+                getch();
+                break;
             }
         }
-    }
-}
-
-void pickup_item(WINDOW* win, const char** message) {
-    if (!player) return; // Null check for player
-
-    if (!objectAt[player->y][player->x]) {
-        *message = "No object to pick up!";
-        return;
-    }
-    Object* item = objectAt[player->y][player->x];
-    werase(win);
-    mvwprintw(win, 0, 0, "Pick up '%s'? (y/n)", item->name.c_str());
-    wrefresh(win);
-    int ch = getch();
-    if (ch == 'y' || ch == 'Y') {
-        for (int i = 0; i < 10; ++i) {
-            if (!player->carry[i]) {
-                player->carry[i] = item;
-                objectAt[player->y][player->x] = nullptr;
-                for (int j = 0; j < num_objects; ++j) {
-                    if (objects[j] && objects[j]->x == player->x && objects[j]->y == player->y) {
-                        objects[j]->x = -1; // Mark as carried
-                        objects[j]->y = -1;
-                        break;
-                    }
-                }
-                static char buf[80];
-                snprintf(buf, sizeof(buf), "Picked up %s!", item->name.c_str());
-                *message = buf;
-                return;
-            }
-        }
-        *message = "Inventory full!";
-    } else {
-        *message = "Pickup cancelled.";
     }
 }

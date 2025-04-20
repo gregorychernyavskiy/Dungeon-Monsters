@@ -52,22 +52,25 @@ public:
     std::string name;
     std::string color;
     char symbol;
-    int hitpoints;
-    Dice damage;
+    int hitpoints; // Moved from NPC, signed for combat
+    Dice damage;   // Moved from NPC
 
-    Character(int x_, int y_, int hp = 0);
+    Character(int x_, int y_);
     virtual ~Character() = default;
     virtual void move() = 0;
 };
 
 class PC : public Character {
 public:
-    PC(int x_, int y_);
-    void move() override;
     Object* equipment[12]; // WEAPON, OFFHAND, RANGED, ARMOR, HELMET, CLOAK, GLOVES, BOOTS, AMULET, LIGHT, RING1, RING2
-    Object* carry[10];
-    int getTotalSpeed() const;
-    int rollTotalDamage() const;
+    Object* carry[10];     // 0-9 carry slots
+    int total_speed;       // Base + equipment bonuses
+
+    PC(int x_, int y_);
+    ~PC();
+    void move() override;
+    bool pickup_object(Object* obj);
+    void recalculate_stats();
 };
 
 class NPC : public Character {
@@ -132,7 +135,7 @@ void printTunnelingMap();
 int spawnMonsters(int count);
 void runGame(int numMonsters);
 
-int gameOver(NPC** culprit);
+int gameOver(NPC** culprit, bool* boss_killed);
 
 void init_ncurses();
 void update_visibility();
@@ -146,14 +149,7 @@ void placeObjects(int count);
 void cleanupObjects();
 void loadDescriptions();
 
-void wear_item(WINDOW* win, const char** message);
-void take_off_item(WINDOW* win, const char** message);
-void drop_item(WINDOW* win, const char** message);
-void expunge_item(WINDOW* win, const char** message);
-void list_inventory(WINDOW* win, const char** message);
-void list_equipment(WINDOW* win, const char** message);
-void inspect_item(WINDOW* win, const char** message);
-void look_at_monster(WINDOW* win, const char** message);
-void pickup_item(WINDOW* win, const char** message);
+int combat(Character* attacker, Character* defender, const char** message);
+void inspect_monster(WINDOW* win, int target_x, int target_y);
 
 #endif

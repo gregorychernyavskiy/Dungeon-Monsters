@@ -1,8 +1,8 @@
+// dice.h
 #ifndef DICE_H
 #define DICE_H
 
 #include <string>
-#include <random>
 
 struct Dice {
     int base;
@@ -11,7 +11,6 @@ struct Dice {
     Dice() : base(0), dice(0), sides(0) {}
     Dice(int b, int d, int s) : base(b), dice(d), sides(s) {}
     std::string toString() const;
-    int roll() const; // Added for rolling dice in combat
 };
 
 #endif
