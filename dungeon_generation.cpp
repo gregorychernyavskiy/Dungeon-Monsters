@@ -83,34 +83,51 @@ void PC::move() {}
 
 void NPC::move() {
     if (!alive) return;
-    int dist[HEIGHT][WIDTH];
-    if (tunneling || pass_wall) dijkstraTunneling(dist);
-    else dijkstraNonTunneling(dist);
-    int curr_x = x, curr_y = y;
-    int min_dist = dist[curr_y][curr_x];
-    int next_x = curr_x, next_y = curr_y;
 
-    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
-    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+    // Update last seen position if the player is visible
+    if (visible[y][x]) {
+        last_seen_x = player->x;
+        last_seen_y = player->y;
+    }
 
-    if (erratic && rand() % 2) {
-        int i = rand() % 8;
-        next_x = curr_x + dx[i];
-        next_y = curr_y + dy[i];
-    } else {
-        for (int i = 0; i < 8; i++) {
-            int nx = curr_x + dx[i];
-            int ny = curr_y + dy[i];
-            if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
-                // Allow moving to PC's cell or cells with no NPC, if passable
-                bool can_move = (nx == player->x && ny == player->y) || 
-                                (!monsterAt[ny][nx] && (tunneling || pass_wall || hardness[ny][nx] == 0));
-                if (dist[ny][nx] < min_dist && can_move) {
-                    min_dist = dist[ny][nx];
-                    next_x = nx;
-                    next_y = ny;
-                }
+    int next_x = x, next_y = y;
+
+    // Telepathic monsters always know the player's position
+    if (telepathic || (last_seen_x != -1 && last_seen_y != -1)) {
+        int target_x = telepathic ? player->x : last_seen_x;
+        int target_y = telepathic ? player->y : last_seen_y;
+
+        // Move directly toward the target
+        int dx = (target_x > x) ? 1 : (target_x < x) ? -1 : 0;
+        int dy = (target_y > y) ? 1 : (target_y < y) ? -1 : 0;
+
+        // Prefer diagonal movement if both dx and dy are non-zero
+        if (dx != 0 && dy != 0) {
+            if (rand() % 2) {
+                next_x = x + dx;
+                next_y = y;
+                if (next_x == target_x) dy = 0; // Reached target's x, move vertically next
+            } else {
+                next_x = x;
+                next_y = y + dy;
+                if (next_y == target_y) dx = 0; // Reached target's y, move horizontally next
             }
+        } else {
+            next_x = x + dx;
+            next_y = y + dy;
+        }
+
+        // Ensure the move is within bounds and passable
+        if (next_x >= 0 && next_x < WIDTH && next_y >= 0 && next_y < HEIGHT) {
+            if (!(next_x == player->x && next_y == player->y) && // Allow moving to player's cell
+                monsterAt[next_y][next_x] && // Cell occupied by another monster
+                !(tunneling || pass_wall || hardness[next_y][next_x] == 0)) { // Not passable
+                next_x = x;
+                next_y = y; // Don't move
+            }
+        } else {
+            next_x = x;
+            next_y = y; // Stay in place if out of bounds
         }
     }
 
@@ -118,14 +135,16 @@ void NPC::move() {
     FILE* debug_file = fopen("npc_move_debug.txt", "a");
     if (debug_file) {
         fprintf(debug_file, "NPC %s at (%d,%d) chose next position (%d,%d), player at (%d,%d)\n",
-                name.c_str(), curr_x, curr_y, next_x, next_y, player->x, player->y);
+                name.c_str(), x, y, next_x, next_y, player->x, player->y);
         fclose(debug_file);
     }
 
-    if (next_x != curr_x || next_y != curr_y) {
+    if (next_x != x || next_y != y) {
         // Handle NPC-NPC collision: displace or swap
         if (monsterAt[next_y][next_x]) {
             bool displaced = false;
+            int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+            int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
             for (int i = 0; i < 8; ++i) {
                 int nx = next_x + dx[i];
                 int ny = next_y + dy[i];
@@ -141,9 +160,9 @@ void NPC::move() {
             }
             if (!displaced) {
                 // Swap positions
-                monsterAt[next_y][next_x]->x = curr_x;
-                monsterAt[next_y][next_x]->y = curr_y;
-                monsterAt[curr_y][curr_x] = monsterAt[next_y][next_x];
+                monsterAt[next_y][next_x]->x = x;
+                monsterAt[next_y][next_x]->y = y;
+                monsterAt[y][x] = monsterAt[next_y][next_x];
             }
         } else if (next_x == player->x && next_y == player->y) {
             // NPC attacks PC
@@ -168,13 +187,14 @@ void NPC::move() {
             dungeon[next_y][next_x] = '#';
             terrain[next_y][next_x] = '#';
         }
+        // Handle object interaction
         if (objectAt[next_y][next_x]) {
             if (destroy) {
                 for (int i = 0; i < num_objects; ++i) {
                     if (objects[i] && objects[i]->x == next_x && objects[i]->y == next_y) {
+                        objectAt[next_y][next_x] = nullptr; // Clear reference first
                         delete objects[i];
                         objects[i] = nullptr;
-                        objectAt[next_y][next_x] = nullptr;
                         break;
                     }
                 }
@@ -182,7 +202,7 @@ void NPC::move() {
                 // Optional: Implement inventory later
             }
         }
-        monsterAt[curr_y][curr_x] = nullptr;
+        monsterAt[y][x] = nullptr;
         x = next_x;
         y = next_y;
         monsterAt[next_y][next_x] = this;
@@ -457,8 +477,11 @@ void placeObjects(int count) {
 void cleanupObjects() {
     for (int i = 0; i < num_objects; ++i) {
         if (objects[i]) {
-            objectAt[objects[i]->y][objects[i]->x] = nullptr;
+            if (objects[i]->x >= 0 && objects[i]->y >= 0) { // Check if object is on the map
+                objectAt[objects[i]->y][objects[i]->x] = nullptr;
+            }
             delete objects[i];
+            objects[i] = nullptr;
         }
     }
     free(objects);
@@ -495,7 +518,6 @@ int gameOver(NPC** culprit) {
         *culprit = nullptr; // PC died, culprit set in NPC::move
         return 1;
     }
-    // Removed co-location check, as NPC::move already handles combat and sets player->alive
     *culprit = nullptr;
     return 0;
 }
@@ -745,7 +767,7 @@ int move_player(int dx, int dy, const char** message) {
             }
             if (target->name == "SpongeBob SquarePants") {
                 *message = "You defeated SpongeBob SquarePants! You win!";
-                player->alive = 0; // End game with win
+                player->alive = 0;
             }
         }
         return 1; // Attack uses turn
@@ -1056,9 +1078,11 @@ void inspect_item(WINDOW* win, const char** message) {
 }
 
 void look_at_monster(WINDOW* win, const char** message) {
-    // Ensure keypad is enabled for the window
+    // Ensure terminal settings are correct
+    clear();
+    refresh();
     keypad(win, TRUE);
-    nodelay(win, FALSE); // Ensure getch waits for input
+    nodelay(win, FALSE);
 
     bool look_mode = true;
     int target_x = player->x, target_y = player->y;
@@ -1068,7 +1092,7 @@ void look_at_monster(WINDOW* win, const char** message) {
         mvwprintw(win, target_y + 1, target_x, "*");
         wrefresh(win);
 
-        int ch = wgetch(win); // Use wgetch to ensure input from the correct window
+        int ch = wgetch(win);
         // Debug: Log key code
         FILE* debug_file = fopen("key_debug.txt", "a");
         if (debug_file) {
