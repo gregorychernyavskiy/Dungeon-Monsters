@@ -95,11 +95,14 @@ int main(int argc, char* argv[]) {
     int target_x = player->x, target_y = player->y;
 
     while (game_running) {
+        fprintf(stderr, "Game loop: teleport_mode=%d, inspect_mode=%d\n", teleport_mode, inspect_mode);
         int ch = getch();
+        fprintf(stderr, "Input received: %c (%d)\n", ch, ch);
         int moved = 0;
         int dx = 0, dy = 0;
 
         if (teleport_mode || inspect_mode) {
+            fprintf(stderr, "In %s mode\n", teleport_mode ? "teleport" : "inspect");
             if (inspect_mode && ch == 't' && monsterAt[target_y][target_x] && visible[target_y][target_x]) {
                 inspect_monster(win, target_x, target_y);
                 inspect_mode = false;
@@ -135,7 +138,7 @@ int main(int argc, char* argv[]) {
                 update_visibility();
                 message = "Teleported to random location!";
                 teleport_mode = false;
-            } else if (ch == 27) { // ESC
+            } else if (ch == 27) {
                 teleport_mode = false;
                 inspect_mode = false;
                 message = "";
@@ -201,7 +204,6 @@ int main(int argc, char* argv[]) {
                         }
                         if (equip_slot >= 0) {
                             if (player->equipment[equip_slot]) {
-                                // Swap with carry slot
                                 Object* temp = player->equipment[equip_slot];
                                 player->equipment[equip_slot] = obj;
                                 player->carry[slot] = temp;
@@ -415,6 +417,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (moved && game_running && !teleport_mode && !inspect_mode) {
+            fprintf(stderr, "Processing NPC moves\n");
             for (int i = 0; i < num_monsters; i++) {
                 if (monsters[i]->alive) {
                     monsters[i]->move();
