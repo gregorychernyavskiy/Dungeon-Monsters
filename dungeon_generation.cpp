@@ -102,7 +102,10 @@ void NPC::move() {
             int nx = curr_x + dx[i];
             int ny = curr_y + dy[i];
             if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
-                if (dist[ny][nx] < min_dist && (tunneling || pass_wall || hardness[ny][nx] == 0) && !monsterAt[ny][nx]) {
+                // Allow moving to PC's cell or cells with no NPC, if passable
+                bool can_move = (nx == player->x && ny == player->y) || 
+                                (!monsterAt[ny][nx] && (tunneling || pass_wall || hardness[ny][nx] == 0));
+                if (dist[ny][nx] < min_dist && can_move) {
                     min_dist = dist[ny][nx];
                     next_x = nx;
                     next_y = ny;
@@ -138,11 +141,14 @@ void NPC::move() {
             // NPC attacks PC
             int damage = this->damage.roll();
             player->hitpoints -= damage;
+            static char buf[80];
+            snprintf(buf, sizeof(buf), "%s hits you for %d damage!", name.c_str(), damage);
             if (player->hitpoints <= 0) {
                 player->alive = 0;
             }
             return; // Attack uses turn, no movement
         }
+        // Only tunnel if the NPC has TUNNEL ability, not PASS
         if (hardness[next_y][next_x] > 0 && tunneling && !pass_wall) {
             hardness[next_y][next_x] = 0;
             dungeon[next_y][next_x] = '#';
