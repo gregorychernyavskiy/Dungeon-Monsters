@@ -143,7 +143,7 @@ void NPC::move() {
             player->hitpoints -= damage;
             static char buf[80];
             snprintf(buf, sizeof(buf), "%s hits you for %d damage! HP now %d (Damage dice: %s)", 
-                     name.c_str(), damage, player->hitpoints, damage.toString().c_str());
+                     name.c_str(), damage, player->hitpoints, this->damage.toString().c_str());
             if (player->hitpoints <= 0) {
                 player->alive = 0;
             }
