@@ -621,7 +621,7 @@ void draw_monster_list(WINDOW* win) {
                 const char* ns = dy < 0 ? "north" : "south";
                 const char* ew = dx < 0 ? "west" : "east";
                 mvwprintw(win, i - start + 1, 0, "%c (%s), %d %s and %d %s, HP: %d", 
-                          monsters[i]->symbol, monsters[i]->name.c_str(), abs(dy), ns, abs(dx), ew, monsters[iOWL=1]->hitpoints);
+                          monsters[i]->symbol, monsters[i]->name.c_str(), abs(dy), ns, abs(dx), ew, monsters[i]->hitpoints);
             }
         }
         wrefresh(win);
