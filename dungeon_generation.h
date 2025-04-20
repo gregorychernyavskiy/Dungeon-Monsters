@@ -52,8 +52,8 @@ public:
     std::string name;
     std::string color;
     char symbol;
-    int hitpoints; // Moved from NPC, signed for combat
-    Dice damage;   // Moved from NPC
+    int hitpoints;
+    Dice damage;
 
     Character(int x_, int y_);
     virtual ~Character() = default;
@@ -62,9 +62,9 @@ public:
 
 class PC : public Character {
 public:
-    Object* equipment[12]; // WEAPON, OFFHAND, RANGED, ARMOR, HELMET, CLOAK, GLOVES, BOOTS, AMULET, LIGHT, RING1, RING2
-    Object* carry[10];     // 0-9 carry slots
-    int total_speed;       // Base + equipment bonuses
+    Object* equipment[12];
+    Object* carry[10];
+    int total_speed;
 
     PC(int x_, int y_);
     ~PC();
@@ -150,6 +150,7 @@ void cleanupObjects();
 void loadDescriptions();
 
 int combat(Character* attacker, Character* defender, const char** message);
+int forced_combat(Character* attacker, Character* defender, WINDOW* win, const char** message);
 void inspect_monster(WINDOW* win, int target_x, int target_y);
 
 #endif

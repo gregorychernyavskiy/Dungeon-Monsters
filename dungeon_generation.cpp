@@ -50,9 +50,9 @@ Character::Character(int x_, int y_) : x(x_), y(y_), speed(10), alive(1),
 PC::PC(int x_, int y_) : Character(x_, y_) {
     symbol = '@';
     color = "WHITE";
-    hitpoints = 100; // Default PC hitpoints
-    damage = Dice(0, 1, 4); // Default bare-handed damage: 0+1d4
-    total_speed = speed; // Base speed = 10
+    hitpoints = 100;
+    damage = Dice(0, 1, 4);
+    total_speed = speed;
     for (int i = 0; i < 12; i++) equipment[i] = nullptr;
     for (int i = 0; i < 10; i++) carry[i] = nullptr;
 }
@@ -75,7 +75,7 @@ bool PC::pickup_object(Object* obj) {
 }
 
 void PC::recalculate_stats() {
-    total_speed = speed; // Base speed
+    total_speed = speed;
     for (int i = 0; i < 12; i++) {
         if (equipment[i]) {
             total_speed += equipment[i]->speed;
@@ -124,11 +124,14 @@ void NPC::move() {
     if (next_x != curr_x || next_y != curr_y) {
         if (next_x == player->x && next_y == player->y) {
             const char* message;
-            combat(this, player, &message);
+            if (name == "SpongeBob SquarePants") {
+                forced_combat(this, player, stdscr, &message);
+            } else {
+                combat(this, player, &message);
+            }
             return;
         }
         if (monsterAt[next_y][next_x]) {
-            // Displace or swap with another NPC
             NPC* other = monsterAt[next_y][next_x];
             int displace_x = -1, displace_y = -1;
             for (int i = 0; i < 8; i++) {
@@ -142,13 +145,11 @@ void NPC::move() {
                 }
             }
             if (displace_x != -1 && displace_y != -1) {
-                // Displace
                 monsterAt[other->y][other->x] = nullptr;
                 other->x = displace_x;
                 other->y = displace_y;
                 monsterAt[other->y][other->x] = other;
             } else {
-                // Swap
                 monsterAt[curr_y][curr_x] = other;
                 other->x = curr_x;
                 other->y = curr_y;
@@ -158,7 +159,8 @@ void NPC::move() {
                 return;
             }
         }
-        if (hardness[next_y][next_x] > 0 && tunneling && !pass_wall) {
+        bool was_rock = hardness[next_y][next_x] > 0;
+        if (was_rock && tunneling && !pass_wall) {
             hardness[next_y][next_x] = 0;
             dungeon[next_y][next_x] = '#';
             terrain[next_y][next_x] = '#';
@@ -178,6 +180,12 @@ void NPC::move() {
             }
         }
         monsterAt[curr_y][curr_x] = nullptr;
+        if (name == "SpongeBob SquarePants" && was_rock) {
+            dungeon[curr_y][curr_x] = '#';
+            terrain[curr_y][curr_x] = '#';
+        } else {
+            dungeon[curr_y][curr_x] = terrain[curr_y][curr_x] ? terrain[curr_y][curr_x] : '#';
+        }
         x = next_x;
         y = next_y;
         monsterAt[next_y][next_x] = this;
@@ -691,8 +699,12 @@ int move_player(int dx, int dy, const char** message) {
         return 0;
     }
     if (monsterAt[new_y][new_x]) {
-        combat(player, monsterAt[new_y][new_x], message);
-        return 1; // Combat consumes a turn
+        if (monsterAt[new_y][new_x]->name == "SpongeBob SquarePants") {
+            forced_combat(player, monsterAt[new_y][new_x], stdscr, message);
+        } else {
+            combat(player, monsterAt[new_y][new_x], message);
+        }
+        return 1;
     }
     dungeon[player->y][player->x] = terrain[player->y][player->x];
     if (objectAt[player->y][player->x]) {
@@ -705,7 +717,6 @@ int move_player(int dx, int dy, const char** message) {
         terrain[player->y][player->x] = dungeon[player->y][player->x];
     }
     dungeon[player->y][player->x] = '@';
-    // Automatic pickup
     if (objectAt[new_y][new_x]) {
         if (player->pickup_object(objectAt[new_y][new_x])) {
             *message = "Picked up an item!";
@@ -740,8 +751,7 @@ int combat(Character* attacker, Character* defender, const char** message) {
     char buf[80];
 
     if (dynamic_cast<PC*>(attacker)) {
-        // PC damage: base (if no weapon) + equipped items
-        if (!player->equipment[0]) { // No weapon
+        if (!player->equipment[0]) {
             damage += player->damage.base;
             for (int i = 0; i < player->damage.dice; i++) {
                 std::uniform_int_distribution<> dis(1, player->damage.sides);
@@ -758,7 +768,6 @@ int combat(Character* attacker, Character* defender, const char** message) {
             }
         }
     } else {
-        // NPC damage
         NPC* npc = dynamic_cast<NPC*>(attacker);
         damage += npc->damage.base;
         for (int i = 0; i < npc->damage.dice; i++) {
@@ -782,6 +791,62 @@ int combat(Character* attacker, Character* defender, const char** message) {
             snprintf(buf, sizeof(buf), "%s killed %s!", attacker->name.c_str(), npc->name.c_str());
             *message = buf;
         }
+    }
+    return 1;
+}
+
+int forced_combat(Character* attacker, Character* defender, WINDOW* win, const char** message) {
+    char buf[80];
+    bool pc_turn = dynamic_cast<PC*>(attacker) != nullptr;
+    snprintf(buf, sizeof(buf), "%s is predicting to kill %s!", 
+             attacker->name.c_str(), defender->name.c_str());
+    *message = buf;
+    draw_dungeon(win, *message);
+    getch();
+
+    while (attacker->alive && defender->alive) {
+        if (pc_turn) {
+            defender->hitpoints -= 5;
+            snprintf(buf, sizeof(buf), "%s deals 5 damage to %s (HP: %d)", 
+                     attacker->name.c_str(), defender->name.c_str(), defender->hitpoints);
+        } else {
+            attacker->hitpoints -= 5;
+            snprintf(buf, sizeof(buf), "%s deals 5 damage to %s (HP: %d)", 
+                     defender->name.c_str(), attacker->name.c_str(), attacker->hitpoints);
+        }
+        *message = buf;
+        draw_dungeon(win, *message);
+        getch();
+
+        if (defender->hitpoints <= 0) {
+            defender->alive = 0;
+            if (dynamic_cast<PC*>(defender)) {
+                *message = "You died!";
+            } else {
+                NPC* npc = dynamic_cast<NPC*>(defender);
+                monsterAt[npc->y][npc->x] = nullptr;
+                snprintf(buf, sizeof(buf), "%s killed %s!", attacker->name.c_str(), npc->name.c_str());
+                *message = buf;
+            }
+            draw_dungeon(win, *message);
+            getch();
+            break;
+        }
+        if (attacker->hitpoints <= 0) {
+            attacker->alive = 0;
+            if (dynamic_cast<PC*>(attacker)) {
+                *message = "You died!";
+            } else {
+                NPC* npc = dynamic_cast<NPC*>(attacker);
+                monsterAt[npc->y][npc->x] = nullptr;
+                snprintf(buf, sizeof(buf), "%s killed %s!", defender->name.c_str(), npc->name.c_str());
+                *message = buf;
+            }
+            draw_dungeon(win, *message);
+            getch();
+            break;
+        }
+        pc_turn = !pc_turn;
     }
     return 1;
 }
