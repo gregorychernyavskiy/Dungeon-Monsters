@@ -123,10 +123,8 @@ void NPC::move() {
     }
 
     if (next_x != curr_x || next_y != curr_y) {
-        fprintf(stderr, "NPC %s moving from (%d,%d) to (%d,%d)\n", name.c_str(), curr_x, curr_y, next_x, next_y);
         if (next_x == player->x && next_y == player->y && !combat_triggered) {
             const char* message;
-            fprintf(stderr, "NPC %s at (%d,%d) engaging PC\n", name.c_str(), next_x, next_y);
             combat_triggered = true;
             if (name == "SpongeBob SquarePants") {
                 forced_combat(this, player, stdscr, &message);
@@ -166,8 +164,8 @@ void NPC::move() {
         bool was_rock = hardness[next_y][next_x] > 0;
         if (was_rock && tunneling && !pass_wall) {
             hardness[next_y][next_x] = 0;
-            dungeon[next_y][next_x] = '#';
-            terrain[next_y][next_x] = '#';
+            dungeon[next_y][next_x] = ' ';
+            terrain[next_y][next_x] = ' ';
         }
         if (objectAt[next_y][next_x]) {
             if (destroy) {
@@ -184,11 +182,11 @@ void NPC::move() {
             }
         }
         monsterAt[curr_y][curr_x] = nullptr;
-        if (name == "SpongeBob SquarePants" && was_rock) {
-            dungeon[curr_y][curr_x] = '#';
-            terrain[curr_y][curr_x] = '#';
+        if ((name == "SpongeBob SquarePants" || name == "Slimer" || name == "Casper the Friendly Ghost") && was_rock) {
+            dungeon[curr_y][curr_x] = ' ';
+            terrain[curr_y][curr_x] = ' ';
         } else {
-            dungeon[curr_y][curr_x] = terrain[curr_y][curr_x] ? terrain[curr_y][curr_x] : '#';
+            dungeon[curr_y][curr_x] = terrain[curr_y][curr_x] ? terrain[curr_y][curr_x] : ' ';
         }
         x = next_x;
         y = next_y;
@@ -694,21 +692,15 @@ void regenerate_dungeon(int numMonsters) {
 int move_player(int dx, int dy, const char** message) {
     int new_x = player->x + dx;
     int new_y = player->y + dy;
-    fprintf(stderr, "Attempting to move player from (%d,%d) to (%d,%d)\n", player->x, player->y, new_x, new_y);
     if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT) {
         *message = "Edge of dungeon!";
-        fprintf(stderr, "Movement blocked: Edge of dungeon\n");
         return 0;
     }
     if (hardness[new_y][new_x] > 0) {
         *message = "There's a wall in the way!";
-        fprintf(stderr, "Movement blocked: Wall at (%d,%d), hardness=%d\n", new_x, new_y, hardness[new_y][new_x]);
         return 0;
     }
-    // Temporarily disable combat for movement testing
-    /*
     if (monsterAt[new_y][new_x]) {
-        fprintf(stderr, "Monster at (%d,%d): %s\n", new_x, new_y, monsterAt[new_y][new_x]->name.c_str());
         if (monsterAt[new_y][new_x]->name == "SpongeBob SquarePants") {
             forced_combat(player, monsterAt[new_y][new_x], stdscr, message);
         } else {
@@ -716,7 +708,6 @@ int move_player(int dx, int dy, const char** message) {
         }
         return 1;
     }
-    */
     dungeon[player->y][player->x] = terrain[player->y][player->x];
     if (objectAt[player->y][player->x]) {
         terrain[player->y][player->x] = objectAt[player->y][player->x]->symbol;
@@ -738,7 +729,6 @@ int move_player(int dx, int dy, const char** message) {
         *message = "";
     }
     update_visibility();
-    fprintf(stderr, "Player moved to (%d,%d)\n", new_x, new_y);
     return 1;
 }
 
@@ -762,7 +752,6 @@ int combat(Character* attacker, Character* defender, const char** message) {
     int damage = 0;
     char buf[80];
 
-    fprintf(stderr, "Combat: %s vs %s\n", attacker->name.c_str(), defender->name.c_str());
     if (dynamic_cast<PC*>(attacker)) {
         if (!player->equipment[0]) {
             damage += player->damage.base;
@@ -793,7 +782,6 @@ int combat(Character* attacker, Character* defender, const char** message) {
     snprintf(buf, sizeof(buf), "%s deals %d damage to %s (HP: %d)", 
              attacker->name.c_str(), damage, defender->name.c_str(), defender->hitpoints);
     *message = buf;
-    fprintf(stderr, "%s\n", buf);
 
     if (defender->hitpoints <= 0) {
         defender->alive = 0;
@@ -805,7 +793,6 @@ int combat(Character* attacker, Character* defender, const char** message) {
             snprintf(buf, sizeof(buf), "%s killed %s!", attacker->name.c_str(), npc->name.c_str());
             *message = buf;
         }
-        fprintf(stderr, "%s\n", buf);
     }
     return 1;
 }
@@ -819,7 +806,6 @@ int forced_combat(Character* attacker, Character* defender, WINDOW* win, const c
     draw_dungeon(win, *message);
     getch();
 
-    fprintf(stderr, "Forced combat: %s vs %s\n", attacker->name.c_str(), defender->name.c_str());
     while (attacker->alive && defender->alive) {
         if (pc_turn) {
             defender->hitpoints -= 5;
@@ -831,7 +817,6 @@ int forced_combat(Character* attacker, Character* defender, WINDOW* win, const c
                      defender->name.c_str(), attacker->name.c_str(), attacker->hitpoints);
         }
         *message = buf;
-        fprintf(stderr, "%s\n", buf);
         draw_dungeon(win, *message);
         getch();
 
@@ -845,7 +830,6 @@ int forced_combat(Character* attacker, Character* defender, WINDOW* win, const c
                 snprintf(buf, sizeof(buf), "%s killed %s!", attacker->name.c_str(), npc->name.c_str());
                 *message = buf;
             }
-            fprintf(stderr, "%s\n", buf);
             draw_dungeon(win, *message);
             getch();
             break;
@@ -860,7 +844,6 @@ int forced_combat(Character* attacker, Character* defender, WINDOW* win, const c
                 snprintf(buf, sizeof(buf), "%s killed %s!", defender->name.c_str(), npc->name.c_str());
                 *message = buf;
             }
-            fprintf(stderr, "%s\n", buf);
             draw_dungeon(win, *message);
             getch();
             break;

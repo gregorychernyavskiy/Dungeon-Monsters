@@ -74,7 +74,28 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    init_ncurses();
+    initscr();
+    if (!has_colors()) {
+        endwin();
+        fprintf(stderr, "Error: Terminal does not support colors!\n");
+        exit(EXIT_FAILURE);
+    }
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    curs_set(0);
+
+    init_pair(COLOR_RED, COLOR_RED, COLOR_BLACK);
+    init_pair(COLOR_GREEN, COLOR_GREEN, COLOR_BLACK);
+    init_pair(COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(COLOR_BLUE, COLOR_BLUE, COLOR_BLACK);
+    init_pair(COLOR_MAGENTA, COLOR_MAGENTA, COLOR_BLACK);
+    init_pair(COLOR_CYAN, COLOR_CYAN, COLOR_BLACK);
+    init_pair(COLOR_WHITE, COLOR_WHITE, COLOR_BLACK);
+
+    refresh();
+
     WINDOW* win = newwin(24, 80, 0, 0);
     if (!win) {
         endwin();
@@ -95,25 +116,11 @@ int main(int argc, char* argv[]) {
     int target_x = player->x, target_y = player->y;
 
     while (game_running) {
-        fprintf(stderr, "Game loop: teleport_mode=%d, inspect_mode=%d, player=(%d,%d)\n", 
-                teleport_mode, inspect_mode, player->x, player->y);
         int ch = getch();
-        fprintf(stderr, "Input received: %c (%d)\n", isprint(ch) ? ch : ' ', ch);
         int moved = 0;
         int dx = 0, dy = 0;
 
-        // Force reset modes if stuck
-        if (ch == 27) {
-            teleport_mode = false;
-            inspect_mode = false;
-            message = "Modes reset";
-            fprintf(stderr, "Modes reset by ESC\n");
-            draw_dungeon(win, message);
-            continue;
-        }
-
         if (teleport_mode || inspect_mode) {
-            fprintf(stderr, "In %s mode\n", teleport_mode ? "teleport" : "inspect");
             if (inspect_mode && ch == 't' && monsterAt[target_y][target_x] && visible[target_y][target_x]) {
                 inspect_monster(win, target_x, target_y);
                 inspect_mode = false;
@@ -149,6 +156,10 @@ int main(int argc, char* argv[]) {
                 update_visibility();
                 message = "Teleported to random location!";
                 teleport_mode = false;
+            } else if (ch == 27) {
+                teleport_mode = false;
+                inspect_mode = false;
+                message = "";
             } else if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
             else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
             else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
@@ -424,7 +435,6 @@ int main(int argc, char* argv[]) {
         }
 
         if (moved && game_running && !teleport_mode && !inspect_mode) {
-            fprintf(stderr, "Processing NPC moves\n");
             for (int i = 0; i < num_monsters; i++) {
                 if (monsters[i]->alive) {
                     monsters[i]->move();
