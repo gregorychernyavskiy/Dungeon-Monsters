@@ -650,7 +650,7 @@ void regenerate_dungeon(int numMonsters) {
                 monsterAt[monsters[i]->y][monsters[i]->x] = nullptr;
             }
             if (monsters[i]->is_unique && !monsters[i]->alive) {
-                for (auto& desc : monsterDescs) {
+                for (/auto& desc : monsterDescs) {
                     if (desc.name == monsters[i]->name) {
                         desc.is_alive = false;
                     }
