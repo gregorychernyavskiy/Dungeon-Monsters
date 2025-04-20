@@ -95,11 +95,22 @@ int main(int argc, char* argv[]) {
     int target_x = player->x, target_y = player->y;
 
     while (game_running) {
-        fprintf(stderr, "Game loop: teleport_mode=%d, inspect_mode=%d\n", teleport_mode, inspect_mode);
+        fprintf(stderr, "Game loop: teleport_mode=%d, inspect_mode=%d, player=(%d,%d)\n", 
+                teleport_mode, inspect_mode, player->x, player->y);
         int ch = getch();
-        fprintf(stderr, "Input received: %c (%d)\n", ch, ch);
+        fprintf(stderr, "Input received: %c (%d)\n", isprint(ch) ? ch : ' ', ch);
         int moved = 0;
         int dx = 0, dy = 0;
+
+        // Force reset modes if stuck
+        if (ch == 27) {
+            teleport_mode = false;
+            inspect_mode = false;
+            message = "Modes reset";
+            fprintf(stderr, "Modes reset by ESC\n");
+            draw_dungeon(win, message);
+            continue;
+        }
 
         if (teleport_mode || inspect_mode) {
             fprintf(stderr, "In %s mode\n", teleport_mode ? "teleport" : "inspect");
@@ -138,10 +149,6 @@ int main(int argc, char* argv[]) {
                 update_visibility();
                 message = "Teleported to random location!";
                 teleport_mode = false;
-            } else if (ch == 27) {
-                teleport_mode = false;
-                inspect_mode = false;
-                message = "";
             } else if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
             else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
             else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }

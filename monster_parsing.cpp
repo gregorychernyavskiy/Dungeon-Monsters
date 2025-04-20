@@ -192,7 +192,8 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             std::string ability;
             std::set<std::string> seenAbilities;
             while (abilIss >> ability) {
-                if (!seenAbilities.insert(ability).second) {
+                // Allow duplicate UNIQ to avoid discarding unique monsters
+                if (ability != "UNIQ" && !seenAbilities.insert(ability).second) {
                     std::cerr << "Duplicate ability '" << ability << "' in ABIL, discarding monster\n";
                     inMonster = false;
                     break;

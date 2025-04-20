@@ -93,6 +93,7 @@ void PC::move() {}
 
 void NPC::move() {
     if (!alive) return;
+    static bool combat_triggered = false; // Limit to one combat per turn
     int dist[HEIGHT][WIDTH];
     if (tunneling || pass_wall) dijkstraTunneling(dist);
     else dijkstraNonTunneling(dist);
@@ -123,9 +124,10 @@ void NPC::move() {
 
     if (next_x != curr_x || next_y != curr_y) {
         fprintf(stderr, "NPC %s moving from (%d,%d) to (%d,%d)\n", name.c_str(), curr_x, curr_y, next_x, next_y);
-        if (next_x == player->x && next_y == player->y) {
+        if (next_x == player->x && next_y == player->y && !combat_triggered) {
             const char* message;
             fprintf(stderr, "NPC %s at (%d,%d) engaging PC\n", name.c_str(), next_x, next_y);
+            combat_triggered = true;
             if (name == "SpongeBob SquarePants") {
                 forced_combat(this, player, stdscr, &message);
             } else {
@@ -703,6 +705,8 @@ int move_player(int dx, int dy, const char** message) {
         fprintf(stderr, "Movement blocked: Wall at (%d,%d), hardness=%d\n", new_x, new_y, hardness[new_y][new_x]);
         return 0;
     }
+    // Temporarily disable combat for movement testing
+    /*
     if (monsterAt[new_y][new_x]) {
         fprintf(stderr, "Monster at (%d,%d): %s\n", new_x, new_y, monsterAt[new_y][new_x]->name.c_str());
         if (monsterAt[new_y][new_x]->name == "SpongeBob SquarePants") {
@@ -712,6 +716,7 @@ int move_player(int dx, int dy, const char** message) {
         }
         return 1;
     }
+    */
     dungeon[player->y][player->x] = terrain[player->y][player->x];
     if (objectAt[player->y][player->x]) {
         terrain[player->y][player->x] = objectAt[player->y][player->x]->symbol;
