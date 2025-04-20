@@ -81,6 +81,28 @@ NPC::NPC(int x_, int y_) : Character(x_, y_, 10), intelligent(0),
 
 void PC::move() {}
 
+void cleanupMonsters() {
+    // Create a new array for active monsters
+    int new_count = 0;
+    NPC** new_monsters = (NPC**)malloc(num_monsters * sizeof(NPC*));
+    if (!new_monsters) return;
+
+    for (int i = 0; i < num_monsters; ++i) {
+        if (monsters[i] && monsters[i]->alive) {
+            new_monsters[new_count++] = monsters[i];
+        } else {
+            if (monsters[i] && monsterAt[monsters[i]->y][monsters[i]->x] == monsters[i]) {
+                monsterAt[monsters[i]->y][monsters[i]->x] = nullptr;
+            }
+            delete monsters[i];
+        }
+    }
+
+    free(monsters);
+    monsters = (NPC**)realloc(new_monsters, new_count * sizeof(NPC*));
+    num_monsters = new_count;
+}
+
 void NPC::move() {
     if (!alive) return;
     if (!player) return; // Null check for player
@@ -99,7 +121,14 @@ void NPC::move() {
 
     int next_x = x, next_y = y;
 
-    // Telepathic monsters always know the player's position
+    // Debug: Log visibility and telepathic status
+    FILE* debug_file = fopen("npc_move_debug.txt", "a");
+    if (debug_file) {
+        fprintf(debug_file, "NPC %s at (%d,%d): visible=%d, telepathic=%d, last_seen_x=%d, last_seen_y=%d\n",
+                name.c_str(), x, y, visible[y][x], telepathic, last_seen_x, last_seen_y);
+    }
+
+    // Telepathic monsters always know the player's position; others need to have seen the player
     if (telepathic || (last_seen_x != -1 && last_seen_y != -1)) {
         int target_x = telepathic ? player->x : last_seen_x;
         int target_y = telepathic ? player->y : last_seen_y;
@@ -127,10 +156,12 @@ void NPC::move() {
         // Ensure the move is within bounds and passable
         if (next_x >= 0 && next_x < WIDTH && next_y >= 0 && next_y < HEIGHT) {
             if (!(next_x == player->x && next_y == player->y) && // Allow moving to player's cell
-                monsterAt[next_y][next_x] && // Cell occupied by another monster
-                !(tunneling || pass_wall || hardness[next_y][next_x] == 0)) { // Not passable
-                next_x = x;
-                next_y = y; // Don't move
+                monsterAt[next_y][next_x]) { // Cell occupied by another monster
+                // Only move if the monster can tunnel, pass walls, or the cell is passable
+                if (!(tunneling || pass_wall || hardness[next_y][next_x] == 0)) {
+                    next_x = x;
+                    next_y = y; // Don't move if blocked
+                }
             }
         } else {
             next_x = x;
@@ -139,47 +170,50 @@ void NPC::move() {
     }
 
     // Debug: Log chosen next position
-    FILE* debug_file = fopen("npc_move_debug.txt", "a");
     if (debug_file) {
         fprintf(debug_file, "NPC %s at (%d,%d) chose next position (%d,%d), player at (%d,%d)\n",
                 name.c_str(), x, y, next_x, next_y, player->x, player->y);
-        fclose(debug_file);
+    }
+
+    // Check if the monster is adjacent to the player (including diagonals)
+    bool is_adjacent = false;
+    for (int dy = -1; dy <= 1; dy++) {
+        for (int dx = -1; dx <= 1; dx++) {
+            if (dx == 0 && dy == 0) continue; // Skip the current cell
+            int adj_x = x + dx;
+            int adj_y = y + dy;
+            if (adj_x == player->x && adj_y == player->y) {
+                is_adjacent = true;
+                break;
+            }
+        }
+        if (is_adjacent) break;
+    }
+
+    // Debug: Log adjacency check
+    if (debug_file) {
+        fprintf(debug_file, "NPC %s at (%d,%d): is_adjacent=%d\n", name.c_str(), x, y, is_adjacent);
+    }
+
+    // If adjacent or moving into the player's cell, attack the player
+    if (is_adjacent || (next_x == player->x && next_y == player->y)) {
+        int damage = this->damage.roll(); // Use monster's damage roll
+        player->hitpoints -= damage;
+        static char buf[80];
+        snprintf(buf, sizeof(buf), "%s hits you for %d damage! HP now %d (Damage dice: %s)", 
+                 name.c_str(), damage, player->hitpoints, this->damage.toString().c_str());
+        if (player->hitpoints <= 0) {
+            player->alive = 0;
+        }
+        // Debug: Log combat
+        if (debug_file) {
+            fprintf(debug_file, "Combat triggered: %s\n", buf);
+            fclose(debug_file);
+        }
+        return; // Attack uses turn, no movement
     }
 
     if (next_x != x || next_y != y) {
-        // Check if the monster is adjacent to the player (including diagonals)
-        bool is_adjacent = false;
-        for (int dy = -1; dy <= 1; dy++) {
-            for (int dx = -1; dx <= 1; dx++) {
-                if (dx == 0 && dy == 0) continue; // Skip the current cell
-                int adj_x = x + dx;
-                int adj_y = y + dy;
-                if (adj_x == player->x && adj_y == player->y) {
-                    is_adjacent = true;
-                    break;
-                }
-            }
-            if (is_adjacent) break;
-        }
-
-        // If adjacent, attack the player
-        if (is_adjacent || (next_x == player->x && next_y == player->y)) {
-            int damage = this->damage.roll();
-            player->hitpoints -= damage;
-            static char buf[80];
-            snprintf(buf, sizeof(buf), "%s hits you for %d damage! HP now %d (Damage dice: %s)", 
-                     name.c_str(), damage, player->hitpoints, this->damage.toString().c_str());
-            if (player->hitpoints <= 0) {
-                player->alive = 0;
-            }
-            // Debug: Log combat
-            if (debug_file) {
-                fprintf(debug_file, "Combat triggered: %s\n", buf);
-                fclose(debug_file);
-            }
-            return; // Attack uses turn, no movement
-        }
-
         // Handle NPC-NPC collision: displace or swap
         if (monsterAt[next_y][next_x]) {
             bool displaced = false;
@@ -200,9 +234,10 @@ void NPC::move() {
             }
             if (!displaced) {
                 // Swap positions
-                monsterAt[next_y][next_x]->x = x;
-                monsterAt[next_y][next_x]->y = y;
-                monsterAt[y][x] = monsterAt[next_y][next_x];
+                NPC* temp = monsterAt[next_y][next_x];
+                temp->x = x;
+                temp->y = y;
+                monsterAt[y][x] = temp;
             }
         }
 
@@ -218,9 +253,19 @@ void NPC::move() {
             if (destroy) {
                 for (int i = 0; i < num_objects; ++i) {
                     if (objects[i] && objects[i]->x == next_x && objects[i]->y == next_y) {
-                        objectAt[next_y][next_x] = nullptr; // Clear reference first
-                        delete objects[i];
-                        objects[i] = nullptr;
+                        // Check if the object is in the player's inventory
+                        bool in_inventory = false;
+                        for (int j = 0; j < 10; ++j) {
+                            if (player->carry[j] == objects[i]) {
+                                in_inventory = true;
+                                break;
+                            }
+                        }
+                        if (!in_inventory) {
+                            objectAt[next_y][next_x] = nullptr; // Clear reference first
+                            delete objects[i];
+                            objects[i] = nullptr;
+                        }
                         break;
                     }
                 }
@@ -234,6 +279,8 @@ void NPC::move() {
         y = next_y;
         monsterAt[next_y][next_x] = this;
     }
+
+    if (debug_file) fclose(debug_file);
 }
 
 void printDungeon() {
@@ -241,7 +288,7 @@ void printDungeon() {
         for (int x = 0; x < WIDTH; x++) {
             if (monsterAt[y][x]) {
                 printf("%c", monsterAt[y][x]->symbol);
-            } else if (x == player->x && y == player->y) {
+            } else if (player && x == player->x && y == player->y) {
                 printf("@");
             } else if (objectAt[y][x]) {
                 printf("%c", objectAt[y][x]->symbol);
@@ -624,7 +671,7 @@ int getColorIndex(const std::string& color) {
 void update_visibility() {
     if (!player) return; // Null check for player
 
-    const int radius = 3;
+    const int radius = 15; // Increased radius to ensure monsters can see the player
     memset(visible, 0, sizeof(visible));
     for (int y = player->y - radius; y <= player->y + radius; y++) {
         for (int x = player->x - radius; x <= player->x + radius; x++) {
@@ -785,7 +832,7 @@ int move_player(int dx, int dy, const char** message) {
     if (monsterAt[new_y][new_x]) {
         // PC attacks NPC
         NPC* target = monsterAt[new_y][new_x];
-        int damage = player->rollTotalDamage();
+        int damage = player->rollTotalDamage(); // Use player's damage roll
         target->hitpoints -= damage;
         static char buf[80];
         snprintf(buf, sizeof(buf), "You hit %s for %d damage!", target->name.c_str(), damage);
@@ -800,6 +847,7 @@ int move_player(int dx, int dy, const char** message) {
                     break;
                 }
             }
+            cleanupMonsters(); // Clean up null entries in monsters array
             if (target->name == "SpongeBob SquarePants") {
                 *message = "You defeated SpongeBob SquarePants! You win!";
                 player->alive = 0;
@@ -819,9 +867,9 @@ int move_player(int dx, int dy, const char** message) {
     }
     dungeon[player->y][player->x] = '@';
     update_visibility();
-    if (objectAt[new_y][new_x]) {
+    if (objectAt[new_x][new_y]) {
         static char buf[80];
-        snprintf(buf, sizeof(buf), "Object at your feet: %s. Press ',' to pick up.", objectAt[new_y][new_x]->name.c_str());
+        snprintf(buf, sizeof(buf), "Object at your feet: %s. Press ',' to pick up.", objectAt[new_x][new_y]->name.c_str());
         *message = buf;
     } else {
         *message = "";
