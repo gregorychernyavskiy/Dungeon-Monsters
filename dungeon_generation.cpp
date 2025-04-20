@@ -715,7 +715,7 @@ int move_player(int dx, int dy, const char** message) {
         NPC* target = monsterAt[new_y][new_x];
         int damage = player->rollTotalDamage();
         target->hitpoints -= damage;
-        char buf[80];
+        static char buf[80];
         snprintf(buf, sizeof(buf), "You hit %s for %d damage!", target->name.c_str(), damage);
         *message = buf;
         if (target->hitpoints <= 0) {
@@ -746,30 +746,14 @@ int move_player(int dx, int dy, const char** message) {
         terrain[player->y][player->x] = dungeon[player->y][player->x];
     }
     dungeon[player->y][player->x] = '@';
-    // Auto-pickup objects
-    if (objectAt[new_y][new_x]) {
-        for (int i = 0; i < 10; ++i) {
-            if (!player->carry[i]) {
-                player->carry[i] = objectAt[new_y][new_x];
-                objectAt[new_y][new_x] = nullptr;
-                for (int j = 0; j < num_objects; ++j) {
-                    if (objects[j] && objects[j]->x == new_x && objects[j]->y == new_y) {
-                        objects[j]->x = -1; // Mark as carried
-                        objects[j]->y = -1;
-                        break;
-                    }
-                }
-                char buf[80];
-                snprintf(buf, sizeof(buf), "Picked up %s!", player->carry[i]->name.c_str());
-                *message = buf;
-                break;
-            }
-        }
-        if (objectAt[new_y][new_x]) {
-            *message = "Inventory full!";
-        }
-    }
     update_visibility();
+    if (objectAt[new_y][new_x]) {
+        static char buf[80];
+        snprintf(buf, sizeof(buf), "Object at your feet: %s. Press ',' to pick up.", objectAt[new_y][new_x]->name.c_str());
+        *message = buf;
+    } else {
+        *message = "";
+    }
     return 1;
 }
 
@@ -844,7 +828,7 @@ void wear_item(WINDOW* win, const char** message) {
         player->carry[slot] = nullptr;
     }
     player->equipment[equip_slot] = item;
-    static char buf[80]; // Use static to avoid dangling pointer
+    static char buf[80];
     snprintf(buf, sizeof(buf), "Equipped %s!", item->name.c_str());
     *message = buf;
 }
@@ -881,7 +865,7 @@ void take_off_item(WINDOW* win, const char** message) {
         if (!player->carry[i]) {
             player->carry[i] = player->equipment[slot];
             player->equipment[slot] = nullptr;
-            static char buf[80]; // Use static to avoid dangling pointer
+            static char buf[80];
             snprintf(buf, sizeof(buf), "Took off %s!", player->carry[i]->name.c_str());
             *message = buf;
             return;
@@ -929,7 +913,7 @@ void drop_item(WINDOW* win, const char** message) {
     }
     player->carry[slot] = nullptr;
     terrain[item->y][item->x] = item->symbol;
-    static char buf[80]; // Use static to avoid dangling pointer
+    static char buf[80];
     snprintf(buf, sizeof(buf), "Dropped %s!", item->name.c_str());
     *message = buf;
 }
@@ -966,7 +950,7 @@ void expunge_item(WINDOW* win, const char** message) {
         }
     }
     player->carry[slot] = nullptr;
-    static char buf[80]; // Use static to avoid dangling pointer
+    static char buf[80];
     snprintf(buf, sizeof(buf), "Expunged %s!", item->name.c_str());
     *message = buf;
 }
@@ -1116,5 +1100,39 @@ void look_at_monster(WINDOW* win, const char** message) {
                 target_y = new_ty;
             }
         }
+    }
+}
+
+void pickup_item(WINDOW* win, const char** message) {
+    if (!objectAt[player->y][player->x]) {
+        *message = "No object to pick up!";
+        return;
+    }
+    Object* item = objectAt[player->y][player->x];
+    werase(win);
+    mvwprintw(win, 0, 0, "Pick up '%s'? (y/n)", item->name.c_str());
+    wrefresh(win);
+    int ch = getch();
+    if (ch == 'y' || ch == 'Y') {
+        for (int i = 0; i < 10; ++i) {
+            if (!player->carry[i]) {
+                player->carry[i] = item;
+                objectAt[player->y][player->x] = nullptr;
+                for (int j = 0; j < num_objects; ++j) {
+                    if (objects[j] && objects[j]->x == player->x && objects[j]->y == player->y) {
+                        objects[j]->x = -1; // Mark as carried
+                        objects[j]->y = -1;
+                        break;
+                    }
+                }
+                static char buf[80];
+                snprintf(buf, sizeof(buf), "Picked up %s!", item->name.c_str());
+                *message = buf;
+                return;
+            }
+        }
+        *message = "Inventory full!";
+    } else {
+        *message = "Pickup cancelled.";
     }
 }
