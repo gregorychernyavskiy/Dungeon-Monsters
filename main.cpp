@@ -99,6 +99,7 @@ int main(int argc, char* argv[]) {
     bool game_running = true;
     bool teleport_mode = false;
     int target_x = player->x, target_y = player->y;
+    NPC* last_culprit = nullptr; // Track the last monster that attacked the PC
 
     while (game_running) {
         int ch = getch();
@@ -233,22 +234,32 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        // Check if the player is already dead before moving monsters
+        if (!player->alive) {
+            char buf[80];
+            snprintf(buf, sizeof(buf), "Killed by monster '%s'!", last_culprit ? last_culprit->name.c_str() : "unknown");
+            message = buf;
+            game_running = false;
+        }
+
         if (moved && game_running && !teleport_mode) {
             for (int i = 0; i < num_monsters; i++) {
                 if (monsters[i] && monsters[i]->alive) {
                     monsters[i]->move();
+                    // Check if this monster's move killed the player
+                    if (!player->alive) {
+                        last_culprit = monsters[i]; // Track the monster that killed the PC
+                        char buf[80];
+                        snprintf(buf, sizeof(buf), "Killed by monster '%s'!", last_culprit ? last_culprit->name.c_str() : "unknown");
+                        message = buf;
+                        game_running = false;
+                        break;
+                    }
                 }
-            }
-            NPC* culprit = nullptr;
-            if (gameOver(&culprit)) {
-                char buf[80];
-                snprintf(buf, sizeof(buf), "Killed by monster '%s'!", culprit ? culprit->name.c_str() : "unknown");
-                message = buf;
-                game_running = false;
             }
         }
 
-        if (!game_running || !player->alive) {
+        if (!game_running) {
             draw_dungeon(win, message);
             sleep(2);
             break;

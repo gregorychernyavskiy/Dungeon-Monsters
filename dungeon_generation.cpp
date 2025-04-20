@@ -142,7 +142,7 @@ void NPC::move() {
             int damage = this->damage.roll();
             player->hitpoints -= damage;
             static char buf[80];
-            snprintf(buf, sizeof(buf), "%s hits you for %d damage!", name.c_str(), damage);
+            snprintf(buf, sizeof(buf), "%s hits you for %d damage! HP now %d", name.c_str(), damage, player->hitpoints);
             if (player->hitpoints <= 0) {
                 player->alive = 0;
             }
@@ -481,12 +481,7 @@ int gameOver(NPC** culprit) {
         *culprit = nullptr; // PC died, culprit set in NPC::move
         return 1;
     }
-    for (int i = 0; i < num_monsters; i++) {
-        if (monsters[i] && monsters[i]->alive && monsters[i]->x == player->x && monsters[i]->y == player->y) {
-            *culprit = monsters[i];
-            return 1;
-        }
-    }
+    // Removed co-location check, as NPC::move already handles combat and sets player->alive
     *culprit = nullptr;
     return 0;
 }
