@@ -219,6 +219,9 @@ int main(int argc, char* argv[]) {
                     case 'L':
                         look_at_monster(win, &message);
                         break;
+                    case ',':
+                        pickup_item(win, &message);
+                        break;
                     case 'Q': case 'q':
                         game_running = false;
                         message = "Quitting game...";
