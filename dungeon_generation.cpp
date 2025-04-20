@@ -844,7 +844,7 @@ void wear_item(WINDOW* win, const char** message) {
         player->carry[slot] = nullptr;
     }
     player->equipment[equip_slot] = item;
-    char buf[80];
+    static char buf[80]; // Use static to avoid dangling pointer
     snprintf(buf, sizeof(buf), "Equipped %s!", item->name.c_str());
     *message = buf;
 }
@@ -881,7 +881,7 @@ void take_off_item(WINDOW* win, const char** message) {
         if (!player->carry[i]) {
             player->carry[i] = player->equipment[slot];
             player->equipment[slot] = nullptr;
-            char buf[80];
+            static char buf[80]; // Use static to avoid dangling pointer
             snprintf(buf, sizeof(buf), "Took off %s!", player->carry[i]->name.c_str());
             *message = buf;
             return;
@@ -929,7 +929,7 @@ void drop_item(WINDOW* win, const char** message) {
     }
     player->carry[slot] = nullptr;
     terrain[item->y][item->x] = item->symbol;
-    char buf[80];
+    static char buf[80]; // Use static to avoid dangling pointer
     snprintf(buf, sizeof(buf), "Dropped %s!", item->name.c_str());
     *message = buf;
 }
@@ -966,7 +966,7 @@ void expunge_item(WINDOW* win, const char** message) {
         }
     }
     player->carry[slot] = nullptr;
-    char buf[80];
+    static char buf[80]; // Use static to avoid dangling pointer
     snprintf(buf, sizeof(buf), "Expunged %s!", item->name.c_str());
     *message = buf;
 }
