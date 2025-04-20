@@ -44,13 +44,12 @@ Object::Object(int x_, int y_) : x(x_), y(y_), hit(0), dodge(0), defense(0),
 
 Object::~Object() {}
 
-Character::Character(int x_, int y_) : x(x_), y(y_), speed(10), alive(1),
-    last_seen_x(-1), last_seen_y(-1), hitpoints(0) {}
+Character::Character(int x_, int y_, int hp) : x(x_), y(y_), speed(10), alive(1),
+    last_seen_x(-1), last_seen_y(-1), hitpoints(hp) {}
 
-PC::PC(int x_, int y_) : Character(x_, y_) {
+PC::PC(int x_, int y_) : Character(x_, y_, 100) {
     symbol = '@';
     color = "WHITE";
-    hitpoints = 100; // Default hitpoints
     damage = Dice(0, 1, 4); // Default damage: 0+1d4
     for (int i = 0; i < 12; ++i) equipment[i] = nullptr;
     for (int i = 0; i < 10; ++i) carry[i] = nullptr;
@@ -74,9 +73,9 @@ int PC::rollTotalDamage() const {
     return total;
 }
 
-NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(0),
+NPC::NPC(int x_, int y_) : Character(x_, y_, 10), intelligent(0),
     tunneling(0), telepathic(0), erratic(0),
-    pass_wall(0), pickup(0), destroy(0), is_unique(false), hitpoints(10) {
+    pass_wall(0), pickup(0), destroy(0), is_unique(false) {
     speed = rand() % 16 + 5;
 }
 
@@ -115,7 +114,6 @@ void NPC::move() {
     if (next_x != curr_x || next_y != curr_y) {
         // Handle NPC-NPC collision: displace or swap
         if (monsterAt[next_y][next_x]) {
-            int displace_x = next_x, displace_y = next_y;
             bool displaced = false;
             for (int i = 0; i < 8; ++i) {
                 int nx = next_x + dx[i];

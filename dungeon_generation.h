@@ -55,7 +55,7 @@ public:
     int hitpoints; // Moved from NPC to Character
     Dice damage;   // Moved from NPC to Character
 
-    Character(int x_, int y_);
+    Character(int x_, int y_, int hp = 0); // Updated constructor
     virtual ~Character() = default;
     virtual void move() = 0;
 };
