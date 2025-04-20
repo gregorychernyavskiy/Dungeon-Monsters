@@ -83,9 +83,16 @@ void PC::move() {}
 
 void NPC::move() {
     if (!alive) return;
+    if (!player) return; // Null check for player
+
+    // Ensure monster coordinates are valid before accessing arrays
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
+        alive = 0; // Invalidate monster to prevent further crashes
+        return;
+    }
 
     // Update last seen position if the player is visible
-    if (visible[y][x]) {
+    if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT && visible[y][x]) {
         last_seen_x = player->x;
         last_seen_y = player->y;
     }
@@ -106,11 +113,11 @@ void NPC::move() {
             if (rand() % 2) {
                 next_x = x + dx;
                 next_y = y;
-                if (next_x == target_x) dy = 0; // Reached target's x, move vertically next
+                if (next_x == target_x) dy = 0;
             } else {
                 next_x = x;
                 next_y = y + dy;
-                if (next_y == target_y) dx = 0; // Reached target's y, move horizontally next
+                if (next_y == target_y) dx = 0;
             }
         } else {
             next_x = x + dx;
@@ -140,6 +147,39 @@ void NPC::move() {
     }
 
     if (next_x != x || next_y != y) {
+        // Check if the monster is adjacent to the player (including diagonals)
+        bool is_adjacent = false;
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if (dx == 0 && dy == 0) continue; // Skip the current cell
+                int adj_x = x + dx;
+                int adj_y = y + dy;
+                if (adj_x == player->x && adj_y == player->y) {
+                    is_adjacent = true;
+                    break;
+                }
+            }
+            if (is_adjacent) break;
+        }
+
+        // If adjacent, attack the player
+        if (is_adjacent || (next_x == player->x && next_y == player->y)) {
+            int damage = this->damage.roll();
+            player->hitpoints -= damage;
+            static char buf[80];
+            snprintf(buf, sizeof(buf), "%s hits you for %d damage! HP now %d (Damage dice: %s)", 
+                     name.c_str(), damage, player->hitpoints, this->damage.toString().c_str());
+            if (player->hitpoints <= 0) {
+                player->alive = 0;
+            }
+            // Debug: Log combat
+            if (debug_file) {
+                fprintf(debug_file, "Combat triggered: %s\n", buf);
+                fclose(debug_file);
+            }
+            return; // Attack uses turn, no movement
+        }
+
         // Handle NPC-NPC collision: displace or swap
         if (monsterAt[next_y][next_x]) {
             bool displaced = false;
@@ -164,29 +204,15 @@ void NPC::move() {
                 monsterAt[next_y][next_x]->y = y;
                 monsterAt[y][x] = monsterAt[next_y][next_x];
             }
-        } else if (next_x == player->x && next_y == player->y) {
-            // NPC attacks PC
-            int damage = this->damage.roll();
-            player->hitpoints -= damage;
-            static char buf[80];
-            snprintf(buf, sizeof(buf), "%s hits you for %d damage! HP now %d (Damage dice: %s)", 
-                     name.c_str(), damage, player->hitpoints, this->damage.toString().c_str());
-            if (player->hitpoints <= 0) {
-                player->alive = 0;
-            }
-            // Debug: Log combat
-            if (debug_file) {
-                fprintf(debug_file, "Combat triggered: %s\n", buf);
-                fclose(debug_file);
-            }
-            return; // Attack uses turn, no movement
         }
+
         // Only tunnel if the NPC has TUNNEL ability and does NOT have PASS
         if (hardness[next_y][next_x] > 0 && tunneling && !pass_wall) {
             hardness[next_y][next_x] = 0;
             dungeon[next_y][next_x] = '#';
             terrain[next_y][next_x] = '#';
         }
+
         // Handle object interaction
         if (objectAt[next_y][next_x]) {
             if (destroy) {
@@ -202,6 +228,7 @@ void NPC::move() {
                 // Optional: Implement inventory later
             }
         }
+
         monsterAt[y][x] = nullptr;
         x = next_x;
         y = next_y;
@@ -477,7 +504,7 @@ void placeObjects(int count) {
 void cleanupObjects() {
     for (int i = 0; i < num_objects; ++i) {
         if (objects[i]) {
-            if (objects[i]->x >= 0 && objects[i]->y >= 0) { // Check if object is on the map
+            if (objects[i]->x >= 0 && objects[i]->y >= 0) {
                 objectAt[objects[i]->y][objects[i]->x] = nullptr;
             }
             delete objects[i];
@@ -502,7 +529,7 @@ void runGame(int numMonsters) {
         printDungeon();
         monsters_alive = 0;
         for (int i = 0; i < num_monsters; i++) {
-            if (monsters[i]->alive) {
+            if (monsters[i] && monsters[i]->alive) {
                 monsters[i]->move();
                 if (monsters[i]->alive) monsters_alive++;
             }
@@ -595,6 +622,8 @@ int getColorIndex(const std::string& color) {
 }
 
 void update_visibility() {
+    if (!player) return; // Null check for player
+
     const int radius = 3;
     memset(visible, 0, sizeof(visible));
     for (int y = player->y - radius; y <= player->y + radius; y++) {
@@ -619,7 +648,7 @@ void draw_dungeon(WINDOW* win, const char* message) {
         for (int x = 0; x < WIDTH; x++) {
             if (fog_enabled && !visible[y][x] && !remembered[y][x]) {
                 mvwprintw(win, y + 1, x, " ");
-            } else if (x == player->x && y == player->y) {
+            } else if (player && x == player->x && y == player->y) {
                 int color = getColorIndex(player->color);
                 FILE* debug_file = fopen("render_debug.txt", "a");
                 if (debug_file) {
@@ -657,7 +686,11 @@ void draw_dungeon(WINDOW* win, const char* message) {
             }
         }
     }
-    mvwprintw(win, 22, 0, "HP: %d, Speed: %d", player->hitpoints, player->getTotalSpeed());
+    if (player) {
+        mvwprintw(win, 22, 0, "HP: %d, Speed: %d", player->hitpoints, player->getTotalSpeed());
+    } else {
+        mvwprintw(win, 22, 0, "HP: N/A, Speed: N/A");
+    }
     mvwprintw(win, 23, 0, "Fog of War: %s", fog_enabled ? "ON" : "OFF");
     wrefresh(win);
 }
@@ -672,7 +705,7 @@ void draw_monster_list(WINDOW* win) {
         werase(win);
         mvwprintw(win, 0, 0, "Monster List (Press ESC to exit):");
         for (int i = start; i < num_monsters && i - start < max_lines - 1; i++) {
-            if (monsters[i]->alive) {
+            if (monsters[i] && monsters[i]->alive) {
                 int dx = monsters[i]->x - player->x;
                 int dy = monsters[i]->y - player->y;
                 const char* ns = dy < 0 ? "north" : "south";
@@ -712,7 +745,7 @@ void regenerate_dungeon(int numMonsters) {
 
     cleanupObjects();
 
-    if (player->x >= 0 && player->y >= 0 && player->x < WIDTH && player->y < HEIGHT) {
+    if (player && player->x >= 0 && player->y >= 0 && player->x < WIDTH && player->y < HEIGHT) {
         dungeon[player->y][player->x] = terrain[player->y][player->x] == 0 ? '.' : terrain[player->y][player->x];
     }
 
@@ -737,6 +770,8 @@ void regenerate_dungeon(int numMonsters) {
 }
 
 int move_player(int dx, int dy, const char** message) {
+    if (!player) return 0; // Null check for player
+
     int new_x = player->x + dx;
     int new_y = player->y + dy;
     if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT) {
@@ -795,6 +830,8 @@ int move_player(int dx, int dy, const char** message) {
 }
 
 int use_stairs(char direction, int numMonsters, const char** message) {
+    if (!player) return 0; // Null check for player
+
     if (direction == '>' && terrain[player->y][player->x] == '>') {
         regenerate_dungeon(numMonsters);
         *message = "Descended to a new level!";
@@ -1155,6 +1192,8 @@ void look_at_monster(WINDOW* win, const char** message) {
 }
 
 void pickup_item(WINDOW* win, const char** message) {
+    if (!player) return; // Null check for player
+
     if (!objectAt[player->y][player->x]) {
         *message = "No object to pick up!";
         return;
