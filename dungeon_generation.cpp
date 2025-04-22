@@ -199,7 +199,7 @@ void NPC::move() {
     }
 
     if (next_x != curr_x || next_y != curr_y) {
-        if (next_x == player->x && next_ylanguage == player->y) {
+        if (next_x == player->x && next_y == player->y) {
             engaged_monster = this;
             in_combat = true;
             return;
