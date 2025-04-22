@@ -36,6 +36,9 @@ char visible[HEIGHT][WIDTH] = {0};
 char terrain[HEIGHT][WIDTH] = {0};
 char remembered[HEIGHT][WIDTH] = {0};
 
+NPC* engaged_monster = nullptr; // Monster currently in combat with PC
+bool in_combat = false;         // Flag to indicate combat mode
+
 std::vector<MonsterDescription> monsterDescs;
 std::vector<ObjectDescription> objectDescs;
 
@@ -158,7 +161,7 @@ void compactMonsters() {
 }
 
 void NPC::move() {
-    if (!alive) return;
+    if (!alive || in_combat) return; // Skip movement if in combat
     int dist[HEIGHT][WIDTH];
     if (tunneling || pass_wall) dijkstraTunneling(dist);
     else dijkstraNonTunneling(dist);
@@ -189,17 +192,10 @@ void NPC::move() {
 
     if (next_x != curr_x || next_y != curr_y) {
         if (next_x == player->x && next_y == player->y) {
-            std::random_device rd;
-            std::mt19937 gen(rd());
-            int damage = this->damage.base;
-            for (int i = 0; i < this->damage.dice; i++) {
-                std::uniform_int_distribution<> dis(1, this->damage.sides);
-                damage += dis(gen);
-            }
-            if (player->takeDamage(damage)) {
-                // PC died; game over handled in main loop
-            }
-            return; // Combat uses the turn
+            // Initiate combat
+            engaged_monster = this;
+            in_combat = true;
+            return; // Combat mode activated, stop movement
         }
         if (monsterAt[next_y][next_x]) {
             int disp_x, disp_y;
@@ -248,6 +244,102 @@ int NPC::takeDamage(int damage) {
         return 1; // NPC died
     }
     return 0;
+}
+
+int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
+    static bool player_turn = true; // Start with player's turn
+    static bool combat_initialized = false;
+
+    if (!combat_initialized) {
+        player_turn = true;
+        combat_initialized = true;
+    }
+
+    if (ch == 'a' && player_turn) { // Player attacks
+        int total_speed;
+        Dice total_damage;
+        player->calculateStats(total_speed, total_damage);
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        int damage = total_damage.base;
+        for (int i = 0; i < total_damage.dice; i++) {
+            std::uniform_int_distribution<> dis(1, total_damage.sides);
+            damage += dis(gen);
+        }
+        if (monster->takeDamage(damage)) {
+            // Monster died
+            monsterAt[monster->y][monster->x] = nullptr;
+            for (int i = 0; i < num_monsters; i++) {
+                if (monsters[i] == monster) {
+                    if (monster->is_unique) {
+                        for (auto& desc : monsterDescs) {
+                            if (desc.name == monster->name) desc.is_alive = false;
+                        }
+                    }
+                    delete monsters[i];
+                    monsters[i] = nullptr;
+                    break;
+                }
+            }
+            compactMonsters();
+            in_combat = false;
+            combat_initialized = false;
+            engaged_monster = nullptr;
+            if (monster->is_boss) {
+                *message = "You defeated SpongeBob SquarePants! You win!";
+                return -1; // Signal game win
+            }
+            *message = "You defeated the monster!";
+            return 0;
+        }
+        player_turn = false; // Monster's turn
+        *message = "You attacked the monster!";
+    } else if (ch == 'f' && player_turn) { // Attempt to flee
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(1, 100);
+        int flee_chance = 30; // 30% chance to flee
+        if (dis(gen) <= flee_chance) {
+            in_combat = false;
+            combat_initialized = false;
+            engaged_monster = nullptr;
+            *message = "You fled from the monster!";
+            return 0;
+        } else {
+            *message = "Failed to flee!";
+            player_turn = false; // Monster's turn
+        }
+    } else if (!player_turn) { // Monster's turn
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        int damage = monster->damage.base;
+        for (int i = 0; i < monster->damage.dice; i++) {
+            std::uniform_int_distribution<> dis(1, monster->damage.sides);
+            damage += dis(gen);
+        }
+        if (player->takeDamage(damage)) {
+            // PC died
+            in_combat = false;
+            combat_initialized = false;
+            engaged_monster = nullptr;
+            *message = "You were killed! Game over!";
+            return -2; // Signal game over
+        }
+        player_turn = true; // Player's turn
+        *message = "Monster attacked you!";
+    } else {
+        *message = player_turn ? "Press 'a' to attack, 'f' to flee" : "Monster's turn...";
+    }
+
+    // Draw combat window
+    werase(win);
+    mvwprintw(win, 0, 0, "Combat Mode (Press 'a' to attack, 'f' to flee):");
+    mvwprintw(win, 1, 0, "Player HP: %d", player->hitpoints);
+    mvwprintw(win, 2, 0, "Monster: %s (%c) HP: %d", monster->name.c_str(), monster->symbol, monster->hitpoints);
+    mvwprintw(win, 3, 0, "%s", *message);
+    mvwprintw(win, 4, 0, "Turn: %s", player_turn ? "Player" : "Monster");
+    wrefresh(win);
+    return 1; // Continue combat
 }
 
 void printDungeon() {
@@ -447,7 +539,7 @@ int spawnMonsters(int numMonsters) {
                                       y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
                 if (dungeon[y][x] == '.' && !(x == player->x && y == player->y) && !monsterAt[y][x] && !in_player_room) {
                     npc = desc.createNPC(x, y);
-                    npc->is_boss = (desc.name == "SpongeBob SquarePants"); // Set BOSS flag
+                    npc->is_boss = (desc.name == "SpongeBob SquarePants");
                     placed = true;
                     break;
                 }
@@ -653,6 +745,11 @@ void update_visibility() {
 }
 
 void draw_dungeon(WINDOW* win, const char* message) {
+    if (in_combat && engaged_monster) {
+        // Combat window is handled in fight_monster
+        return;
+    }
+
     werase(win);
     mvwprintw(win, 0, 0, "%s", message ? message : "");
 
@@ -781,6 +878,11 @@ void regenerate_dungeon(int numMonsters) {
 }
 
 int move_player(int dx, int dy, const char** message) {
+    if (in_combat) {
+        *message = "You are in combat! Press 'a' to attack, 'f' to flee.";
+        return 0;
+    }
+
     int new_x = player->x + dx;
     int new_y = player->y + dy;
     if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT) {
@@ -792,40 +894,10 @@ int move_player(int dx, int dy, const char** message) {
         return 0;
     }
     if (monsterAt[new_y][new_x]) {
-        NPC* target = monsterAt[new_y][new_x];
-        int total_speed;
-        Dice total_damage;
-        player->calculateStats(total_speed, total_damage);
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        int damage = total_damage.base;
-        for (int i = 0; i < total_damage.dice; i++) {
-            std::uniform_int_distribution<> dis(1, total_damage.sides);
-            damage += dis(gen);
-        }
-        if (target->takeDamage(damage)) {
-            monsterAt[new_y][new_x] = nullptr;
-            for (int i = 0; i < num_monsters; i++) {
-                if (monsters[i] == target) {
-                    if (target->is_unique) {
-                        for (auto& desc : monsterDescs) {
-                            if (desc.name == target->name) desc.is_alive = false;
-                        }
-                    }
-                    delete monsters[i];
-                    monsters[i] = nullptr;
-                    break;
-                }
-            }
-            compactMonsters();
-            if (target->is_boss) {
-                *message = "You defeated SpongeBob SquarePants! You win!";
-                return -1;
-            }
-            *message = "You defeated the monster!";
-        } else {
-            *message = "You attacked the monster!";
-        }
+        // Initiate combat
+        engaged_monster = monsterAt[new_y][new_x];
+        in_combat = true;
+        *message = "Combat started! Press 'a' to attack, 'f' to flee.";
         return 0;
     }
     if (objectAt[new_y][new_x]) {
@@ -859,6 +931,11 @@ int move_player(int dx, int dy, const char** message) {
 }
 
 int use_stairs(char direction, int numMonsters, const char** message) {
+    if (in_combat) {
+        *message = "Cannot use stairs while in combat!";
+        return 0;
+    }
+
     if (direction == '>' && terrain[player->y][player->x] == '>') {
         regenerate_dungeon(numMonsters);
         *message = "Descended to a new level!";

@@ -150,6 +150,18 @@ int main(int argc, char* argv[]) {
         int moved = 0;
         int dx = 0, dy = 0;
 
+        if (in_combat) {
+            int result = fight_monster(win, engaged_monster, ch, &message);
+            if (result == -1) { // Game win
+                game_running = false;
+            } else if (result == -2) { // Game over
+                game_running = false;
+            } else if (!in_combat) { // Combat ended
+                draw_dungeon(win, message);
+            }
+            continue;
+        }
+
         if (teleport_mode) {
             if (ch == 'g') {
                 if (hardness[target_y][target_x] != 255) {
@@ -312,7 +324,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (moved && game_running && !teleport_mode && !look_mode) {
+        if (moved && game_running && !teleport_mode && !look_mode && !in_combat) {
             for (int i = 0; i < num_monsters; i++) {
                 if (monsters[i] && monsters[i]->alive) {
                     monsters[i]->move();
@@ -324,20 +336,26 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (!teleport_mode && !look_mode) {
+        if (!teleport_mode && !look_mode && !in_combat) {
             draw_dungeon(win, message);
         }
     }
 
-    draw_dungeon(win, message);
-    sleep(2);
+    // Display final message before exiting
+    if (!in_combat) {
+        draw_dungeon(win, message);
+    }
+    sleep(2); // Show the final message for 2 seconds
 
+    // Cleanup
     if (save && saveFileName) {
         saveDungeon(saveFileName);
     }
 
     for (int i = 0; i < num_monsters; i++) {
-        delete monsters[i];
+        if (monsters[i]) {
+            delete monsters[i];
+        }
     }
     free(monsters);
     cleanupObjects();

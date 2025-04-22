@@ -47,8 +47,8 @@ class Character {
 public:
     int x, y;
     int speed;
-    int hitpoints; // Moved from NPC, now signed
-    Dice damage;   // Added for all characters
+    int hitpoints;
+    Dice damage;
     int alive;
     int last_seen_x, last_seen_y;
     std::string name;
@@ -58,23 +58,23 @@ public:
     Character(int x_, int y_);
     virtual ~Character() = default;
     virtual void move() = 0;
-    virtual int takeDamage(int damage); // New: Handle damage and return 1 if killed
+    virtual int takeDamage(int damage);
 };
 
 class PC : public Character {
 public:
     static const int CARRY_SLOTS = 10;
     static const int EQUIPMENT_SLOTS = 12;
-    Object* equipment[EQUIPMENT_SLOTS]; // WEAPON, OFFHAND, RANGED, ARMOR, HELMET, CLOAK, GLOVES, BOOTS, AMULET, LIGHT, RING1, RING2
-    Object* carry[CARRY_SLOTS];         // Inventory slots 0-9
-    int num_carried;                    // Track number of items in carry slots
+    Object* equipment[EQUIPMENT_SLOTS];
+    Object* carry[CARRY_SLOTS];
+    int num_carried;
 
     PC(int x_, int y_);
     ~PC();
     void move() override;
     int takeDamage(int damage) override;
-    bool pickupObject(Object* obj); // New: Handle automatic pickup
-    void calculateStats(int& total_speed, Dice& total_damage); // New: Compute bonuses
+    bool pickupObject(Object* obj);
+    void calculateStats(int& total_speed, Dice& total_damage);
 };
 
 class NPC : public Character {
@@ -82,13 +82,12 @@ public:
     int intelligent, tunneling, telepathic, erratic;
     int pass_wall, pickup, destroy;
     bool is_unique;
-    bool is_boss; // New: For SpongeBob SquarePants
-    int hitpoints; // Now in Character, kept for compatibility
+    bool is_boss;
 
     NPC(int x_, int y_);
     void move() override;
     int takeDamage(int damage) override;
-    bool displace(int& new_x, int& new_y); // New: Handle NPC-NPC displacement
+    bool displace(int& new_x, int& new_y);
 };
 
 extern char dungeon[HEIGHT][WIDTH];
@@ -123,6 +122,10 @@ extern char remembered[HEIGHT][WIDTH];
 extern std::vector<MonsterDescription> monsterDescs;
 extern std::vector<ObjectDescription> objectDescs;
 
+// Combat state
+extern NPC* engaged_monster; // Monster currently in combat with PC
+extern bool in_combat;       // Flag to indicate combat mode
+
 void printDungeon();
 void emptyDungeon();
 int overlapCheck(struct Room r1, struct Room r2);
@@ -152,6 +155,7 @@ void draw_monster_list(WINDOW* win);
 void regenerate_dungeon(int numMonsters);
 int move_player(int dx, int dy, const char** message);
 int use_stairs(char direction, int numMonsters, const char** message);
+int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message); // New function for combat
 
 void placeObjects(int count);
 void cleanupObjects();
