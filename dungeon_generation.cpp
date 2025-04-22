@@ -132,12 +132,11 @@ bool NPC::displace(int& new_x, int& new_y) {
         std::mt19937 gen(rd());
         std::uniform_int_distribution<> dis(0, open_cells.size() - 1);
         int idx = dis(gen);
-        new_x = open_cells[idx].first;  // Explicit assignment instead of structured binding
+        new_x = open_cells[idx].first;
         new_y = open_cells[idx].second;
         return true;
     }
 
-    // If no open cells, swap positions with the target NPC
     return false;
 }
 
@@ -206,13 +205,11 @@ void NPC::move() {
             int disp_x, disp_y;
             NPC* other = monsterAt[next_y][next_x];
             if (other->displace(disp_x, disp_y)) {
-                // Move displaced NPC
                 monsterAt[other->y][other->x] = nullptr;
                 monsterAt[disp_y][disp_x] = other;
                 other->x = disp_x;
                 other->y = disp_y;
             } else {
-                // Swap positions
                 monsterAt[curr_y][curr_x] = other;
                 other->x = curr_x;
                 other->y = curr_y;
@@ -783,88 +780,82 @@ void regenerate_dungeon(int numMonsters) {
     update_visibility();
 }
 
-void NPC::move() {
-    if (!alive) return;
-    int dist[HEIGHT][WIDTH];
-    if (tunneling || pass_wall) dijkstraTunneling(dist);
-    else dijkstraNonTunneling(dist);
-    int curr_x = x, curr_y = y;
-    int min_dist = dist[curr_y][curr_x];
-    int next_x = curr_x, next_y = curr_y;
-
-    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
-    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
-
-    if (erratic && rand() % 2) {
-        int i = rand() % 8;
-        next_x = curr_x + dx[i];
-        next_y = curr_y + dy[i];
-    } else {
-        for (int i = 0; i < 8; i++) {
-            int nx = curr_x + dx[i];
-            int ny = curr_y + dy[i];
-            if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
-                if (dist[ny][nx] < min_dist && (tunneling || pass_wall || hardness[ny][nx] == 0)) {
-                    min_dist = dist[ny][nx];
-                    next_x = nx;
-                    next_y = ny;
-                }
-            }
-        }
+int move_player(int dx, int dy, const char** message) {
+    int new_x = player->x + dx;
+    int new_y = player->y + dy;
+    if (new_x < 0 || new_x >= WIDTH || new_y < 0 || new_y >= HEIGHT) {
+        *message = "Edge of dungeon!";
+        return 0;
     }
-
-    if (next_x != curr_x || next_y != curr_y) {
-        if (next_x == player->x && next_y == player->y) {
-            std::random_device rd;
-            std::mt19937 gen(rd());
-            int damage = this->damage.base;
-            for (int i = 0; i < this->damage.dice; i++) {
-                std::uniform_int_distribution<> dis(1, this->damage.sides);
-                damage += dis(gen);
-            }
-            if (player->takeDamage(damage)) {
-                // PC died; game over handled in main loop
-            }
-            return; // Combat uses the turn
+    if (hardness[new_y][new_x] > 0) {
+        *message = "There's a wall in the way!";
+        return 0;
+    }
+    if (monsterAt[new_y][new_x]) {
+        NPC* target = monsterAt[new_y][new_x];
+        int total_speed;
+        Dice total_damage;
+        player->calculateStats(total_speed, total_damage);
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        int damage = total_damage.base;
+        for (int i = 0; i < total_damage.dice; i++) {
+            std::uniform_int_distribution<> dis(1, total_damage.sides);
+            damage += dis(gen);
         }
-        if (monsterAt[next_y][next_x]) {
-            int disp_x, disp_y;
-            NPC* other = monsterAt[next_y][next_x];
-            if (other->displace(disp_x, disp_y)) {
-                monsterAt[other->y][other->x] = nullptr;
-                monsterAt[disp_y][disp_x] = other;
-                other->x = disp_x;
-                other->y = disp_y;
-            } else {
-                monsterAt[curr_y][curr_x] = other;
-                other->x = curr_x;
-                other->y = curr_y;
-            }
-        }
-        if (hardness[next_y][next_x] > 0 && tunneling && !pass_wall) {
-            hardness[next_y][next_x] = 0;
-            dungeon[next_y][next_x] = '#';
-            terrain[next_y][next_x] = '#';
-        }
-        if (objectAt[next_y][next_x]) {
-            if (destroy) {
-                for (int i = 0; i < num_objects; ++i) {
-                    if (objects[i] && objects[i]->x == next_x && objects[i]->y == next_y) {
-                        delete objects[i];
-                        objects[i] = nullptr;
-                        objectAt[next_y][next_x] = nullptr;
-                        break;
+        if (target->takeDamage(damage)) {
+            monsterAt[new_y][new_x] = nullptr;
+            for (int i = 0; i < num_monsters; i++) {
+                if (monsters[i] == target) {
+                    if (target->is_unique) {
+                        for (auto& desc : monsterDescs) {
+                            if (desc.name == target->name) desc.is_alive = false;
+                        }
                     }
+                    delete monsters[i];
+                    monsters[i] = nullptr;
+                    break;
                 }
-            } else if (pickup) {
-                // Optional: Implement NPC inventory later
             }
+            compactMonsters();
+            if (target->is_boss) {
+                *message = "You defeated SpongeBob SquarePants! You win!";
+                return -1;
+            }
+            *message = "You defeated the monster!";
+        } else {
+            *message = "You attacked the monster!";
         }
-        monsterAt[curr_y][curr_x] = nullptr;
-        x = next_x;
-        y = next_y;
-        monsterAt[next_y][next_x] = this;
+        return 0;
     }
+    if (objectAt[new_y][new_x]) {
+        Object* obj = objectAt[new_y][new_x];
+        if (player->pickupObject(obj)) {
+            objectAt[new_y][new_x] = nullptr;
+            for (int i = 0; i < num_objects; i++) {
+                if (objects[i] == obj) {
+                    objects[i] = nullptr;
+                    break;
+                }
+            }
+            *message = "Picked up an item!";
+        } else {
+            *message = "Inventory full!";
+        }
+    }
+    dungeon[player->y][player->x] = terrain[player->y][player->x];
+    if (objectAt[player->y][player->x]) {
+        terrain[player->y][player->x] = objectAt[player->y][player->x]->symbol;
+    }
+    player->x = new_x;
+    player->y = new_y;
+    if (terrain[player->y][player->x] == 0) {
+        terrain[player->y][player->x] = dungeon[player->y][player->x];
+    }
+    dungeon[player->y][player->x] = '@';
+    *message = "";
+    update_visibility();
+    return 1;
 }
 
 int use_stairs(char direction, int numMonsters, const char** message) {
