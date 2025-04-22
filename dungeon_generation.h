@@ -52,8 +52,6 @@ public:
     std::string name;
     std::string color;
     char symbol;
-    int hitpoints;
-    Dice damage;
 
     Character(int x_, int y_);
     virtual ~Character() = default;
@@ -62,15 +60,8 @@ public:
 
 class PC : public Character {
 public:
-    Object* equipment[12];
-    Object* carry[10];
-    int total_speed;
-
     PC(int x_, int y_);
-    ~PC();
     void move() override;
-    bool pickup_object(Object* obj);
-    void recalculate_stats();
 };
 
 class NPC : public Character {
@@ -78,6 +69,8 @@ public:
     int intelligent, tunneling, telepathic, erratic;
     int pass_wall, pickup, destroy;
     bool is_unique;
+    Dice damage;
+    int hitpoints;
 
     NPC(int x_, int y_);
     void move() override;
@@ -135,7 +128,7 @@ void printTunnelingMap();
 int spawnMonsters(int count);
 void runGame(int numMonsters);
 
-int gameOver(NPC** culprit, bool* boss_killed);
+int gameOver(NPC** culprit);
 
 void init_ncurses();
 void update_visibility();
@@ -148,9 +141,5 @@ int use_stairs(char direction, int numMonsters, const char** message);
 void placeObjects(int count);
 void cleanupObjects();
 void loadDescriptions();
-
-int combat(Character* attacker, Character* defender, const char** message);
-int forced_combat(Character* attacker, Character* defender, WINDOW* win, const char** message);
-void inspect_monster(WINDOW* win, int target_x, int target_y);
 
 #endif

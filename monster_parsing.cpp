@@ -39,9 +39,10 @@ NPC* MonsterDescription::createNPC(int x, int y) {
     NPC* npc = new NPC(x, y);
     npc->name = name;
     npc->symbol = symbol;
-    npc->color = colors.empty() ? "WHITE" : colors[0];
-    npc->damage = damage;
+    npc->color = colors.empty() ? "WHITE" : colors[0]; // Use first color
+    npc->damage = damage; // Keep as dice
 
+    // Roll dice for speed and hitpoints
     std::random_device rd;
     std::mt19937 gen(rd());
     npc->speed = speed.base;
@@ -55,6 +56,7 @@ NPC* MonsterDescription::createNPC(int x, int y) {
         npc->hitpoints += dis(gen);
     }
 
+    // Set abilities
     for (const auto& ability : abilities) {
         if (ability == "SMART") npc->intelligent = 1;
         else if (ability == "TELE") npc->telepathic = 1;
@@ -192,8 +194,7 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             std::string ability;
             std::set<std::string> seenAbilities;
             while (abilIss >> ability) {
-                // Allow duplicate UNIQ to avoid discarding unique monsters
-                if (ability != "UNIQ" && !seenAbilities.insert(ability).second) {
+                if (!seenAbilities.insert(ability).second) {
                     std::cerr << "Duplicate ability '" << ability << "' in ABIL, discarding monster\n";
                     inMonster = false;
                     break;

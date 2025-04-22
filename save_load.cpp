@@ -1,6 +1,5 @@
 #include "dungeon_generation.h"
 #include <cstring>
-#include <vector>
 
 void setupDungeonFile(char* nameOfFile) {
     char* home = getenv("HOME");
@@ -31,13 +30,11 @@ void saveDungeon(char* nameOfFile) {
     fwrite("RLG327-S2025", 1, 12, file);
 
     // Offset 12: Version
-    uint32_t version = htobe32(1); // Updated version for equipment/inventory
+    uint32_t version = htobe32(0);
     fwrite(&version, sizeof(version), 1, file);
 
-    // Calculate file size
-    uint32_t sizeOfTheFile = 12 + 4 + 4 + 2 + (HEIGHT * WIDTH) + 2 + (num_rooms * 4) +
-                             2 + (upStairsCount * 2) + 2 + (downStairsCount * 2) +
-                             4 + 12 * 4 + 10 * 4 + 4 + num_monsters * (4 + 4 + 4 + 4 + 1);
+    // Offset 16: File size (updated for consistency)
+    uint32_t sizeOfTheFile = htobe32(12 + 4 + 4 + 2 + (HEIGHT * WIDTH) + 2 + (num_rooms * 4) + 2 + (upStairsCount * 2) + 2 + (downStairsCount * 2));
     fwrite(&sizeOfTheFile, sizeof(sizeOfTheFile), 1, file);
 
     // Offset 20: Player position
@@ -63,7 +60,7 @@ void saveDungeon(char* nameOfFile) {
 
     // Offset 1704 + r * 4: Upstairs count and data
     uint16_t upstairs = htobe16(upStairsCount);
-    fwrite(&upstairs, sizeof	upstairs, 1, file);
+    fwrite(&upstairs, sizeof(upstairs), 1, file);
     for (int i = 0; i < upStairsCount; i++) {
         uint8_t upStairsNum[2] = {(uint8_t)upStairs[i].x, (uint8_t)upStairs[i].y};
         fwrite(upStairsNum, sizeof(upStairsNum), 1, file);
@@ -77,69 +74,6 @@ void saveDungeon(char* nameOfFile) {
         fwrite(downPos, sizeof(downPos), 1, file);
     }
 
-    // Save PC stats
-    uint32_t pc_hitpoints = htobe32(player->hitpoints);
-    fwrite(&pc_hitpoints, sizeof(pc_hitpoints), 1, file);
-    uint32_t pc_damage_base = htobe32(player->damage.base);
-    fwrite(&pc_damage_base, sizeof(pc_damage_base), 1, file);
-    uint32_t pc_damage_dice = htobe32(player->damage.dice);
-    fwrite(&pc_damage_dice, sizeof(pc_damage_dice), 1, file);
-    uint32_t pc_damage_sides = htobe32(player->damage.sides);
-    fwrite(&pc_damage_sides, sizeof(pc_damage_sides), 1, file);
-
-    // Save equipment (12 slots, index into objectDescs or -1 for empty)
-    for (int i = 0; i < 12; i++) {
-        int32_t index = -1;
-        if (player->equipment[i]) {
-            for (size_t j = 0; j < objectDescs.size(); j++) {
-                if (objectDescs[j].name == player->equipment[i]->name) {
-                    index = j;
-                    break;
-                }
-            }
-        }
-        index = htobe32(index);
-        fwrite(&index, sizeof(index), 1, file);
-    }
-
-    // Save inventory (10 slots, index into objectDescs or -1 for empty)
-    for (int i = 0; i < 10; i++) {
-        int32_t index = -1;
-        if (player->carry[i]) {
-            for (size_t j = 0; j < objectDescs.size(); j++) {
-                if (objectDescs[j].name == player->carry[i]->name) {
-                    index = j;
-                    break;
-                }
-            }
-        }
-        index = htobe32(index);
-        fwrite(&index, sizeof(index), 1, file);
-    }
-
-    // Save monsters
-    uint32_t monster_count = htobe32(num_monsters);
-    fwrite(&monster_count, sizeof(monster_count), 1, file);
-    for (int i = 0; i < num_monsters; i++) {
-        int32_t index = -1;
-        for (size_t j = 0; j < monsterDescs.size(); j++) {
-            if (monsterDescs[j].name == monsters[i]->name) {
-                index = j;
-                break;
-            }
-        }
-        index = htobe32(index);
-        fwrite(&index, sizeof(index), 1, file);
-        uint32_t x = htobe32(monsters[i]->x);
-        fwrite(&x, sizeof(x), 1, file);
-        uint32_t y = htobe32(monsters[i]->y);
-        fwrite(&y, sizeof(y), 1, file);
-        uint32_t hitpoints = htobe32(monsters[i]->hitpoints);
-        fwrite(&hitpoints, sizeof(hitpoints), 1, file);
-        uint8_t alive = monsters[i]->alive;
-        fwrite(&alive, sizeof(alive), 1, file);
-    }
-
     printf("Dungeon saved to %s\n", dungeonFile);
     fclose(file);
     delete[] dungeonFile;
@@ -148,7 +82,7 @@ void saveDungeon(char* nameOfFile) {
 
 void loadDungeon(char* nameOfFile) {
     setupDungeonFile(nameOfFile);
-    FILE* file = fopen(dungeonFile, "rb");
+    FILE* file = fopen(dungeonFile, "rb"); // Binary read mode
 
     if (!file) {
         perror("Error! Cannot open the file...");
@@ -170,7 +104,7 @@ void loadDungeon(char* nameOfFile) {
     uint32_t version;
     fread(&version, sizeof(version), 1, file);
     version = be32toh(version);
-    if (version != 1) {
+    if (version != 0) {
         fprintf(stderr, "Error: Unsupported file version %u in %s\n", version, dungeonFile);
         fclose(file);
         delete[] dungeonFile;
@@ -252,48 +186,16 @@ void loadDungeon(char* nameOfFile) {
         terrain[downStairs[i].y][downStairs[i].x] = '>';
     }
 
-    // Load PC stats
-    uint32_t pc_hitpoints, pc_damage_base, pc_damage_dice, pc_damage_sides;
-    fread(&pc_hitpoints, sizeof(pc_hitpoints), 1, file);
-    fread(&pc_damage_base, sizeof(pc_damage_base), 1, file);
-    fread(&pc_damage_dice, sizeof(pc_damage_dice), 1, file);
-    fread(&pc_damage_sides, sizeof(pc_damage_sides), 1, file);
-    player->hitpoints = be32toh(pc_hitpoints);
-    player->damage.base = be32toh(pc_damage_base);
-    player->damage.dice = be32toh(pc_damage_dice);
-    player->damage.sides = be32toh(pc_damage_sides);
+    // Place player and reset visibility
+    dungeon[player->y][player->x] = '@';
+    terrain[player->y][player->x] = '@';
 
-    // Load equipment
-    for (int i = 0; i < 12; i++) {
-        int32_t index;
-        fread(&index, sizeof(index), 1, file);
-        index = be32toh(index);
-        if (index >= 0 && index < (int32_t)objectDescs.size()) {
-            player->equipment[i] = objectDescs[index].createObject(player->x, player->y);
-        }
-    }
+    // Clear and update visibility and remembered maps
+    memset(visible, 0, sizeof(visible));
+    memset(remembered, 0, sizeof(remembered));
+    update_visibility();
 
-    // Load inventory
-    for (int i = 0; i < 10; i++) {
-        int32_t index;
-        fread(&index, sizeof(index), 1, file);
-        index = be32toh(index);
-        if (index >= 0 && index < (int32_t)objectDescs.size()) {
-            Object* obj = objectDescs[index].createObject(player->x, player->y);
-            player->carry[i] = obj;
-            Object** temp = (Object**)realloc(objects, (num_objects + 1) * sizeof(Object*));
-            if (temp) {
-                objects = temp;
-                objects[num_objects] = obj;
-                num_objects++;
-            }
-        }
-    }
-
-    // Load monsters
-    uint32_t monster_count;
-    fread(&monster_count, sizeof(monster_count), 1, file);
-    monster_count = be32toh(monster_count);
+    // Reset monsters (not saved in this version)
     if (monsters) {
         for (int i = 0; i < num_monsters; i++) {
             if (monsters[i] && monsterAt[monsters[i]->y][monsters[i]->x]) {
@@ -302,40 +204,9 @@ void loadDungeon(char* nameOfFile) {
             delete monsters[i];
         }
         free(monsters);
+        monsters = nullptr;
+        num_monsters = 0;
     }
-    num_monsters = monster_count;
-    monsters = (NPC**)malloc(num_monsters * sizeof(NPC*));
-    for (int i = 0; i < num_monsters; i++) {
-        int32_t index;
-        uint32_t x, y, hitpoints;
-        uint8_t alive;
-        fread(&index, sizeof(index), 1, file);
-        fread(&x, sizeof(x), 1, file);
-        fread(&y, sizeof(y), 1, file);
-        fread(&hitpoints, sizeof(hitpoints), 1, file);
-        fread(&alive, sizeof(alive), 1, file);
-        index = be32toh(index);
-        x = be32toh(x);
-        y = be32toh(y);
-        hitpoints = be32toh(hitpoints);
-        if (index >= 0 && index < (int32_t)monsterDescs.size()) {
-            NPC* npc = monsterDescs[index].createNPC(x, y);
-            npc->hitpoints = hitpoints;
-            npc->alive = alive;
-            monsters[i] = npc;
-            if (alive) {
-                monsterAt[y][x] = npc;
-            }
-        }
-    }
-
-    player->recalculate_stats();
-    dungeon[player->y][player->x] = '@';
-    terrain[player->y][player->x] = '@';
-
-    memset(visible, 0, sizeof(visible));
-    memset(remembered, 0, sizeof(remembered));
-    update_visibility();
 
     printf("Dungeon loaded from %s\n", dungeonFile);
     fclose(file);

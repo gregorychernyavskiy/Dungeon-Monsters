@@ -45,47 +45,16 @@ Object::Object(int x_, int y_) : x(x_), y(y_), hit(0), dodge(0), defense(0),
 Object::~Object() {}
 
 Character::Character(int x_, int y_) : x(x_), y(y_), speed(10), alive(1),
-    last_seen_x(-1), last_seen_y(-1), hitpoints(10) {}
+    last_seen_x(-1), last_seen_y(-1) {}
 
 PC::PC(int x_, int y_) : Character(x_, y_) {
     symbol = '@';
     color = "WHITE";
-    hitpoints = 100;
-    damage = Dice(0, 1, 4);
-    total_speed = speed;
-    for (int i = 0; i < 12; i++) equipment[i] = nullptr;
-    for (int i = 0; i < 10; i++) carry[i] = nullptr;
-}
-
-PC::~PC() {
-    for (int i = 0; i < 12; i++) delete equipment[i];
-    for (int i = 0; i < 10; i++) delete carry[i];
-}
-
-bool PC::pickup_object(Object* obj) {
-    for (int i = 0; i < 10; i++) {
-        if (!carry[i]) {
-            carry[i] = obj;
-            objectAt[obj->y][obj->x] = nullptr;
-            terrain[obj->y][obj->x] = dungeon[obj->y][obj->x];
-            return true;
-        }
-    }
-    return false;
-}
-
-void PC::recalculate_stats() {
-    total_speed = speed;
-    for (int i = 0; i < 12; i++) {
-        if (equipment[i]) {
-            total_speed += equipment[i]->speed;
-        }
-    }
 }
 
 NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(0),
     tunneling(0), telepathic(0), erratic(0),
-    pass_wall(0), pickup(0), destroy(0), is_unique(false) {
+    pass_wall(0), pickup(0), destroy(0), is_unique(false), hitpoints(10) {
     speed = rand() % 16 + 5;
 }
 
@@ -93,7 +62,6 @@ void PC::move() {}
 
 void NPC::move() {
     if (!alive) return;
-    static bool combat_triggered = false; // Limit to one combat per turn
     int dist[HEIGHT][WIDTH];
     if (tunneling || pass_wall) dijkstraTunneling(dist);
     else dijkstraNonTunneling(dist);
@@ -113,7 +81,7 @@ void NPC::move() {
             int nx = curr_x + dx[i];
             int ny = curr_y + dy[i];
             if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
-                if (dist[ny][nx] < min_dist && (tunneling || pass_wall || hardness[ny][nx] == 0)) {
+                if (dist[ny][nx] < min_dist && (tunneling || pass_wall || hardness[ny][nx] == 0) && !monsterAt[ny][nx]) {
                     min_dist = dist[ny][nx];
                     next_x = nx;
                     next_y = ny;
@@ -123,49 +91,10 @@ void NPC::move() {
     }
 
     if (next_x != curr_x || next_y != curr_y) {
-        if (next_x == player->x && next_y == player->y && !combat_triggered) {
-            const char* message;
-            combat_triggered = true;
-            if (name == "SpongeBob SquarePants") {
-                forced_combat(this, player, stdscr, &message);
-            } else {
-                combat(this, player, &message);
-            }
-            return;
-        }
-        if (monsterAt[next_y][next_x]) {
-            NPC* other = monsterAt[next_y][next_x];
-            int displace_x = -1, displace_y = -1;
-            for (int i = 0; i < 8; i++) {
-                int nx = next_x + dx[i];
-                int ny = next_y + dy[i];
-                if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
-                    !monsterAt[ny][nx] && (tunneling || pass_wall || hardness[ny][nx] == 0)) {
-                    displace_x = nx;
-                    displace_y = ny;
-                    break;
-                }
-            }
-            if (displace_x != -1 && displace_y != -1) {
-                monsterAt[other->y][other->x] = nullptr;
-                other->x = displace_x;
-                other->y = displace_y;
-                monsterAt[other->y][other->x] = other;
-            } else {
-                monsterAt[curr_y][curr_x] = other;
-                other->x = curr_x;
-                other->y = curr_y;
-                monsterAt[next_y][next_x] = this;
-                x = next_x;
-                y = next_y;
-                return;
-            }
-        }
-        bool was_rock = hardness[next_y][next_x] > 0;
-        if (was_rock && tunneling && !pass_wall) {
+        if (hardness[next_y][next_x] > 0 && tunneling && !pass_wall) {
             hardness[next_y][next_x] = 0;
-            dungeon[next_y][next_x] = ' ';
-            terrain[next_y][next_x] = ' ';
+            dungeon[next_y][next_x] = '#';
+            terrain[next_y][next_x] = '#';
         }
         if (objectAt[next_y][next_x]) {
             if (destroy) {
@@ -182,12 +111,6 @@ void NPC::move() {
             }
         }
         monsterAt[curr_y][curr_x] = nullptr;
-        if ((name == "SpongeBob SquarePants" || name == "Slimer" || name == "Casper the Friendly Ghost") && was_rock) {
-            dungeon[curr_y][curr_x] = ' ';
-            terrain[curr_y][curr_x] = ' ';
-        } else {
-            dungeon[curr_y][curr_x] = terrain[curr_y][curr_x] ? terrain[curr_y][curr_x] : ' ';
-        }
         x = next_x;
         y = next_y;
         monsterAt[next_y][next_x] = this;
@@ -401,7 +324,7 @@ int spawnMonsters(int numMonsters) {
             NPC** temp = (NPC**)realloc(monsters, (num_monsters + 1) * sizeof(NPC*));
             if (temp) {
                 monsters = temp;
-                monsters[num_objects] = npc;
+                monsters[num_monsters] = npc;
                 monsterAt[npc->y][npc->x] = npc;
                 num_monsters++;
             }
@@ -495,21 +418,14 @@ void runGame(int numMonsters) {
     printDungeon();
 }
 
-int gameOver(NPC** culprit, bool* boss_killed) {
-    if (player->hitpoints <= 0) {
-        *culprit = nullptr;
-        *boss_killed = false;
-        return 1;
-    }
+int gameOver(NPC** culprit) {
     for (int i = 0; i < num_monsters; i++) {
-        if (monsters[i] && monsters[i]->name == "SpongeBob SquarePants" && !monsters[i]->alive) {
-            *culprit = nullptr;
-            *boss_killed = true;
+        if (monsters[i] && monsters[i]->alive && monsters[i]->x == player->x && monsters[i]->y == player->y) {
+            *culprit = monsters[i];
             return 1;
         }
     }
     *culprit = nullptr;
-    *boss_killed = false;
     return 0;
 }
 
@@ -532,6 +448,7 @@ void init_ncurses() {
     keypad(stdscr, TRUE);
     curs_set(0);
 
+    // Initialize color pairs
     init_pair(COLOR_RED, COLOR_RED, COLOR_BLACK);
     init_pair(COLOR_GREEN, COLOR_GREEN, COLOR_BLACK);
     init_pair(COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK);
@@ -540,17 +457,41 @@ void init_ncurses() {
     init_pair(COLOR_CYAN, COLOR_CYAN, COLOR_BLACK);
     init_pair(COLOR_WHITE, COLOR_WHITE, COLOR_BLACK);
 
+    // Debug: Log color pair initialization
+    FILE* debug_file = fopen("color_init_debug.txt", "w");
+    if (debug_file) {
+        fprintf(debug_file, "Initialized color pairs:\n");
+        fprintf(debug_file, "RED: %d\n", COLOR_RED);
+        fprintf(debug_file, "GREEN: %d\n", COLOR_GREEN);
+        fprintf(debug_file, "YELLOW: %d\n", COLOR_YELLOW);
+        fprintf(debug_file, "BLUE: %d\n", COLOR_BLUE);
+        fprintf(debug_file, "MAGENTA: %d\n", COLOR_MAGENTA);
+        fprintf(debug_file, "CYAN: %d\n", COLOR_CYAN);
+        fprintf(debug_file, "WHITE: %d\n", COLOR_WHITE);
+        fclose(debug_file);
+    }
+
     refresh();
+    getch(); // Wait for user input to verify terminal setup
 }
 
 int getColorIndex(const std::string& color) {
     std::string trimmed_color = color;
+    // Trim leading and trailing whitespace
     trimmed_color.erase(0, trimmed_color.find_first_not_of(" \t"));
     trimmed_color.erase(trimmed_color.find_last_not_of(" \t") + 1);
 
     std::string upper_color = trimmed_color;
     for (char& c : upper_color) {
         c = std::toupper(c);
+    }
+
+    // Debug: Log color mapping
+    FILE* debug_file = fopen("color_debug.txt", "a");
+    if (debug_file) {
+        fprintf(debug_file, "Raw color: '%s', Trimmed color: '%s', Mapped color: '%s'\n", 
+                color.c_str(), trimmed_color.c_str(), upper_color.c_str());
+        fclose(debug_file);
     }
 
     if (upper_color == "RED") return COLOR_RED;
@@ -560,8 +501,8 @@ int getColorIndex(const std::string& color) {
     if (upper_color == "MAGENTA") return COLOR_MAGENTA;
     if (upper_color == "CYAN") return COLOR_CYAN;
     if (upper_color == "WHITE") return COLOR_WHITE;
-    if (upper_color == "BLACK") return COLOR_WHITE;
-    return COLOR_WHITE;
+    if (upper_color == "BLACK") return COLOR_WHITE; // Render black as white per assignment
+    return COLOR_WHITE; // Default to white if unknown
 }
 
 void update_visibility() {
@@ -591,16 +532,36 @@ void draw_dungeon(WINDOW* win, const char* message) {
                 mvwprintw(win, y + 1, x, " ");
             } else if (x == player->x && y == player->y) {
                 int color = getColorIndex(player->color);
+                // Debug: Log color for player
+                FILE* debug_file = fopen("render_debug.txt", "a");
+                if (debug_file) {
+                    fprintf(debug_file, "Player at (%d,%d) color index: %d\n", x, y, color);
+                    fclose(debug_file);
+                }
                 wattron(win, COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "@");
                 wattroff(win, COLOR_PAIR(color));
             } else if (monsterAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(monsterAt[y][x]->color);
+                // Debug: Log color for monster
+                FILE* debug_file = fopen("render_debug.txt", "a");
+                if (debug_file) {
+                    fprintf(debug_file, "Monster at (%d,%d) symbol: %c, color index: %d\n", 
+                            x, y, monsterAt[y][x]->symbol, color);
+                    fclose(debug_file);
+                }
                 wattron(win, COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "%c", monsterAt[y][x]->symbol);
                 wattroff(win, COLOR_PAIR(color));
             } else if (objectAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(objectAt[y][x]->color);
+                // Debug: Log color for object
+                FILE* debug_file = fopen("render_debug.txt", "a");
+                if (debug_file) {
+                    fprintf(debug_file, "Object at (%d,%d) symbol: %c, color index: %d\n", 
+                            x, y, objectAt[y][x]->symbol, color);
+                    fclose(debug_file);
+                }
                 wattron(win, COLOR_PAIR(color));
                 mvwprintw(win, y + 1, x, "%c", objectAt[y][x]->symbol);
                 wattroff(win, COLOR_PAIR(color));
@@ -610,10 +571,11 @@ void draw_dungeon(WINDOW* win, const char* message) {
             }
         }
     }
-    mvwprintw(win, 22, 0, "HP: %d Speed: %d", player->hitpoints, player->total_speed);
+    mvwprintw(win, 22, 0, "Status Line 1");
     mvwprintw(win, 23, 0, "Fog of War: %s", fog_enabled ? "ON" : "OFF");
     wrefresh(win);
 }
+
 
 void draw_monster_list(WINDOW* win) {
     werase(win);
@@ -630,8 +592,8 @@ void draw_monster_list(WINDOW* win) {
                 int dy = monsters[i]->y - player->y;
                 const char* ns = dy < 0 ? "north" : "south";
                 const char* ew = dx < 0 ? "west" : "east";
-                mvwprintw(win, i - start + 1, 0, "%c (%s), %d %s and %d %s, HP: %d", 
-                          monsters[i]->symbol, monsters[i]->name.c_str(), abs(dy), ns, abs(dx), ew, monsters[i]->hitpoints);
+                mvwprintw(win, i - start + 1, 0, "%c (%s), %d %s and %d %s", 
+                          monsters[i]->symbol, monsters[i]->name.c_str(), abs(dy), ns, abs(dx), ew);
             }
         }
         wrefresh(win);
@@ -682,7 +644,7 @@ void regenerate_dungeon(int numMonsters) {
     placePlayer();
     initializeHardness();
     spawnMonsters(numMonsters);
-    placeObjects(10);
+    placeObjects(10); // At least 10 objects
 
     memset(visible, 0, sizeof(visible));
     memset(remembered, 0, sizeof(remembered));
@@ -701,12 +663,8 @@ int move_player(int dx, int dy, const char** message) {
         return 0;
     }
     if (monsterAt[new_y][new_x]) {
-        if (monsterAt[new_y][new_x]->name == "SpongeBob SquarePants") {
-            forced_combat(player, monsterAt[new_y][new_x], stdscr, message);
-        } else {
-            combat(player, monsterAt[new_y][new_x], message);
-        }
-        return 1;
+        *message = "A monster blocks your path!";
+        return 0;
     }
     dungeon[player->y][player->x] = terrain[player->y][player->x];
     if (objectAt[player->y][player->x]) {
@@ -719,15 +677,7 @@ int move_player(int dx, int dy, const char** message) {
         terrain[player->y][player->x] = dungeon[player->y][player->x];
     }
     dungeon[player->y][player->x] = '@';
-    if (objectAt[new_y][new_x]) {
-        if (player->pickup_object(objectAt[new_y][new_x])) {
-            *message = "Picked up an item!";
-        } else {
-            *message = "Inventory full!";
-        }
-    } else {
-        *message = "";
-    }
+    *message = "";
     update_visibility();
     return 1;
 }
@@ -744,138 +694,4 @@ int use_stairs(char direction, int numMonsters, const char** message) {
     }
     *message = "Not standing on the correct staircase!";
     return 0;
-}
-
-int combat(Character* attacker, Character* defender, const char** message) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    int damage = 0;
-    char buf[80];
-
-    if (dynamic_cast<PC*>(attacker)) {
-        if (!player->equipment[0]) {
-            damage += player->damage.base;
-            for (int i = 0; i < player->damage.dice; i++) {
-                std::uniform_int_distribution<> dis(1, player->damage.sides);
-                damage += dis(gen);
-            }
-        }
-        for (int i = 0; i < 12; i++) {
-            if (player->equipment[i]) {
-                damage += player->equipment[i]->damage.base;
-                for (int j = 0; j < player->equipment[i]->damage.dice; j++) {
-                    std::uniform_int_distribution<> dis(1, player->equipment[i]->damage.sides);
-                    damage += dis(gen);
-                }
-            }
-        }
-    } else {
-        NPC* npc = dynamic_cast<NPC*>(attacker);
-        damage += npc->damage.base;
-        for (int i = 0; i < npc->damage.dice; i++) {
-            std::uniform_int_distribution<> dis(1, npc->damage.sides);
-            damage += dis(gen);
-        }
-    }
-
-    defender->hitpoints -= damage;
-    snprintf(buf, sizeof(buf), "%s deals %d damage to %s (HP: %d)", 
-             attacker->name.c_str(), damage, defender->name.c_str(), defender->hitpoints);
-    *message = buf;
-
-    if (defender->hitpoints <= 0) {
-        defender->alive = 0;
-        if (dynamic_cast<PC*>(defender)) {
-            *message = "You died!";
-        } else {
-            NPC* npc = dynamic_cast<NPC*>(defender);
-            monsterAt[npc->y][npc->x] = nullptr;
-            snprintf(buf, sizeof(buf), "%s killed %s!", attacker->name.c_str(), npc->name.c_str());
-            *message = buf;
-        }
-    }
-    return 1;
-}
-
-int forced_combat(Character* attacker, Character* defender, WINDOW* win, const char** message) {
-    char buf[80];
-    bool pc_turn = dynamic_cast<PC*>(attacker) != nullptr;
-    snprintf(buf, sizeof(buf), "%s is predicting to kill %s!", 
-             attacker->name.c_str(), defender->name.c_str());
-    *message = buf;
-    draw_dungeon(win, *message);
-    getch();
-
-    while (attacker->alive && defender->alive) {
-        if (pc_turn) {
-            defender->hitpoints -= 5;
-            snprintf(buf, sizeof(buf), "%s deals 5 damage to %s (HP: %d)", 
-                     attacker->name.c_str(), defender->name.c_str(), defender->hitpoints);
-        } else {
-            attacker->hitpoints -= 5;
-            snprintf(buf, sizeof(buf), "%s deals 5 damage to %s (HP: %d)", 
-                     defender->name.c_str(), attacker->name.c_str(), attacker->hitpoints);
-        }
-        *message = buf;
-        draw_dungeon(win, *message);
-        getch();
-
-        if (defender->hitpoints <= 0) {
-            defender->alive = 0;
-            if (dynamic_cast<PC*>(defender)) {
-                *message = "You died!";
-            } else {
-                NPC* npc = dynamic_cast<NPC*>(defender);
-                monsterAt[npc->y][npc->x] = nullptr;
-                snprintf(buf, sizeof(buf), "%s killed %s!", attacker->name.c_str(), npc->name.c_str());
-                *message = buf;
-            }
-            draw_dungeon(win, *message);
-            getch();
-            break;
-        }
-        if (attacker->hitpoints <= 0) {
-            attacker->alive = 0;
-            if (dynamic_cast<PC*>(attacker)) {
-                *message = "You died!";
-            } else {
-                NPC* npc = dynamic_cast<NPC*>(attacker);
-                monsterAt[npc->y][npc->x] = nullptr;
-                snprintf(buf, sizeof(buf), "%s killed %s!", defender->name.c_str(), npc->name.c_str());
-                *message = buf;
-            }
-            draw_dungeon(win, *message);
-            getch();
-            break;
-        }
-        pc_turn = !pc_turn;
-    }
-    return 1;
-}
-
-void inspect_monster(WINDOW* win, int target_x, int target_y) {
-    if (monsterAt[target_y][target_x]) {
-        NPC* monster = monsterAt[target_y][target_x];
-        for (const auto& desc : monsterDescs) {
-            if (desc.name == monster->name) {
-                werase(win);
-                mvwprintw(win, 0, 0, "Monster: %s", desc.name.c_str());
-                for (size_t i = 0; i < desc.description.size(); i++) {
-                    mvwprintw(win, i + 1, 0, "%s", desc.description[i].c_str());
-                }
-                mvwprintw(win, desc.description.size() + 1, 0, "Symbol: %c", desc.symbol);
-                mvwprintw(win, desc.description.size() + 2, 0, "HP: %d", monster->hitpoints);
-                mvwprintw(win, desc.description.size() + 3, 0, "Damage: %s", desc.damage.toString().c_str());
-                mvwprintw(win, desc.description.size() + 4, 0, "Speed: %s", desc.speed.toString().c_str());
-                wrefresh(win);
-                getch();
-                break;
-            }
-        }
-    } else {
-        werase(win);
-        mvwprintw(win, 0, 0, "No monster at this location!");
-        wrefresh(win);
-        getch();
-    }
 }
