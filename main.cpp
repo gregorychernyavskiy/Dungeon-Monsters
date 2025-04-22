@@ -24,7 +24,12 @@ void display_monster_info(WINDOW* win, NPC* monster, const char** message) {
     mvwprintw(win, 2, 0, "Symbol: %c", monster->symbol);
     mvwprintw(win, 3, 0, "Position: (%d, %d)", monster->x, monster->y);
     mvwprintw(win, 4, 0, "Hitpoints: %d", monster->hitpoints);
-    mvwprintw(win, 5, 0, "Damage: %s", monster->damage.toString().c_str());
+    // Improved damage display
+    if (monster->damage.base == 0 && monster->damage.dice == 0) {
+        mvwprintw(win, 5, 0, "Damage: No damage");
+    } else {
+        mvwprintw(win, 5, 0, "Damage: %s", monster->damage.toString().c_str());
+    }
     mvwprintw(win, 6, 0, "Speed: %d", monster->speed);
     mvwprintw(win, 7, 0, "Abilities:");
     int line = 8;
