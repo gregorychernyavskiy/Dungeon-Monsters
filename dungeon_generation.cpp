@@ -977,11 +977,36 @@ void display_equipment(WINDOW* win, PC* pc, const char** message) {
     };
     for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
         if (pc->equipment[i]) {
-            Dice item_damage = pc->equipment[i]->damage;
-            if (item_damage.base == 0 && item_damage.dice == 0) {
-                mvwprintw(win, i + 1, 0, "%c: %s (%s) (No damage)", 'a' + i, slot_names[i], pc->equipment[i]->name.c_str());
+            Object* item = pc->equipment[i];
+            std::string stats;
+            bool has_stats = false;
+
+            // Check each stat and append non-zero values to the stats string
+            if (item->damage.base != 0 || item->damage.dice != 0) {
+                stats += (has_stats ? ", " : "") + std::string("+") + item->damage.toString() + " damage";
+                has_stats = true;
+            }
+            if (item->speed != 0) {
+                stats += (has_stats ? ", " : "") + std::string(item->speed > 0 ? "+" : "") + std::to_string(item->speed) + " speed";
+                has_stats = true;
+            }
+            if (item->defense != 0) {
+                stats += (has_stats ? ", " : "") + std::string(item->defense > 0 ? "+" : "") + std::to_string(item->defense) + " defense";
+                has_stats = true;
+            }
+            if (item->hit != 0) {
+                stats += (has_stats ? ", " : "") + std::string(item->hit > 0 ? "+" : "") + std::to_string(item->hit) + " hit";
+                has_stats = true;
+            }
+            if (item->dodge != 0) {
+                stats += (has_stats ? ", " : "") + std::string(item->dodge > 0 ? "+" : "") + std::to_string(item->dodge) + " dodge";
+                has_stats = true;
+            }
+
+            if (has_stats) {
+                mvwprintw(win, i + 1, 0, "%c: %s (%s) (%s)", 'a' + i, slot_names[i], item->name.c_str(), stats.c_str());
             } else {
-                mvwprintw(win, i + 1, 0, "%c: %s (%s) (+%s damage)", 'a' + i, slot_names[i], pc->equipment[i]->name.c_str(), item_damage.toString().c_str());
+                mvwprintw(win, i + 1, 0, "%c: %s (%s) (No boosts)", 'a' + i, slot_names[i], item->name.c_str());
             }
         } else {
             mvwprintw(win, i + 1, 0, "%c: %s (empty)", 'a' + i, slot_names[i]);
