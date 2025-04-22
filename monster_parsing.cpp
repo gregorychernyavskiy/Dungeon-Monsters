@@ -170,7 +170,7 @@ std::vector<MonsterDescription> parseMonsterDescriptions(const std::string& file
             }
             hasColor = true;
         } else if (keyword == "SPEED") {
-            if (haseSpeed) {
+            if (hasSpeed) {
                 std::cerr << "Duplicate SPEED, discarding monster\n";
                 inMonster = false;
                 continue;
