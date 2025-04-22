@@ -102,14 +102,20 @@ bool PC::pickupObject(Object* obj) {
     return false;
 }
 
-void PC::calculateStats(int& total_speed, Dice& total_damage) {
+void PC::calculateStats(int& total_speed, Dice& total_damage, int& total_defense, int& total_hit, int& total_dodge) {
     total_speed = speed; // Base speed: 10
-    total_damage = damage; // Start with base damage (0+1d4)
+    total_damage = damage; // Base damage: 0+1d4
+    total_defense = 0; // Base defense: 0
+    total_hit = 0; // Base hit: 0
+    total_dodge = 0; // Base dodge: 0
 
-    // Add equipment bonuses, but only override damage if a weapon is equipped
+    // Add equipment bonuses
     for (int i = 0; i < EQUIPMENT_SLOTS; i++) {
         if (equipment[i]) {
             total_speed += equipment[i]->speed;
+            total_defense += equipment[i]->defense;
+            total_hit += equipment[i]->hit;
+            total_dodge += equipment[i]->dodge;
             if (i == SLOT_WEAPON) {
                 total_damage = Dice(0, 0, 0); // Reset damage if weapon is equipped, then add weapon damage
                 total_damage.base += equipment[i]->damage.base;
@@ -267,7 +273,8 @@ int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
     if (ch == 'a' && player_turn) {
         int total_speed;
         Dice total_damage;
-        player->calculateStats(total_speed, total_damage);
+        int total_defense, total_hit, total_dodge;
+        player->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
         std::random_device rd;
         std::mt19937 gen(rd());
         int damage = total_damage.base;
@@ -802,7 +809,8 @@ void draw_dungeon(WINDOW* win, const char* message) {
     }
     int total_speed;
     Dice total_damage;
-    player->calculateStats(total_speed, total_damage);
+    int total_defense, total_hit, total_dodge;
+    player->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
     mvwprintw(win, 22, 0, "HP: %d  SPEED: %d", player->hitpoints, total_speed);
     mvwprintw(win, 23, 0, "Fog of War: %s", fog_enabled ? "ON" : "OFF");
     wrefresh(win);
@@ -981,7 +989,6 @@ void display_equipment(WINDOW* win, PC* pc, const char** message) {
             std::string stats;
             bool has_stats = false;
 
-            // Check each stat and append non-zero values to the stats string
             if (item->damage.base != 0 || item->damage.dice != 0) {
                 stats += (has_stats ? ", " : "") + std::string("+") + item->damage.toString() + " damage";
                 has_stats = true;
@@ -1015,6 +1022,32 @@ void display_equipment(WINDOW* win, PC* pc, const char** message) {
     wrefresh(win);
     getch();
     *message = "Equipment displayed";
+}
+
+void display_stats(WINDOW* win, PC* pc, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Player Stats (Press any key to exit):");
+
+    int total_speed;
+    Dice total_damage;
+    int total_defense, total_hit, total_dodge;
+    pc->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
+
+    mvwprintw(win, 1, 0, "Hitpoints: %d", pc->hitpoints);
+    mvwprintw(win, 2, 0, "Speed: %d", total_speed);
+    if (total_damage.base == 0 && total_damage.dice == 0) {
+        mvwprintw(win, 3, 0, "Damage: No damage");
+    } else {
+        mvwprintw(win, 3, 0, "Damage: %s", total_damage.toString().c_str());
+    }
+    mvwprintw(win, 4, 0, "Defense: %d", total_defense);
+    mvwprintw(win, 5, 0, "Hit: %d", total_hit);
+    mvwprintw(win, 6, 0, "Dodge: %d", total_dodge);
+    mvwprintw(win, 7, 0, "Position: (%d, %d)", pc->x, pc->y);
+
+    wrefresh(win);
+    getch();
+    *message = "Stats displayed";
 }
 
 void wear_item(WINDOW* win, PC* pc, const char** message) {
@@ -1082,7 +1115,36 @@ void take_off_item(WINDOW* win, PC* pc, const char** message) {
     };
     for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
         if (pc->equipment[i]) {
-            mvwprintw(win, i + 1, 0, "%c: %s (%s)", 'a' + i, slot_names[i], pc->equipment[i]->name.c_str());
+            Object* item = pc->equipment[i];
+            std::string stats;
+            bool has_stats = false;
+
+            if (item->damage.base != 0 || item->damage.dice != 0) {
+                stats += (has_stats ? ", " : "") + std::string("+") + item->damage.toString() + " damage";
+                has_stats = true;
+            }
+            if (item->speed != 0) {
+                stats += (has_stats ? ", " : "") + std::string(item->speed > 0 ? "+" : "") + std::to_string(item->speed) + " speed";
+                has_stats = true;
+            }
+            if (item->defense != 0) {
+                stats += (has_stats ? ", " : "") + std::string(item->defense > 0 ? "+" : "") + std::to_string(item->defense) + " defense";
+                has_stats = true;
+            }
+            if (item->hit != 0) {
+                stats += (has_stats ? ", " : "") + std::string(item->hit > 0 ? "+" : "") + std::to_string(item->hit) + " hit";
+                has_stats = true;
+            }
+            if (item->dodge != 0) {
+                stats += (has_stats ? ", " : "") + std::string(item->dodge > 0 ? "+" : "") + std::to_string(item->dodge) + " dodge";
+                has_stats = true;
+            }
+
+            if (has_stats) {
+                mvwprintw(win, i + 1, 0, "%c: %s (%s) (%s)", 'a' + i, slot_names[i], item->name.c_str(), stats.c_str());
+            } else {
+                mvwprintw(win, i + 1, 0, "%c: %s (%s) (No boosts)", 'a' + i, slot_names[i], item->name.c_str());
+            }
         } else {
             mvwprintw(win, i + 1, 0, "%c: %s (empty)", 'a' + i, slot_names[i]);
         }

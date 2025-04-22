@@ -74,7 +74,7 @@ public:
     void move() override;
     int takeDamage(int damage) override;
     bool pickupObject(Object* obj);
-    void calculateStats(int& total_speed, Dice& total_damage);
+    void calculateStats(int& total_speed, Dice& total_damage, int& total_defense, int& total_hit, int& total_dodge);
 };
 
 class NPC : public Character {
@@ -123,8 +123,8 @@ extern std::vector<MonsterDescription> monsterDescs;
 extern std::vector<ObjectDescription> objectDescs;
 
 // Combat state
-extern NPC* engaged_monster; // Monster currently in combat with PC
-extern bool in_combat;       // Flag to indicate combat mode
+extern NPC* engaged_monster;
+extern bool in_combat;
 
 void printDungeon();
 void emptyDungeon();
@@ -155,7 +155,7 @@ void draw_monster_list(WINDOW* win);
 void regenerate_dungeon(int numMonsters);
 int move_player(int dx, int dy, const char** message);
 int use_stairs(char direction, int numMonsters, const char** message);
-int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message); // New function for combat
+int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message);
 
 void placeObjects(int count);
 void cleanupObjects();
@@ -168,6 +168,7 @@ enum EquipmentSlot {
 
 void display_inventory(WINDOW* win, PC* pc, const char** message);
 void display_equipment(WINDOW* win, PC* pc, const char** message);
+void display_stats(WINDOW* win, PC* pc, const char** message); // New function to display all player stats
 void wear_item(WINDOW* win, PC* pc, const char** message);
 void take_off_item(WINDOW* win, PC* pc, const char** message);
 void drop_item(WINDOW* win, PC* pc, const char** message);

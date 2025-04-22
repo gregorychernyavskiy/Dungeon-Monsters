@@ -310,6 +310,9 @@ int main(int argc, char* argv[]) {
                     case 'e':
                         display_equipment(win, player, &message);
                         break;
+                    case 's': // New keybinding to display stats
+                        display_stats(win, player, &message);
+                        break;
                     case 'I':
                         inspect_item(win, player, &message);
                         break;
