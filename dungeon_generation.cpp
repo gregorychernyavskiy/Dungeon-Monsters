@@ -1033,12 +1033,21 @@ void display_stats(WINDOW* win, PC* pc, const char** message) {
     int total_defense, total_hit, total_dodge;
     pc->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
 
+    // Calculate a sample damage roll for display
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    int sample_damage = total_damage.base;
+    for (int i = 0; i < total_damage.dice; i++) {
+        std::uniform_int_distribution<> dis(1, total_damage.sides);
+        sample_damage += dis(gen);
+    }
+
     mvwprintw(win, 1, 0, "Hitpoints: %d", pc->hitpoints);
     mvwprintw(win, 2, 0, "Speed: %d", total_speed);
     if (total_damage.base == 0 && total_damage.dice == 0) {
         mvwprintw(win, 3, 0, "Damage: No damage");
     } else {
-        mvwprintw(win, 3, 0, "Damage: %s", total_damage.toString().c_str());
+        mvwprintw(win, 3, 0, "Damage: %s (e.g., %d)", total_damage.toString().c_str(), sample_damage);
     }
     mvwprintw(win, 4, 0, "Defense: %d", total_defense);
     mvwprintw(win, 5, 0, "Hit: %d", total_hit);
