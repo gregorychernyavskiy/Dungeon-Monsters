@@ -143,6 +143,22 @@ bool NPC::displace(int& new_x, int& new_y) {
 
 void PC::move() {}
 
+void compactMonsters() {
+    int write_idx = 0;
+    for (int i = 0; i < num_monsters; i++) {
+        if (monsters[i] != nullptr) {
+            monsters[write_idx] = monsters[i];
+            write_idx++;
+        }
+    }
+    num_monsters = write_idx;
+    // Resize the array to remove null entries at the end
+    NPC** temp = (NPC**)realloc(monsters, num_monsters * sizeof(NPC*));
+    if (temp) {
+        monsters = temp;
+    }
+}
+
 void NPC::move() {
     if (!alive) return;
     int dist[HEIGHT][WIDTH];
@@ -175,10 +191,9 @@ void NPC::move() {
 
     if (next_x != curr_x || next_y != curr_y) {
         if (next_x == player->x && next_y == player->y) {
-            // Initiate combat with PC
             std::random_device rd;
             std::mt19937 gen(rd());
-            int damage = this->damage.base;  // Use Dice struct
+            int damage = this->damage.base;
             for (int i = 0; i < this->damage.dice; i++) {
                 std::uniform_int_distribution<> dis(1, this->damage.sides);
                 damage += dis(gen);
@@ -189,17 +204,16 @@ void NPC::move() {
             return; // Combat uses the turn
         }
         if (monsterAt[next_y][next_x]) {
-            // NPC-NPC interaction: displace or swap
             int disp_x, disp_y;
-            if (monsterAt[next_y][next_x]->displace(disp_x, disp_y)) {
+            NPC* other = monsterAt[next_y][next_x];
+            if (other->displace(disp_x, disp_y)) {
                 // Move displaced NPC
-                monsterAt[monsterAt[next_y][next_x]->y][monsterAt[next_y][next_x]->x] = nullptr;
-                monsterAt[disp_y][disp_x] = monsterAt[next_y][next_x];
-                monsterAt[next_y][next_x]->x = disp_x;
-                monsterAt[next_y][next_x]->y = disp_y;
+                monsterAt[other->y][other->x] = nullptr;
+                monsterAt[disp_y][disp_x] = other;
+                other->x = disp_x;
+                other->y = disp_y;
             } else {
                 // Swap positions
-                NPC* other = monsterAt[next_y][next_x];
                 monsterAt[curr_y][curr_x] = other;
                 other->x = curr_x;
                 other->y = curr_y;
@@ -804,6 +818,7 @@ int move_player(int dx, int dy, const char** message) {
                     break;
                 }
             }
+            compactMonsters(); // Compact the array after deletion
             if (target->is_boss) {
                 *message = "You defeated SpongeBob SquarePants! You win!";
                 return -1; // Signal game win
