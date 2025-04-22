@@ -44,18 +44,92 @@ Object::Object(int x_, int y_) : x(x_), y(y_), hit(0), dodge(0), defense(0),
 
 Object::~Object() {}
 
-Character::Character(int x_, int y_) : x(x_), y(y_), speed(10), alive(1),
-    last_seen_x(-1), last_seen_y(-1) {}
+Character::Character(int x_, int y_) : x(x_), y(y_), speed(10), hitpoints(100), alive(1),
+    last_seen_x(-1), last_seen_y(-1) {
+    damage = Dice(0, 1, 4); // Default damage: 0+1d4
+}
+
+int Character::takeDamage(int damage) {
+    hitpoints -= damage;
+    if (hitpoints <= 0) {
+        alive = 0;
+        return 1; // Character died
+    }
+    return 0; // Character survived
+}
 
 PC::PC(int x_, int y_) : Character(x_, y_) {
     symbol = '@';
     color = "WHITE";
+    hitpoints = 100; // Default PC hitpoints
+    num_carried = 0;
+    for (int i = 0; i < EQUIPMENT_SLOTS; i++) equipment[i] = nullptr;
+    for (int i = 0; i < CARRY_SLOTS; i++) carry[i] = nullptr;
+}
+
+PC::~PC() {
+    for (int i = 0; i < EQUIPMENT_SLOTS; i++) delete equipment[i];
+    for (int i = 0; i < CARRY_SLOTS; i++) delete carry[i];
 }
 
 NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(0),
     tunneling(0), telepathic(0), erratic(0),
-    pass_wall(0), pickup(0), destroy(0), is_unique(false), hitpoints(10) {
+    pass_wall(0), pickup(0), destroy(0), is_unique(false), is_boss(false) {
     speed = rand() % 16 + 5;
+}
+
+bool PC::pickupObject(Object* obj) {
+    if (num_carried >= CARRY_SLOTS) return false;
+    for (int i = 0; i < CARRY_SLOTS; i++) {
+        if (!carry[i]) {
+            carry[i] = obj;
+            num_carried++;
+            return true;
+        }
+    }
+    return false;
+}
+
+void PC::calculateStats(int& total_speed, Dice& total_damage) {
+    total_speed = speed; // Base speed: 10
+    total_damage = equipment[SLOT_WEAPON] ? Dice(0, 0, 0) : damage; // Use base damage if no weapon
+
+    for (int i = 0; i < EQUIPMENT_SLOTS; i++) {
+        if (equipment[i]) {
+            total_speed += equipment[i]->speed;
+            total_damage.base += equipment[i]->damage.base;
+            total_damage.dice += equipment[i]->damage.dice;
+            total_damage.sides = std::max(total_damage.sides, equipment[i]->damage.sides);
+        }
+    }
+}
+
+bool NPC::displace(int& new_x, int& new_y) {
+    int dx[] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    int dy[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+    std::vector<std::pair<int, int>> open_cells;
+
+    for (int i = 0; i < 8; i++) {
+        int nx = x + dx[i];
+        int ny = y + dy[i];
+        if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT &&
+            hardness[ny][nx] == 0 && !monsterAt[ny][nx] && !(nx == player->x && ny == player->y)) {
+            open_cells.emplace_back(nx, ny);
+        }
+    }
+
+    if (!open_cells.empty()) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, open_cells.size() - 1);
+        auto [nx, ny] = open_cells[dis(gen)];
+        new_x = nx;
+        new_y = ny;
+        return true;
+    }
+
+    // If no open cells, swap positions with the target NPC
+    return false;
 }
 
 void PC::move() {}
@@ -81,7 +155,7 @@ void NPC::move() {
             int nx = curr_x + dx[i];
             int ny = curr_y + dy[i];
             if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT) {
-                if (dist[ny][nx] < min_dist && (tunneling || pass_wall || hardness[ny][nx] == 0) && !monsterAt[ny][nx]) {
+                if (dist[ny][nx] < min_dist && (tunneling || pass_wall || hardness[ny][nx] == 0)) {
                     min_dist = dist[ny][nx];
                     next_x = nx;
                     next_y = ny;
@@ -91,6 +165,37 @@ void NPC::move() {
     }
 
     if (next_x != curr_x || next_y != curr_y) {
+        if (next_x == player->x && next_y == player->y) {
+            // Initiate combat with PC
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            int damage = damage.base;
+            for (int i = 0; i < damage.dice; i++) {
+                std::uniform_int_distribution<> dis(1, damage.sides);
+                damage += dis(gen);
+            }
+            if (player->takeDamage(damage)) {
+                // PC died; game over handled in main loop
+            }
+            return; // Combat uses the turn
+        }
+        if (monsterAt[next_y][next_x]) {
+            // NPC-NPC interaction: displace or swap
+            int disp_x, disp_y;
+            if (monsterAt[next_y][next_x]->displace(disp_x, disp_y)) {
+                // Move displaced NPC
+                monsterAt[monsterAt[next_y][next_x]->y][monsterAt[next_y][next_x]->x] = nullptr;
+                monsterAt[disp_y][disp_x] = monsterAt[next_y][next_x];
+                monsterAt[next_y][next_x]->x = disp_x;
+                monsterAt[next_y][next_x]->y = disp_y;
+            } else {
+                // Swap positions
+                NPC* other = monsterAt[next_y][next_x];
+                monsterAt[curr_y][curr_x] = other;
+                other->x = curr_x;
+                other->y = curr_y;
+            }
+        }
         if (hardness[next_y][next_x] > 0 && tunneling && !pass_wall) {
             hardness[next_y][next_x] = 0;
             dungeon[next_y][next_x] = '#';
@@ -107,7 +212,7 @@ void NPC::move() {
                     }
                 }
             } else if (pickup) {
-                // Optional: Implement inventory later
+                // Optional: Implement NPC inventory later
             }
         }
         monsterAt[curr_y][curr_x] = nullptr;
@@ -115,6 +220,15 @@ void NPC::move() {
         y = next_y;
         monsterAt[next_y][next_x] = this;
     }
+}
+
+int NPC::takeDamage(int damage) {
+    hitpoints -= damage;
+    if (hitpoints <= 0) {
+        alive = 0;
+        return 1; // NPC died
+    }
+    return 0;
 }
 
 void printDungeon() {
@@ -314,6 +428,7 @@ int spawnMonsters(int numMonsters) {
                                       y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
                 if (dungeon[y][x] == '.' && !(x == player->x && y == player->y) && !monsterAt[y][x] && !in_player_room) {
                     npc = desc.createNPC(x, y);
+                    npc->is_boss = (desc.name == "SpongeBob SquarePants"); // Set BOSS flag
                     placed = true;
                     break;
                 }
@@ -448,7 +563,6 @@ void init_ncurses() {
     keypad(stdscr, TRUE);
     curs_set(0);
 
-    // Initialize color pairs
     init_pair(COLOR_RED, COLOR_RED, COLOR_BLACK);
     init_pair(COLOR_GREEN, COLOR_GREEN, COLOR_BLACK);
     init_pair(COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK);
@@ -457,7 +571,6 @@ void init_ncurses() {
     init_pair(COLOR_CYAN, COLOR_CYAN, COLOR_BLACK);
     init_pair(COLOR_WHITE, COLOR_WHITE, COLOR_BLACK);
 
-    // Debug: Log color pair initialization
     FILE* debug_file = fopen("color_init_debug.txt", "w");
     if (debug_file) {
         fprintf(debug_file, "Initialized color pairs:\n");
@@ -472,12 +585,11 @@ void init_ncurses() {
     }
 
     refresh();
-    getch(); // Wait for user input to verify terminal setup
+    getch();
 }
 
 int getColorIndex(const std::string& color) {
     std::string trimmed_color = color;
-    // Trim leading and trailing whitespace
     trimmed_color.erase(0, trimmed_color.find_first_not_of(" \t"));
     trimmed_color.erase(trimmed_color.find_last_not_of(" \t") + 1);
 
@@ -486,7 +598,6 @@ int getColorIndex(const std::string& color) {
         c = std::toupper(c);
     }
 
-    // Debug: Log color mapping
     FILE* debug_file = fopen("color_debug.txt", "a");
     if (debug_file) {
         fprintf(debug_file, "Raw color: '%s', Trimmed color: '%s', Mapped color: '%s'\n", 
@@ -501,8 +612,8 @@ int getColorIndex(const std::string& color) {
     if (upper_color == "MAGENTA") return COLOR_MAGENTA;
     if (upper_color == "CYAN") return COLOR_CYAN;
     if (upper_color == "WHITE") return COLOR_WHITE;
-    if (upper_color == "BLACK") return COLOR_WHITE; // Render black as white per assignment
-    return COLOR_WHITE; // Default to white if unknown
+    if (upper_color == "BLACK") return COLOR_WHITE;
+    return COLOR_WHITE;
 }
 
 void update_visibility() {
@@ -532,7 +643,6 @@ void draw_dungeon(WINDOW* win, const char* message) {
                 mvwprintw(win, y + 1, x, " ");
             } else if (x == player->x && y == player->y) {
                 int color = getColorIndex(player->color);
-                // Debug: Log color for player
                 FILE* debug_file = fopen("render_debug.txt", "a");
                 if (debug_file) {
                     fprintf(debug_file, "Player at (%d,%d) color index: %d\n", x, y, color);
@@ -543,7 +653,6 @@ void draw_dungeon(WINDOW* win, const char* message) {
                 wattroff(win, COLOR_PAIR(color));
             } else if (monsterAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(monsterAt[y][x]->color);
-                // Debug: Log color for monster
                 FILE* debug_file = fopen("render_debug.txt", "a");
                 if (debug_file) {
                     fprintf(debug_file, "Monster at (%d,%d) symbol: %c, color index: %d\n", 
@@ -555,7 +664,6 @@ void draw_dungeon(WINDOW* win, const char* message) {
                 wattroff(win, COLOR_PAIR(color));
             } else if (objectAt[y][x] && (!fog_enabled || visible[y][x])) {
                 int color = getColorIndex(objectAt[y][x]->color);
-                // Debug: Log color for object
                 FILE* debug_file = fopen("render_debug.txt", "a");
                 if (debug_file) {
                     fprintf(debug_file, "Object at (%d,%d) symbol: %c, color index: %d\n", 
@@ -575,7 +683,6 @@ void draw_dungeon(WINDOW* win, const char* message) {
     mvwprintw(win, 23, 0, "Fog of War: %s", fog_enabled ? "ON" : "OFF");
     wrefresh(win);
 }
-
 
 void draw_monster_list(WINDOW* win) {
     werase(win);
@@ -644,7 +751,7 @@ void regenerate_dungeon(int numMonsters) {
     placePlayer();
     initializeHardness();
     spawnMonsters(numMonsters);
-    placeObjects(10); // At least 10 objects
+    placeObjects(10);
 
     memset(visible, 0, sizeof(visible));
     memset(remembered, 0, sizeof(remembered));
@@ -663,8 +770,55 @@ int move_player(int dx, int dy, const char** message) {
         return 0;
     }
     if (monsterAt[new_y][new_x]) {
-        *message = "A monster blocks your path!";
-        return 0;
+        NPC* target = monsterAt[new_y][new_x];
+        int total_speed;
+        Dice total_damage;
+        player->calculateStats(total_speed, total_damage);
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        int damage = total_damage.base;
+        for (int i = 0; i < total_damage.dice; i++) {
+            std::uniform_int_distribution<> dis(1, total_damage.sides);
+            damage += dis(gen);
+        }
+        if (target->takeDamage(damage)) {
+            monsterAt[new_y][new_x] = nullptr;
+            for (int i = 0; i < num_monsters; i++) {
+                if (monsters[i] == target) {
+                    if (target->is_unique) {
+                        for (auto& desc : monsterDescs) {
+                            if (desc.name == target->name) desc.is_alive = false;
+                        }
+                    }
+                    delete monsters[i];
+                    monsters[i] = nullptr;
+                    break;
+                }
+            }
+            if (target->is_boss) {
+                *message = "You defeated SpongeBob SquarePants! You win!";
+                return -1; // Signal game win
+            }
+            *message = "You defeated the monster!";
+        } else {
+            *message = "You attacked the monster!";
+        }
+        return 0; // Combat uses the turn
+    }
+    if (objectAt[new_y][new_x]) {
+        Object* obj = objectAt[new_y][new_x];
+        if (player->pickupObject(obj)) {
+            objectAt[new_y][new_x] = nullptr;
+            for (int i = 0; i < num_objects; i++) {
+                if (objects[i] == obj) {
+                    objects[i] = nullptr;
+                    break;
+                }
+            }
+            *message = "Picked up an item!";
+        } else {
+            *message = "Inventory full!";
+        }
     }
     dungeon[player->y][player->x] = terrain[player->y][player->x];
     if (objectAt[player->y][player->x]) {
@@ -672,7 +826,6 @@ int move_player(int dx, int dy, const char** message) {
     }
     player->x = new_x;
     player->y = new_y;
-
     if (terrain[player->y][player->x] == 0) {
         terrain[player->y][player->x] = dungeon[player->y][player->x];
     }
@@ -694,4 +847,249 @@ int use_stairs(char direction, int numMonsters, const char** message) {
     }
     *message = "Not standing on the correct staircase!";
     return 0;
+}
+
+void display_inventory(WINDOW* win, PC* pc, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Inventory (Press any key to exit):");
+    for (int i = 0; i < PC::CARRY_SLOTS; i++) {
+        if (pc->carry[i]) {
+            mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
+        } else {
+            mvwprintw(win, i + 1, 0, "%d: (empty)", i);
+        }
+    }
+    wrefresh(win);
+    getch();
+    *message = "Inventory displayed";
+}
+
+void display_equipment(WINDOW* win, PC* pc, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Equipment (Press any key to exit):");
+    const char* slot_names[] = {
+        "Weapon", "Offhand", "Ranged", "Armor", "Helmet", "Cloak",
+        "Gloves", "Boots", "Amulet", "Light", "Ring1", "Ring2"
+    };
+    for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
+        if (pc->equipment[i]) {
+            mvwprintw(win, i + 1, 0, "%c: %s (%s)", 'a' + i, slot_names[i], pc->equipment[i]->name.c_str());
+        } else {
+            mvwprintw(win, i + 1, 0, "%c: %s (empty)", 'a' + i, slot_names[i]);
+        }
+    }
+    wrefresh(win);
+    getch();
+    *message = "Equipment displayed";
+}
+
+void wear_item(WINDOW* win, PC* pc, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Select carry slot (0-9, ESC to cancel):");
+    for (int i = 0; i < PC::CARRY_SLOTS; i++) {
+        if (pc->carry[i]) {
+            mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
+        }
+    }
+    wrefresh(win);
+    int ch = getch();
+    if (ch == 27) {
+        *message = "Wear cancelled";
+        return;
+    }
+    if (ch < '0' || ch > '9') {
+        *message = "Invalid slot!";
+        return;
+    }
+    int slot = ch - '0';
+    if (!pc->carry[slot]) {
+        *message = "No item in that slot!";
+        return;
+    }
+    Object* item = pc->carry[slot];
+    int equip_slot = -1;
+    for (const auto& type : item->types) {
+        if (type == "WEAPON") equip_slot = SLOT_WEAPON;
+        else if (type == "OFFHAND") equip_slot = SLOT_OFFHAND;
+        else if (type == "RANGED") equip_slot = SLOT_RANGED;
+        else if (type == "ARMOR") equip_slot = SLOT_ARMOR;
+        else if (type == "HELMET") equip_slot = SLOT_HELMET;
+        else if (type == "CLOAK") equip_slot = SLOT_CLOAK;
+        else if (type == "GLOVES") equip_slot = SLOT_GLOVES;
+        else if (type == "BOOTS") equip_slot = SLOT_BOOTS;
+        else if (type == "AMULET") equip_slot = SLOT_AMULET;
+        else if (type == "LIGHT") equip_slot = SLOT_LIGHT;
+        else if (type == "RING") {
+            equip_slot = pc->equipment[SLOT_RING1] ? SLOT_RING2 : SLOT_RING1;
+        }
+    }
+    if (equip_slot == -1) {
+        *message = "Item cannot be equipped!";
+        return;
+    }
+    if (pc->equipment[equip_slot]) {
+        Object* temp = pc->equipment[equip_slot];
+        pc->equipment[equip_slot] = item;
+        pc->carry[slot] = temp;
+    } else {
+        pc->equipment[equip_slot] = item;
+        pc->carry[slot] = nullptr;
+        pc->num_carried--;
+    }
+    *message = "Item equipped!";
+}
+
+void take_off_item(WINDOW* win, PC* pc, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Select equipment slot (a-l, ESC to cancel):");
+    const char* slot_names[] = {
+        "Weapon", "Offhand", "Ranged", "Armor", "Helmet", "Cloak",
+        "Gloves", "Boots", "Amulet", "Light", "Ring1", "Ring2"
+    };
+    for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
+        if (pc->equipment[i]) {
+            mvwprintw(win, i + 1, 0, "%c: %s", 'a' + i, pc->equipment[i]->name.c_str());
+        }
+    }
+    wrefresh(win);
+    int ch = getch();
+    if (ch == 27) {
+        *message = "Take off cancelled";
+        return;
+    }
+    if (ch < 'a' || ch > 'l') {
+        *message = "Invalid slot!";
+        return;
+    }
+    int slot = ch - 'a';
+    if (!pc->equipment[slot]) {
+        *message = "No item in that slot!";
+        return;
+    }
+    if (pc->num_carried >= PC::CARRY_SLOTS) {
+        *message = "Inventory full!";
+        return;
+    }
+    for (int i = 0; i < PC::CARRY_SLOTS; i++) {
+        if (!pc->carry[i]) {
+            pc->carry[i] = pc->equipment[slot];
+            pc->equipment[slot] = nullptr;
+            pc->num_carried++;
+            *message = "Item taken off!";
+            return;
+        }
+    }
+}
+
+void drop_item(WINDOW* win, PC* pc, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Select carry slot (0-9, ESC to cancel):");
+    for (int i = 0; i < PC::CARRY_SLOTS; i++) {
+        if (pc->carry[i]) {
+            mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
+        }
+    }
+    wrefresh(win);
+    int ch = getch();
+    if (ch == 27) {
+        *message = "Drop cancelled";
+        return;
+    }
+    if (ch < '0' || ch > '9') {
+        *message = "Invalid slot!";
+        return;
+    }
+    int slot = ch - '0';
+    if (!pc->carry[slot]) {
+        *message = "No item in that slot!";
+        return;
+    }
+    Object* item = pc->carry[slot];
+    item->x = pc->x;
+    item->y = pc->y;
+    objectAt[item->y][item->x] = item;
+    for (int i = 0; i < num_objects; i++) {
+        if (!objects[i]) {
+            objects[i] = item;
+            break;
+        }
+    }
+    pc->carry[slot] = nullptr;
+    pc->num_carried--;
+    *message = "Item dropped!";
+}
+
+void expunge_item(WINDOW* win, PC* pc, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Select carry slot (0-9, ESC to cancel):");
+    for (int i = 0; i < PC::CARRY_SLOTS; i++) {
+        if (pc->carry[i]) {
+            mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
+        }
+    }
+    wrefresh(win);
+    int ch = getch();
+    if (ch == 27) {
+        *message = "Expunge cancelled";
+        return;
+    }
+    if (ch < '0' || ch > '9') {
+        *message = "Invalid slot!";
+        return;
+    }
+    int slot = ch - '0';
+    if (!pc->carry[slot]) {
+        *message = "No item in that slot!";
+        return;
+    }
+    delete pc->carry[slot];
+    pc->carry[slot] = nullptr;
+    pc->num_carried--;
+    *message = "Item expunged!";
+}
+
+void inspect_item(WINDOW* win, PC* pc, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Select carry slot (0-9, ESC to cancel):");
+    for (int i = 0; i < PC::CARRY_SLOTS; i++) {
+        if (pc->carry[i]) {
+            mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
+        }
+    }
+    wrefresh(win);
+    int ch = getch();
+    if (ch == 27) {
+        *message = "Inspect cancelled";
+        return;
+    }
+    if (ch < '0' || ch > '9') {
+        *message = "Invalid slot!";
+        return;
+    }
+    int slot = ch - '0';
+    if (!pc->carry[slot]) {
+        *message = "No item in that slot!";
+        return;
+    }
+    Object* item = pc->carry[slot];
+    werase(win);
+    mvwprintw(win, 0, 0, "Item Information (Press any key to exit):");
+    mvwprintw(win, 1, 0, "Name: %s", item->name.c_str());
+    mvwprintw(win, 2, 0, "Type: %s", item->types[0].c_str());
+    mvwprintw(win, 3, 0, "Damage: %s", item->damage.toString().c_str());
+    mvwprintw(win, 4, 0, "Speed: %d", item->speed);
+    int line = 5;
+    for (const auto& desc : objectDescs) {
+        if (desc.name == item->name) {
+            for (const auto& line_text : desc.description) {
+                if (line < 23) {
+                    mvwprintw(win, line++, 2, "%s", line_text.c_str());
+                }
+            }
+            break;
+        }
+    }
+    wrefresh(win);
+    getch();
+    *message = "Item inspected";
 }

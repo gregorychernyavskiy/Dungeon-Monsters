@@ -24,7 +24,6 @@ void display_monster_info(WINDOW* win, NPC* monster, const char** message) {
     mvwprintw(win, 2, 0, "Symbol: %c", monster->symbol);
     mvwprintw(win, 3, 0, "Position: (%d, %d)", monster->x, monster->y);
     mvwprintw(win, 4, 0, "Hitpoints: %d", monster->hitpoints);
-    // Improved damage display
     if (monster->damage.base == 0 && monster->damage.dice == 0) {
         mvwprintw(win, 5, 0, "Damage: No damage");
     } else {
@@ -41,12 +40,13 @@ void display_monster_info(WINDOW* win, NPC* monster, const char** message) {
     if (monster->pickup) mvwprintw(win, line++, 2, "- Pickup");
     if (monster->destroy) mvwprintw(win, line++, 2, "- Destroy");
     if (monster->is_unique) mvwprintw(win, line++, 2, "- Unique");
+    if (monster->is_boss) mvwprintw(win, line++, 2, "- Boss");
 
     mvwprintw(win, line++, 0, "Description:");
     for (const auto& desc_line : monsterDescs) {
         if (desc_line.name == monster->name) {
             for (const auto& line_text : desc_line.description) {
-                if (line < 23) { // Prevent overflow on window
+                if (line < 23) {
                     mvwprintw(win, line++, 2, "%s", line_text.c_str());
                 }
             }
@@ -67,7 +67,6 @@ int main(int argc, char* argv[]) {
     bool parseMonstersOnly = false;
     bool parseObjectsOnly = false;
 
-    // Parse command-line arguments
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--save") == 0) {
             save = 1;
@@ -81,10 +80,8 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Load descriptions
     loadDescriptions();
 
-    // If no arguments or parsing mode is specified
     if (argc == 1 || parseMonstersOnly || parseObjectsOnly) {
         char* home = getenv("HOME");
         if (!home) {
@@ -108,7 +105,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // Original dungeon generation and game logic
     emptyDungeon();
     createRooms();
     connectRooms();
@@ -117,7 +113,7 @@ int main(int argc, char* argv[]) {
     placePlayer();
     initializeHardness();
     if (numMonsters > 0) spawnMonsters(numMonsters);
-    placeObjects(10); // At least 10 objects
+    placeObjects(10);
     update_visibility();
 
     if (save && saveFileName && numMonsters == 0 && argc == 3) {
@@ -186,7 +182,7 @@ int main(int argc, char* argv[]) {
                 update_visibility();
                 message = "Teleported to random location!";
                 teleport_mode = false;
-            } else if (ch == 27) { // Escape to exit teleport mode
+            } else if (ch == 27) {
                 teleport_mode = false;
                 message = "Teleport mode cancelled";
             } else if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
@@ -213,7 +209,7 @@ int main(int argc, char* argv[]) {
             if (ch == 't') {
                 display_monster_info(win, monsterAt[target_y][target_x], &message);
                 look_mode = false;
-            } else if (ch == 27) { // Escape to exit look mode
+            } else if (ch == 27) {
                 look_mode = false;
                 message = "Look mode cancelled";
             } else if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
@@ -248,6 +244,10 @@ int main(int argc, char* argv[]) {
 
             if (dx != 0 || dy != 0) {
                 moved = move_player(dx, dy, &message);
+                if (moved == -1) {
+                    game_running = false;
+                    continue;
+                }
             } else {
                 switch (ch) {
                     case '>':
@@ -280,6 +280,27 @@ int main(int argc, char* argv[]) {
                         target_y = player->y;
                         message = "Look mode: Move cursor with movement keys, 't' to select monster, ESC to exit";
                         break;
+                    case 'w':
+                        wear_item(win, player, &message);
+                        break;
+                    case 't':
+                        take_off_item(win, player, &message);
+                        break;
+                    case 'd':
+                        drop_item(win, player, &message);
+                        break;
+                    case 'x':
+                        expunge_item(win, player, &message);
+                        break;
+                    case 'i':
+                        display_inventory(win, player, &message);
+                        break;
+                    case 'e':
+                        display_equipment(win, player, &message);
+                        break;
+                    case 'I':
+                        inspect_item(win, player, &message);
+                        break;
                     case 'Q': case 'q':
                         game_running = false;
                         message = "Quitting game...";
@@ -293,15 +314,12 @@ int main(int argc, char* argv[]) {
 
         if (moved && game_running && !teleport_mode && !look_mode) {
             for (int i = 0; i < num_monsters; i++) {
-                if (monsters[i]->alive) {
+                if (monsters[i] && monsters[i]->alive) {
                     monsters[i]->move();
                 }
             }
-            NPC* culprit = nullptr;
-            if (gameOver(&culprit)) {
-                char buf[80];
-                snprintf(buf, sizeof(buf), "Killed by monster '%s'!", culprit->name.c_str());
-                message = buf;
+            if (!player->alive) {
+                message = "You were killed! Game over!";
                 game_running = false;
             }
         }

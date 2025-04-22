@@ -47,6 +47,8 @@ class Character {
 public:
     int x, y;
     int speed;
+    int hitpoints; // Moved from NPC, now signed
+    Dice damage;   // Added for all characters
     int alive;
     int last_seen_x, last_seen_y;
     std::string name;
@@ -56,12 +58,23 @@ public:
     Character(int x_, int y_);
     virtual ~Character() = default;
     virtual void move() = 0;
+    virtual int takeDamage(int damage); // New: Handle damage and return 1 if killed
 };
 
 class PC : public Character {
 public:
+    static const int CARRY_SLOTS = 10;
+    static const int EQUIPMENT_SLOTS = 12;
+    Object* equipment[EQUIPMENT_SLOTS]; // WEAPON, OFFHAND, RANGED, ARMOR, HELMET, CLOAK, GLOVES, BOOTS, AMULET, LIGHT, RING1, RING2
+    Object* carry[CARRY_SLOTS];         // Inventory slots 0-9
+    int num_carried;                    // Track number of items in carry slots
+
     PC(int x_, int y_);
+    ~PC();
     void move() override;
+    int takeDamage(int damage) override;
+    bool pickupObject(Object* obj); // New: Handle automatic pickup
+    void calculateStats(int& total_speed, Dice& total_damage); // New: Compute bonuses
 };
 
 class NPC : public Character {
@@ -69,11 +82,13 @@ public:
     int intelligent, tunneling, telepathic, erratic;
     int pass_wall, pickup, destroy;
     bool is_unique;
-    Dice damage;
-    int hitpoints;
+    bool is_boss; // New: For SpongeBob SquarePants
+    int hitpoints; // Now in Character, kept for compatibility
 
     NPC(int x_, int y_);
     void move() override;
+    int takeDamage(int damage) override;
+    bool displace(int& new_x, int& new_y); // New: Handle NPC-NPC displacement
 };
 
 extern char dungeon[HEIGHT][WIDTH];
@@ -141,5 +156,18 @@ int use_stairs(char direction, int numMonsters, const char** message);
 void placeObjects(int count);
 void cleanupObjects();
 void loadDescriptions();
+
+enum EquipmentSlot {
+    SLOT_WEAPON, SLOT_OFFHAND, SLOT_RANGED, SLOT_ARMOR, SLOT_HELMET, SLOT_CLOAK,
+    SLOT_GLOVES, SLOT_BOOTS, SLOT_AMULET, SLOT_LIGHT, SLOT_RING1, SLOT_RING2
+};
+
+void display_inventory(WINDOW* win, PC* pc, const char** message);
+void display_equipment(WINDOW* win, PC* pc, const char** message);
+void wear_item(WINDOW* win, PC* pc, const char** message);
+void take_off_item(WINDOW* win, PC* pc, const char** message);
+void drop_item(WINDOW* win, PC* pc, const char** message);
+void expunge_item(WINDOW* win, PC* pc, const char** message);
+void inspect_item(WINDOW* win, PC* pc, const char** message);
 
 #endif
