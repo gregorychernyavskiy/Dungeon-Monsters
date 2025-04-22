@@ -891,6 +891,37 @@ void regenerate_dungeon(int numMonsters) {
     update_visibility();
 }
 
+void display_help(WINDOW* win, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Help Menu (Press any key to exit):");
+    mvwprintw(win, 1, 0, "Movement:");
+    mvwprintw(win, 2, 0, "  7/y, 8/k, 9/u: Up-Left, Up, Up-Right");
+    mvwprintw(win, 3, 0, "  4/h, 6/l: Left, Right");
+    mvwprintw(win, 4, 0, "  1/b, 2/j, 3/n: Down-Left, Down, Down-Right");
+    mvwprintw(win, 5, 0, "Combat:");
+    mvwprintw(win, 6, 0, "  a: Attack (when in combat)");
+    mvwprintw(win, 7, 0, "  f: Flee (when in combat, 30%% chance)");
+    mvwprintw(win, 8, 0, "Inventory & Equipment:");
+    mvwprintw(win, 9, 0, "  i: View inventory");
+    mvwprintw(win, 10, 0, "  w: Wear item from inventory");
+    mvwprintw(win, 11, 0, "  d: Drop item from inventory");
+    mvwprintw(win, 12, 0, "  x: Expunge item from inventory");
+    mvwprintw(win, 13, 0, "  I: Inspect item in inventory");
+    mvwprintw(win, 14, 0, "  e: View equipment");
+    mvwprintw(win, 15, 0, "  t: Take off equipped item");
+    mvwprintw(win, 16, 0, "Other Actions:");
+    mvwprintw(win, 17, 0, "  5/space/.: Rest");
+    mvwprintw(win, 18, 0, "  m: View monster list");
+    mvwprintw(win, 19, 0, "  f: Toggle fog of war");
+    mvwprintw(win, 20, 0, "  g: Teleport (g to confirm, r for random, ESC to cancel)");
+    mvwprintw(win, 21, 0, "  L: Look mode (t to inspect monster, ESC to cancel)");
+    mvwprintw(win, 22, 0, "  >/ <: Use stairs");
+    mvwprintw(win, 23, 0, "  s: View stats  q/Q: Quit");
+    wrefresh(win);
+    getch();
+    *message = "Help displayed";
+}
+
 int move_player(int dx, int dy, const char** message) {
     if (in_combat) {
         *message = "You are in combat! Press 'a' to attack, 'f' to flee.";

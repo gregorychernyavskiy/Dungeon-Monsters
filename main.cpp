@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
     draw_dungeon(win, message);
     getch();
 
-    message = "Welcome to the dungeon!";
+    message = "Welcome to the dungeon! Press ? for help.";
     draw_dungeon(win, message);
 
     bool game_running = true;
@@ -310,13 +310,16 @@ int main(int argc, char* argv[]) {
                     case 'e':
                         display_equipment(win, player, &message);
                         break;
-                    case 's': // New keybinding to display stats
+                    case 's':
                         display_stats(win, player, &message);
+                        break;
+                    case '?': // New keybinding for help screen
+                        display_help(win, &message);
                         break;
                     case 'I':
                         inspect_item(win, player, &message);
                         break;
-                    case 'Q': case 'q':
+                    case 'q': case 'Q':
                         game_running = false;
                         message = "Quitting game...";
                         break;
