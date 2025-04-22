@@ -811,7 +811,8 @@ void draw_dungeon(WINDOW* win, const char* message) {
     Dice total_damage;
     int total_defense, total_hit, total_dodge;
     player->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
-    mvwprintw(win, 22, 0, "HP: %d  SPEED: %d", player->hitpoints, total_speed);
+    mvwprintw(win, 22, 0, "HP:%d SPD:%d DEF:%d HIT:%d DGE:%d", 
+              player->hitpoints, total_speed, total_defense, total_hit, total_dodge);
     mvwprintw(win, 23, 0, "Fog of War: %s", fog_enabled ? "ON" : "OFF");
     wrefresh(win);
 }
