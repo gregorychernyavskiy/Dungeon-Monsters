@@ -122,9 +122,9 @@ bool NPC::displace(int& new_x, int& new_y) {
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<> dis(0, open_cells.size() - 1);
-        auto [nx, ny] = open_cells[dis(gen)];
-        new_x = nx;
-        new_y = ny;
+        int idx = dis(gen);
+        new_x = open_cells[idx].first;  // Explicit assignment instead of structured binding
+        new_y = open_cells[idx].second;
         return true;
     }
 
@@ -169,9 +169,9 @@ void NPC::move() {
             // Initiate combat with PC
             std::random_device rd;
             std::mt19937 gen(rd());
-            int damage = damage.base;
-            for (int i = 0; i < damage.dice; i++) {
-                std::uniform_int_distribution<> dis(1, damage.sides);
+            int damage = this->damage.base;  // Use Dice struct
+            for (int i = 0; i < this->damage.dice; i++) {
+                std::uniform_int_distribution<> dis(1, this->damage.sides);
                 damage += dis(gen);
             }
             if (player->takeDamage(damage)) {
@@ -948,7 +948,9 @@ void take_off_item(WINDOW* win, PC* pc, const char** message) {
     };
     for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
         if (pc->equipment[i]) {
-            mvwprintw(win, i + 1, 0, "%c: %s", 'a' + i, pc->equipment[i]->name.c_str());
+            mvwprintw(win, i + 1, 0, "%c: %s (%s)", 'a' + i, slot_names[i], pc->equipment[i]->name.c_str());
+        } else {
+            mvwprintw(win, i + 1, 0, "%c: %s (empty)", 'a' + i, slot_names[i]);
         }
     }
     wrefresh(win);
