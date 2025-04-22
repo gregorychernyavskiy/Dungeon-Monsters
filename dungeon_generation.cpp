@@ -72,6 +72,15 @@ PC::~PC() {
     for (int i = 0; i < CARRY_SLOTS; i++) delete carry[i];
 }
 
+int PC::takeDamage(int damage) {
+    hitpoints -= damage;
+    if (hitpoints <= 0) {
+        alive = 0;
+        return 1; // PC died
+    }
+    return 0; // PC survived
+}
+
 NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(0),
     tunneling(0), telepathic(0), erratic(0),
     pass_wall(0), pickup(0), destroy(0), is_unique(false), is_boss(false) {
