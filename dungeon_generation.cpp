@@ -36,8 +36,8 @@ char visible[HEIGHT][WIDTH] = {0};
 char terrain[HEIGHT][WIDTH] = {0};
 char remembered[HEIGHT][WIDTH] = {0};
 
-NPC* engaged_monster = nullptr; // Monster currently in combat with PC
-bool in_combat = false;         // Flag to indicate combat mode
+NPC* engaged_monster = nullptr;
+bool in_combat = false;
 
 std::vector<MonsterDescription> monsterDescs;
 std::vector<ObjectDescription> objectDescs;
@@ -104,14 +104,22 @@ bool PC::pickupObject(Object* obj) {
 
 void PC::calculateStats(int& total_speed, Dice& total_damage) {
     total_speed = speed; // Base speed: 10
-    total_damage = equipment[SLOT_WEAPON] ? Dice(0, 0, 0) : damage; // Use base damage if no weapon
+    total_damage = damage; // Start with base damage (0+1d4)
 
+    // Add equipment bonuses, but only override damage if a weapon is equipped
     for (int i = 0; i < EQUIPMENT_SLOTS; i++) {
         if (equipment[i]) {
             total_speed += equipment[i]->speed;
-            total_damage.base += equipment[i]->damage.base;
-            total_damage.dice += equipment[i]->damage.dice;
-            total_damage.sides = std::max(total_damage.sides, equipment[i]->damage.sides);
+            if (i == SLOT_WEAPON) {
+                total_damage = Dice(0, 0, 0); // Reset damage if weapon is equipped, then add weapon damage
+                total_damage.base += equipment[i]->damage.base;
+                total_damage.dice += equipment[i]->damage.dice;
+                total_damage.sides = std::max(total_damage.sides, equipment[i]->damage.sides);
+            } else {
+                total_damage.base += equipment[i]->damage.base;
+                total_damage.dice += equipment[i]->damage.dice;
+                total_damage.sides = std::max(total_damage.sides, equipment[i]->damage.sides);
+            }
         }
     }
 }
@@ -161,7 +169,7 @@ void compactMonsters() {
 }
 
 void NPC::move() {
-    if (!alive || in_combat) return; // Skip movement if in combat
+    if (!alive || in_combat) return;
     int dist[HEIGHT][WIDTH];
     if (tunneling || pass_wall) dijkstraTunneling(dist);
     else dijkstraNonTunneling(dist);
@@ -191,11 +199,10 @@ void NPC::move() {
     }
 
     if (next_x != curr_x || next_y != curr_y) {
-        if (next_x == player->x && next_y == player->y) {
-            // Initiate combat
+        if (next_x == player->x && next_ylanguage == player->y) {
             engaged_monster = this;
             in_combat = true;
-            return; // Combat mode activated, stop movement
+            return;
         }
         if (monsterAt[next_y][next_x]) {
             int disp_x, disp_y;
@@ -247,15 +254,17 @@ int NPC::takeDamage(int damage) {
 }
 
 int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
-    static bool player_turn = true; // Start with player's turn
+    static bool player_turn = true;
     static bool combat_initialized = false;
+    static char combat_message[80] = "";
 
     if (!combat_initialized) {
         player_turn = true;
         combat_initialized = true;
+        snprintf(combat_message, sizeof(combat_message), "Combat started!");
     }
 
-    if (ch == 'a' && player_turn) { // Player attacks
+    if (ch == 'a' && player_turn) {
         int total_speed;
         Dice total_damage;
         player->calculateStats(total_speed, total_damage);
@@ -266,8 +275,8 @@ int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
             std::uniform_int_distribution<> dis(1, total_damage.sides);
             damage += dis(gen);
         }
+        snprintf(combat_message, sizeof(combat_message), "You deal %d damage to %s!", damage, monster->name.c_str());
         if (monster->takeDamage(damage)) {
-            // Monster died
             monsterAt[monster->y][monster->x] = nullptr;
             for (int i = 0; i < num_monsters; i++) {
                 if (monsters[i] == monster) {
@@ -287,18 +296,17 @@ int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
             engaged_monster = nullptr;
             if (monster->is_boss) {
                 *message = "You defeated SpongeBob SquarePants! You win!";
-                return -1; // Signal game win
+                return -1;
             }
             *message = "You defeated the monster!";
             return 0;
         }
-        player_turn = false; // Monster's turn
-        *message = "You attacked the monster!";
-    } else if (ch == 'f' && player_turn) { // Attempt to flee
+        player_turn = false;
+    } else if (ch == 'f' && player_turn) {
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<> dis(1, 100);
-        int flee_chance = 30; // 30% chance to flee
+        int flee_chance = 30;
         if (dis(gen) <= flee_chance) {
             in_combat = false;
             combat_initialized = false;
@@ -306,10 +314,10 @@ int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
             *message = "You fled from the monster!";
             return 0;
         } else {
-            *message = "Failed to flee!";
-            player_turn = false; // Monster's turn
+            snprintf(combat_message, sizeof(combat_message), "Failed to flee!");
+            player_turn = false;
         }
-    } else if (!player_turn) { // Monster's turn
+    } else if (!player_turn) {
         std::random_device rd;
         std::mt19937 gen(rd());
         int damage = monster->damage.base;
@@ -317,29 +325,27 @@ int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
             std::uniform_int_distribution<> dis(1, monster->damage.sides);
             damage += dis(gen);
         }
+        snprintf(combat_message, sizeof(combat_message), "%s deals %d damage to you!", monster->name.c_str(), damage);
         if (player->takeDamage(damage)) {
-            // PC died
             in_combat = false;
             combat_initialized = false;
             engaged_monster = nullptr;
             *message = "You were killed! Game over!";
-            return -2; // Signal game over
+            return -2;
         }
-        player_turn = true; // Player's turn
-        *message = "Monster attacked you!";
+        player_turn = true;
     } else {
-        *message = player_turn ? "Press 'a' to attack, 'f' to flee" : "Monster's turn...";
+        snprintf(combat_message, sizeof(combat_message), player_turn ? "Press 'a' to attack, 'f' to flee" : "Monster's turn...");
     }
 
-    // Draw combat window
     werase(win);
     mvwprintw(win, 0, 0, "Combat Mode (Press 'a' to attack, 'f' to flee):");
     mvwprintw(win, 1, 0, "Player HP: %d", player->hitpoints);
     mvwprintw(win, 2, 0, "Monster: %s (%c) HP: %d", monster->name.c_str(), monster->symbol, monster->hitpoints);
-    mvwprintw(win, 3, 0, "%s", *message);
+    mvwprintw(win, 3, 0, "%s", combat_message);
     mvwprintw(win, 4, 0, "Turn: %s", player_turn ? "Player" : "Monster");
     wrefresh(win);
-    return 1; // Continue combat
+    return 1;
 }
 
 void printDungeon() {
@@ -746,7 +752,6 @@ void update_visibility() {
 
 void draw_dungeon(WINDOW* win, const char* message) {
     if (in_combat && engaged_monster) {
-        // Combat window is handled in fight_monster
         return;
     }
 
@@ -894,7 +899,6 @@ int move_player(int dx, int dy, const char** message) {
         return 0;
     }
     if (monsterAt[new_y][new_x]) {
-        // Initiate combat
         engaged_monster = monsterAt[new_y][new_x];
         in_combat = true;
         *message = "Combat started! Press 'a' to attack, 'f' to flee.";
