@@ -977,7 +977,12 @@ void display_equipment(WINDOW* win, PC* pc, const char** message) {
     };
     for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
         if (pc->equipment[i]) {
-            mvwprintw(win, i + 1, 0, "%c: %s (%s)", 'a' + i, slot_names[i], pc->equipment[i]->name.c_str());
+            Dice item_damage = pc->equipment[i]->damage;
+            if (item_damage.base == 0 && item_damage.dice == 0) {
+                mvwprintw(win, i + 1, 0, "%c: %s (%s) (No damage)", 'a' + i, slot_names[i], pc->equipment[i]->name.c_str());
+            } else {
+                mvwprintw(win, i + 1, 0, "%c: %s (%s) (+%s damage)", 'a' + i, slot_names[i], pc->equipment[i]->name.c_str(), item_damage.toString().c_str());
+            }
         } else {
             mvwprintw(win, i + 1, 0, "%c: %s (empty)", 'a' + i, slot_names[i]);
         }
