@@ -38,6 +38,7 @@ char remembered[HEIGHT][WIDTH] = {0};
 
 NPC* engaged_monster = nullptr;
 bool in_combat = false;
+TurnScheduler scheduler;
 
 std::vector<MonsterDescription> monsterDescs;
 std::vector<ObjectDescription> objectDescs;
@@ -48,7 +49,7 @@ Object::Object(int x_, int y_) : x(x_), y(y_), hit(0), dodge(0), defense(0),
 Object::~Object() {}
 
 Character::Character(int x_, int y_) : x(x_), y(y_), speed(10), hitpoints(100), alive(1),
-    last_seen_x(-1), last_seen_y(-1) {
+    last_seen_x(-1), last_seen_y(-1), next_turn(0) {
     damage = Dice(0, 1, 4); // Default damage: 0+1d4
 }
 
@@ -109,7 +110,6 @@ void PC::calculateStats(int& total_speed, Dice& total_damage, int& total_defense
     total_hit = 0; // Base hit: 0
     total_dodge = 0; // Base dodge: 0
 
-    // Add equipment bonuses
     for (int i = 0; i < EQUIPMENT_SLOTS; i++) {
         if (equipment[i]) {
             total_speed += equipment[i]->speed;
@@ -257,6 +257,41 @@ int NPC::takeDamage(int damage) {
         return 1; // NPC died
     }
     return 0;
+}
+
+void TurnScheduler::addEntity(Character* entity) {
+    int total_speed;
+    Dice total_damage;
+    int total_defense, total_hit, total_dodge;
+    if (dynamic_cast<PC*>(entity)) {
+        static_cast<PC*>(entity)->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
+    } else {
+        total_speed = entity->speed; // NPCs don't need to calculate stats dynamically
+    }
+    entity->next_turn = 1000 / total_speed; // Initial turn time based on speed
+    TurnEntry entry = {entity, entity->next_turn};
+    heap.push(entry);
+}
+
+Character* TurnScheduler::getNext() {
+    if (heap.empty()) return nullptr;
+    TurnEntry entry = heap.top();
+    heap.pop();
+    return entry.entity;
+}
+
+void TurnScheduler::scheduleNext(Character* entity) {
+    int total_speed;
+    Dice total_damage;
+    int total_defense, total_hit, total_dodge;
+    if (dynamic_cast<PC*>(entity)) {
+        static_cast<PC*>(entity)->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
+    } else {
+        total_speed = entity->speed;
+    }
+    entity->next_turn += 1000 / total_speed; // Schedule next turn based on speed
+    TurnEntry entry = {entity, entity->next_turn};
+    heap.push(entry);
 }
 
 int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
@@ -488,6 +523,7 @@ void placePlayer() {
     if (player) delete player;
     player = new PC(px, py);
     dungeon[player->y][player->x] = '@';
+    scheduler.addEntity(player);
 }
 
 void loadDescriptions() {
@@ -565,6 +601,7 @@ int spawnMonsters(int numMonsters) {
                 monsters = temp;
                 monsters[num_monsters] = npc;
                 monsterAt[npc->y][npc->x] = npc;
+                scheduler.addEntity(npc);
                 num_monsters++;
             }
         }
@@ -891,37 +928,6 @@ void regenerate_dungeon(int numMonsters) {
     update_visibility();
 }
 
-void display_help(WINDOW* win, const char** message) {
-    werase(win);
-    mvwprintw(win, 0, 0, "Help Menu (Press any key to exit):");
-    mvwprintw(win, 1, 0, "Movement:");
-    mvwprintw(win, 2, 0, "  7/y, 8/k, 9/u: Up-Left, Up, Up-Right");
-    mvwprintw(win, 3, 0, "  4/h, 6/l: Left, Right");
-    mvwprintw(win, 4, 0, "  1/b, 2/j, 3/n: Down-Left, Down, Down-Right");
-    mvwprintw(win, 5, 0, "Combat:");
-    mvwprintw(win, 6, 0, "  a: Attack (when in combat)");
-    mvwprintw(win, 7, 0, "  f: Flee (when in combat, 30%% chance)");
-    mvwprintw(win, 8, 0, "Inventory & Equipment:");
-    mvwprintw(win, 9, 0, "  i: View inventory");
-    mvwprintw(win, 10, 0, "  w: Wear item from inventory");
-    mvwprintw(win, 11, 0, "  d: Drop item from inventory");
-    mvwprintw(win, 12, 0, "  x: Expunge item from inventory");
-    mvwprintw(win, 13, 0, "  I: Inspect item in inventory");
-    mvwprintw(win, 14, 0, "  e: View equipment");
-    mvwprintw(win, 15, 0, "  t: Take off equipped item");
-    mvwprintw(win, 16, 0, "Other Actions:");
-    mvwprintw(win, 17, 0, "  5/space/.: Rest");
-    mvwprintw(win, 18, 0, "  m: View monster list");
-    mvwprintw(win, 19, 0, "  f: Toggle fog of war");
-    mvwprintw(win, 20, 0, "  g: Teleport (g to confirm, r for random, ESC to cancel)");
-    mvwprintw(win, 21, 0, "  L: Look mode (t to inspect monster, ESC to cancel)");
-    mvwprintw(win, 22, 0, "  >/ <: Use stairs");
-    mvwprintw(win, 23, 0, "  s: View stats  q/Q: Quit");
-    wrefresh(win);
-    getch();
-    *message = "Help displayed";
-}
-
 int move_player(int dx, int dy, const char** message) {
     if (in_combat) {
         *message = "You are in combat! Press 'a' to attack, 'f' to flee.";
@@ -1065,7 +1071,6 @@ void display_stats(WINDOW* win, PC* pc, const char** message) {
     int total_defense, total_hit, total_dodge;
     pc->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
 
-    // Calculate a sample damage roll for display
     std::random_device rd;
     std::mt19937 gen(rd());
     int sample_damage = total_damage.base;
@@ -1089,6 +1094,37 @@ void display_stats(WINDOW* win, PC* pc, const char** message) {
     wrefresh(win);
     getch();
     *message = "Stats displayed";
+}
+
+void display_help(WINDOW* win, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Help Menu (Press any key to exit):");
+    mvwprintw(win, 1, 0, "Movement:");
+    mvwprintw(win, 2, 0, "  7/y, 8/k, 9/u: Up-Left, Up, Up-Right");
+    mvwprintw(win, 3, 0, "  4/h, 6/l: Left, Right");
+    mvwprintw(win, 4, 0, "  1/b, 2/j, 3/n: Down-Left, Down, Down-Right");
+    mvwprintw(win, 5, 0, "Combat:");
+    mvwprintw(win, 6, 0, "  a: Attack (when in combat)");
+    mvwprintw(win, 7, 0, "  f: Flee (when in combat, 30%% chance)");
+    mvwprintw(win, 8, 0, "Inventory & Equipment:");
+    mvwprintw(win, 9, 0, "  i: View inventory");
+    mvwprintw(win, 10, 0, "  w: Wear item from inventory");
+    mvwprintw(win, 11, 0, "  d: Drop item from inventory");
+    mvwprintw(win, 12, 0, "  x: Expunge item from inventory");
+    mvwprintw(win, 13, 0, "  I: Inspect item in inventory");
+    mvwprintw(win, 14, 0, "  e: View equipment");
+    mvwprintw(win, 15, 0, "  t: Take off equipped item");
+    mvwprintw(win, 16, 0, "Other Actions:");
+    mvwprintw(win, 17, 0, "  5/space/.: Rest");
+    mvwprintw(win, 18, 0, "  m: View monster list");
+    mvwprintw(win, 19, 0, "  f: Toggle fog of war");
+    mvwprintw(win, 20, 0, "  g: Teleport (g to confirm, r for random, ESC to cancel)");
+    mvwprintw(win, 21, 0, "  L: Look mode (t to inspect monster, ESC to cancel)");
+    mvwprintw(win, 22, 0, "  >/ <: Use stairs");
+    mvwprintw(win, 23, 0, "  s: View stats  q/Q: Quit");
+    wrefresh(win);
+    getch();
+    *message = "Help displayed";
 }
 
 void wear_item(WINDOW* win, PC* pc, const char** message) {

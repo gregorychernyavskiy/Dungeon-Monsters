@@ -146,204 +146,226 @@ int main(int argc, char* argv[]) {
     int target_x = player->x, target_y = player->y;
 
     while (game_running) {
-        int ch = getch();
-        int moved = 0;
-        int dx = 0, dy = 0;
+        Character* current = scheduler.getNext();
+        if (!current) break; // No more entities to process
 
-        if (in_combat) {
-            int result = fight_monster(win, engaged_monster, ch, &message);
-            if (result == -1) { // Game win
-                game_running = false;
-            } else if (result == -2) { // Game over
-                game_running = false;
-            } else if (!in_combat) { // Combat ended
-                draw_dungeon(win, message);
+        if (dynamic_cast<PC*>(current)) { // Player's turn
+            int ch = getch();
+            int moved = 0;
+            int dx = 0, dy = 0;
+
+            if (in_combat) {
+                int result = fight_monster(win, engaged_monster, ch, &message);
+                if (result == -1) { // Game win
+                    game_running = false;
+                } else if (result == -2) { // Game over
+                    game_running = false;
+                } else if (!in_combat) { // Combat ended
+                    scheduler.scheduleNext(engaged_monster); // Reschedule the monster
+                    draw_dungeon(win, message);
+                }
+                scheduler.scheduleNext(player); // Reschedule player after action
+                continue;
             }
-            continue;
-        }
 
-        if (teleport_mode) {
-            if (ch == 'g') {
-                if (hardness[target_y][target_x] != 255) {
+            if (teleport_mode) {
+                if (ch == 'g') {
+                    if (hardness[target_y][target_x] != 255) {
+                        dungeon[player->y][player->x] = terrain[player->y][player->x];
+                        if (objectAt[player->y][player->x]) {
+                            terrain[player->y][player->x] = objectAt[player->y][player->x]->symbol;
+                        }
+                        player->x = target_x;
+                        player->y = target_y;
+                        dungeon[player->y][player->x] = '@';
+                        update_visibility();
+                        message = "Teleported!";
+                    } else {
+                        message = "Cannot teleport into immutable rock!";
+                    }
+                    teleport_mode = false;
+                } else if (ch == 'r') {
+                    int new_x, new_y;
+                    do {
+                        new_x = rand() % WIDTH;
+                        new_y = rand() % HEIGHT;
+                    } while (hardness[new_y][new_x] == 255);
                     dungeon[player->y][player->x] = terrain[player->y][player->x];
                     if (objectAt[player->y][player->x]) {
                         terrain[player->y][player->x] = objectAt[player->y][player->x]->symbol;
                     }
-                    player->x = target_x;
-                    player->y = target_y;
+                    player->x = new_x;
+                    player->y = new_y;
                     dungeon[player->y][player->x] = '@';
                     update_visibility();
-                    message = "Teleported!";
-                } else {
-                    message = "Cannot teleport into immutable rock!";
-                }
-                teleport_mode = false;
-            } else if (ch == 'r') {
-                int new_x, new_y;
-                do {
-                    new_x = rand() % WIDTH;
-                    new_y = rand() % HEIGHT;
-                } while (hardness[new_y][new_x] == 255);
-                dungeon[player->y][player->x] = terrain[player->y][player->x];
-                if (objectAt[player->y][player->x]) {
-                    terrain[player->y][player->x] = objectAt[player->y][player->x]->symbol;
-                }
-                player->x = new_x;
-                player->y = new_y;
-                dungeon[player->y][player->x] = '@';
-                update_visibility();
-                message = "Teleported to random location!";
-                teleport_mode = false;
-            } else if (ch == 27) {
-                teleport_mode = false;
-                message = "Teleport mode cancelled";
-            } else if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
-            else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
-            else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
-            else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
-            else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
-            else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
-            else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
-            else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
+                    message = "Teleported to random location!";
+                    teleport_mode = false;
+                } else if (ch == 27) {
+                    teleport_mode = false;
+                    message = "Teleport mode cancelled";
+                } else if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
+                else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
+                else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
+                else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
+                else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
+                else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
+                else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
+                else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
 
-            if (dx != 0 || dy != 0) {
-                int new_tx = target_x + dx, new_ty = target_y + dy;
-                if (new_tx >= 0 && new_tx < WIDTH && new_ty >= 0 && new_ty < HEIGHT) {
-                    target_x = new_tx;
-                    target_y = new_ty;
-                    werase(win);
-                    draw_dungeon(win, "Teleport mode: Move cursor with movement keys, 'g' to confirm, 'r' for random");
-                    mvwprintw(win, target_y + 1, target_x, "*");
-                    wrefresh(win);
-                }
-            }
-        } else if (look_mode) {
-            if (ch == 't') {
-                display_monster_info(win, monsterAt[target_y][target_x], &message);
-                look_mode = false;
-            } else if (ch == 27) {
-                look_mode = false;
-                message = "Look mode cancelled";
-            } else if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
-            else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
-            else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
-            else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
-            else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
-            else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
-            else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
-            else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
-
-            if (dx != 0 || dy != 0) {
-                int new_tx = target_x + dx, new_ty = target_y + dy;
-                if (new_tx >= 0 && new_tx < WIDTH && new_ty >= 0 && new_ty < HEIGHT) {
-                    target_x = new_tx;
-                    target_y = new_ty;
-                    werase(win);
-                    draw_dungeon(win, "Look mode: Move cursor with movement keys, 't' to select monster, ESC to exit");
-                    mvwprintw(win, target_y + 1, target_x, "*");
-                    wrefresh(win);
-                }
-            }
-        } else {
-            if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
-            else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
-            else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
-            else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
-            else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
-            else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
-            else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
-            else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
-
-            if (dx != 0 || dy != 0) {
-                moved = move_player(dx, dy, &message);
-                if (moved == -1) {
-                    game_running = false;
+                if (dx != 0 || dy != 0) {
+                    int new_tx = target_x + dx, new_ty = target_y + dy;
+                    if (new_tx >= 0 && new_tx < WIDTH && new_ty >= 0 && new_ty < HEIGHT) {
+                        target_x = new_tx;
+                        target_y = new_ty;
+                        werase(win);
+                        draw_dungeon(win, "Teleport mode: Move cursor with movement keys, 'g' to confirm, 'r' for random");
+                        mvwprintw(win, target_y + 1, target_x, "*");
+                        wrefresh(win);
+                    }
+                    scheduler.scheduleNext(player);
                     continue;
                 }
+                scheduler.scheduleNext(player);
+            } else if (look_mode) {
+                if (ch == 't') {
+                    display_monster_info(win, monsterAt[target_y][target_x], &message);
+                    look_mode = false;
+                } else if (ch == 27) {
+                    look_mode = false;
+                    message = "Look mode cancelled";
+                } else if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
+                else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
+                else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
+                else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
+                else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
+                else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
+                else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
+                else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
+
+                if (dx != 0 || dy != 0) {
+                    int new_tx = target_x + dx, new_ty = target_y + dy;
+                    if (new_tx >= 0 && new_tx < WIDTH && new_ty >= 0 && new_ty < HEIGHT) {
+                        target_x = new_tx;
+                        target_y = new_ty;
+                        werase(win);
+                        draw_dungeon(win, "Look mode: Move cursor with movement keys, 't' to select monster, ESC to exit");
+                        mvwprintw(win, target_y + 1, target_x, "*");
+                        wrefresh(win);
+                    }
+                    scheduler.scheduleNext(player);
+                    continue;
+                }
+                scheduler.scheduleNext(player);
             } else {
-                switch (ch) {
-                    case '>':
-                        moved = use_stairs('>', numMonsters, &message);
-                        break;
-                    case '<':
-                        moved = use_stairs('<', numMonsters, &message);
-                        break;
-                    case '5': case ' ': case '.':
-                        moved = 1;
-                        message = "Resting...";
-                        break;
-                    case 'm':
-                        draw_monster_list(win);
-                        message = "";
-                        break;
-                    case 'f':
-                        fog_enabled = !fog_enabled;
-                        message = fog_enabled ? "Fog of War ON" : "Fog of War OFF";
-                        break;
-                    case 'g':
-                        teleport_mode = true;
-                        target_x = player->x;
-                        target_y = player->y;
-                        message = "Teleport mode: Move cursor with movement keys, 'g' to confirm, 'r' for random";
-                        break;
-                    case 'L':
-                        look_mode = true;
-                        target_x = player->x;
-                        target_y = player->y;
-                        message = "Look mode: Move cursor with movement keys, 't' to select monster, ESC to exit";
-                        break;
-                    case 'w':
-                        wear_item(win, player, &message);
-                        break;
-                    case 't':
-                        take_off_item(win, player, &message);
-                        break;
-                    case 'd':
-                        drop_item(win, player, &message);
-                        break;
-                    case 'x':
-                        expunge_item(win, player, &message);
-                        break;
-                    case 'i':
-                        display_inventory(win, player, &message);
-                        break;
-                    case 'e':
-                        display_equipment(win, player, &message);
-                        break;
-                    case 's':
-                        display_stats(win, player, &message);
-                        break;
-                    case '?': // New keybinding for help screen
-                        display_help(win, &message);
-                        break;
-                    case 'I':
-                        inspect_item(win, player, &message);
-                        break;
-                    case 'q': case 'Q':
+                if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
+                else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
+                else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
+                else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
+                else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
+                else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
+                else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
+                else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
+
+                if (dx != 0 || dy != 0) {
+                    moved = move_player(dx, dy, &message);
+                    if (moved == -1) {
                         game_running = false;
-                        message = "Quitting game...";
-                        break;
-                    default:
-                        message = "Unknown command";
-                        break;
+                    }
+                } else {
+                    switch (ch) {
+                        case '>':
+                            moved = use_stairs('>', numMonsters, &message);
+                            break;
+                        case '<':
+                            moved = use_stairs('<', numMonsters, &message);
+                            break;
+                        case '5': case ' ': case '.':
+                            moved = 1;
+                            message = "Resting...";
+                            break;
+                        case 'm':
+                            draw_monster_list(win);
+                            message = "";
+                            break;
+                        case 'f':
+                            fog_enabled = !fog_enabled;
+                            message = fog_enabled ? "Fog of War ON" : "Fog of War OFF";
+                            break;
+                        case 'g':
+                            teleport_mode = true;
+                            target_x = player->x;
+                            target_y = player->y;
+                            message = "Teleport mode: Move cursor with movement keys, 'g' to confirm, 'r' for random";
+                            break;
+                        case 'L':
+                            look_mode = true;
+                            target_x = player->x;
+                            target_y = player->y;
+                            message = "Look mode: Move cursor with movement keys, 't' to select monster, ESC to exit";
+                            break;
+                        case 'w':
+                            wear_item(win, player, &message);
+                            break;
+                        case 't':
+                            take_off_item(win, player, &message);
+                            break;
+                        case 'd':
+                            drop_item(win, player, &message);
+                            break;
+                        case 'x':
+                            expunge_item(win, player, &message);
+                            break;
+                        case 'i':
+                            display_inventory(win, player, &message);
+                            break;
+                        case 'e':
+                            display_equipment(win, player, &message);
+                            break;
+                        case 's':
+                            display_stats(win, player, &message);
+                            break;
+                        case '?':
+                            display_help(win, &message);
+                            break;
+                        case 'I':
+                            inspect_item(win, player, &message);
+                            break;
+                        case 'q': case 'Q':
+                            game_running = false;
+                            message = "Quitting game...";
+                            break;
+                        default:
+                            message = "Unknown command";
+                            break;
+                    }
                 }
+                scheduler.scheduleNext(player);
+            }
+
+            if (!teleport_mode && !look_mode && !in_combat) {
+                draw_dungeon(win, message);
+            }
+        } else { // Monster's turn
+            NPC* monster = dynamic_cast<NPC*>(current);
+            if (monster && monster->alive) {
+                monster->move();
+                if (!monster->alive) {
+                    // Monster died during move (e.g., combat initiated and resolved)
+                    scheduler.scheduleNext(monster);
+                    continue;
+                }
+                scheduler.scheduleNext(monster);
+                if (!teleport_mode && !look_mode && !in_combat) {
+                    draw_dungeon(win, message);
+                }
+            } else {
+                scheduler.scheduleNext(monster); // Reschedule if not alive
             }
         }
 
-        if (moved && game_running && !teleport_mode && !look_mode && !in_combat) {
-            for (int i = 0; i < num_monsters; i++) {
-                if (monsters[i] && monsters[i]->alive) {
-                    monsters[i]->move();
-                }
-            }
-            if (!player->alive) {
-                message = "You were killed! Game over!";
-                game_running = false;
-            }
-        }
-
-        if (!teleport_mode && !look_mode && !in_combat) {
-            draw_dungeon(win, message);
+        if (!player->alive) {
+            message = "You were killed! Game over!";
+            game_running = false;
         }
     }
 

@@ -54,6 +54,7 @@ public:
     std::string name;
     std::string color;
     char symbol;
+    int next_turn; // Time of next turn for scheduling
 
     Character(int x_, int y_);
     virtual ~Character() = default;
@@ -88,6 +89,21 @@ public:
     void move() override;
     int takeDamage(int damage) override;
     bool displace(int& new_x, int& new_y);
+};
+
+class TurnScheduler {
+private:
+    struct TurnEntry {
+        Character* entity;
+        int time;
+        bool operator<(const TurnEntry& other) const { return time > other.time; }
+    };
+    MinHeap<TurnEntry> heap;
+
+public:
+    void addEntity(Character* entity);
+    Character* getNext();
+    void scheduleNext(Character* entity);
 };
 
 extern char dungeon[HEIGHT][WIDTH];
@@ -125,6 +141,7 @@ extern std::vector<ObjectDescription> objectDescs;
 // Combat state
 extern NPC* engaged_monster;
 extern bool in_combat;
+extern TurnScheduler scheduler; // Global scheduler for turn management
 
 void printDungeon();
 void emptyDungeon();
