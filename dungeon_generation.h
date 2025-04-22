@@ -15,7 +15,7 @@
 #define MIN_ROOMS 6
 #define MIN_ROOM_HEIGHT 3
 #define MAX_ROOM_HEIGHT 9
-#define MIN_ROOM_WIDTH <br>4
+#define MIN_ROOM_WIDTH 4
 #define MAX_ROOM_WIDTH 12
 #define MAX_HARDNESS 255
 #define MIN_HARDNESS 1
@@ -169,7 +169,7 @@ enum EquipmentSlot {
 void display_inventory(WINDOW* win, PC* pc, const char** message);
 void display_equipment(WINDOW* win, PC* pc, const char** message);
 void display_stats(WINDOW* win, PC* pc, const char** message);
-void display_help(WINDOW* win, const char** message); // New function for help screen
+void display_help(WINDOW* win, const char** message);
 void wear_item(WINDOW* win, PC* pc, const char** message);
 void take_off_item(WINDOW* win, PC* pc, const char** message);
 void drop_item(WINDOW* win, PC* pc, const char** message);
