@@ -42,6 +42,9 @@ bool in_combat = false;
 std::vector<MonsterDescription> monsterDescs;
 std::vector<ObjectDescription> objectDescs;
 
+int current_level = 1; // Start at level 1
+std::map<int, std::vector<Object*>> level_objects; // Store objects per level
+
 Object::Object(int x_, int y_) : x(x_), y(y_), hit(0), dodge(0), defense(0),
     weight(0), speed(0), attribute(0), value(0), is_artifact(false) {}
 
@@ -485,8 +488,8 @@ void placePlayer() {
     struct Room playerRoom = rooms[index];
     int px = playerRoom.x + rand() % playerRoom.width;
     int py = playerRoom.y + rand() % playerRoom.height;
-    player->x = px;
-    player->y = py;
+    if (player) delete player;
+    player = new PC(px, py);
     dungeon[player->y][player->x] = '@';
 }
 
@@ -622,47 +625,24 @@ void placeObjects(int count) {
 }
 
 void cleanupObjects() {
-    // Create a set of player-held objects to preserve
-    std::set<Object*> player_objects;
-    for (int i = 0; i < PC::CARRY_SLOTS; i++) {
-        if (player->carry[i]) {
-            player_objects.insert(player->carry[i]);
-        }
-    }
-    for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
-        if (player->equipment[i]) {
-            player_objects.insert(player->equipment[i]);
-        }
-    }
-
-    // Clear objectAt map for floor objects only
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            if (objectAt[y][x] && player_objects.find(objectAt[y][x]) == player_objects.end()) {
-                objectAt[y][x] = nullptr;
-            }
-        }
-    }
-
-    // Delete only non-player-held objects and rebuild objects array
-    std::vector<Object*> new_objects;
+    // Store current level's objects before cleanup
+    std::vector<Object*> current_objects;
     for (int i = 0; i < num_objects; ++i) {
         if (objects[i]) {
-            if (player_objects.find(objects[i]) != player_objects.end()) {
-                new_objects.push_back(objects[i]); // Preserve player-held object
-            } else {
-                delete objects[i]; // Delete floor object
-            }
+            current_objects.push_back(objects[i]);
         }
     }
+    level_objects[current_level] = current_objects;
 
-    // Add player-held objects back to objects array
-    free(objects);
-    num_objects = new_objects.size();
-    objects = (Object**)malloc(num_objects * sizeof(Object*));
-    for (size_t i = 0; i < new_objects.size(); ++i) {
-        objects[i] = new_objects[i];
+    // Clear objectAt array
+    for (int i = 0; i < num_objects; ++i) {
+        if (objects[i]) {
+            objectAt[objects[i]->y][objects[i]->x] = nullptr;
+        }
     }
+    free(objects);
+    objects = nullptr;
+    num_objects = 0;
 }
 
 void runGame(int numMonsters) {
@@ -878,18 +858,8 @@ void draw_monster_list(WINDOW* win) {
 }
 
 void regenerate_dungeon(int numMonsters) {
-    // Preserve player's inventory and equipment
-    Object* preserved_carry[PC::CARRY_SLOTS];
-    Object* preserved_equipment[PC::EQUIPMENT_SLOTS];
-    int preserved_num_carried = player->num_carried;
-    for (int i = 0; i < PC::CARRY_SLOTS; i++) {
-        preserved_carry[i] = player->carry[i];
-        player->carry[i] = nullptr; // Prevent deletion in ~PC()
-    }
-    for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
-        preserved_equipment[i] = player->equipment[i];
-        player->equipment[i] = nullptr; // Prevent deletion in ~PC()
-    }
+    // Save current level's objects
+    cleanupObjects();
 
     // Clear monsters
     for (int i = 0; i < num_monsters; i++) {
@@ -911,15 +881,15 @@ void regenerate_dungeon(int numMonsters) {
     monsters = nullptr;
     num_monsters = 0;
 
-    // Clear floor objects (preserving player-held objects)
-    cleanupObjects();
+    // Update level
+    current_level++;
 
-    // Clear player's current position
+    // Clear player's previous position
     if (player->x >= 0 && player->y >= 0 && player->x < WIDTH && player->y < HEIGHT) {
         dungeon[player->y][player->x] = terrain[player->y][player->x] == 0 ? '.' : terrain[player->y][player->x];
     }
 
-    // Regenerate dungeon
+    // Generate new dungeon
     emptyDungeon();
     createRooms();
     connectRooms();
@@ -932,50 +902,38 @@ void regenerate_dungeon(int numMonsters) {
         }
     }
 
-    // Place player in new room
+    // Preserve player's inventory and equipment
+    PC* old_player = player;
     placePlayer();
-
-    // Restore player's inventory and equipment
+    player->num_carried = old_player->num_carried;
     for (int i = 0; i < PC::CARRY_SLOTS; i++) {
-        player->carry[i] = preserved_carry[i];
+        player->carry[i] = old_player->carry[i];
+        old_player->carry[i] = nullptr; // Prevent deletion
     }
     for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
-        player->equipment[i] = preserved_equipment[i];
+        player->equipment[i] = old_player->equipment[i];
+        old_player->equipment[i] = nullptr; // Prevent deletion
     }
-    player->num_carried = preserved_num_carried;
+    player->hitpoints = old_player->hitpoints;
+    delete old_player;
 
-    // Initialize hardness
     initializeHardness();
-
-    // Spawn new monsters and objects
     spawnMonsters(numMonsters);
-    placeObjects(10);
 
-    // Rebuild objects array to include player-held objects
-    std::vector<Object*> new_objects;
-    for (int i = 0; i < num_objects; i++) {
-        if (objects[i]) {
-            new_objects.push_back(objects[i]);
+    // Restore or place new objects
+    if (level_objects.find(current_level) != level_objects.end()) {
+        // Restore objects from previous visit to this level
+        objects = (Object**)malloc(level_objects[current_level].size() * sizeof(Object*));
+        num_objects = level_objects[current_level].size();
+        for (size_t i = 0; i < level_objects[current_level].size(); ++i) {
+            objects[i] = level_objects[current_level][i];
+            objectAt[objects[i]->y][objects[i]->x] = objects[i];
         }
-    }
-    for (int i = 0; i < PC::CARRY_SLOTS; i++) {
-        if (player->carry[i]) {
-            new_objects.push_back(player->carry[i]);
-        }
-    }
-    for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
-        if (player->equipment[i]) {
-            new_objects.push_back(player->equipment[i]);
-        }
-    }
-    free(objects);
-    num_objects = new_objects.size();
-    objects = (Object**)malloc(num_objects * sizeof(Object*));
-    for (size_t i = 0; i < new_objects.size(); ++i) {
-        objects[i] = new_objects[i];
+    } else {
+        // Place new objects for a new level
+        placeObjects(10);
     }
 
-    // Reset visibility
     memset(visible, 0, sizeof(visible));
     memset(remembered, 0, sizeof(remembered));
     update_visibility();
