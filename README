@@ -1,39 +1,115 @@
-Dungeon Generation, Monsters, and Pathfinding
-- This project is a fully object-oriented C++ roguelike dungeon crawler that generates randomized dungeons featuring rooms, corridors, and staircases ('<' for upstairs, '>' for downstairs), ensuring full accessibility across the map. It employs Dijkstra’s Algorithm for pathfinding, enabling non-tunneling monsters to navigate open spaces and tunneling monsters to dig through walls, with movement costs determined by terrain hardness. Monsters possess distinct AI traits: intelligence (smart pathfinding to the player), telepathy (constant awareness of player location), tunneling (ability to break through walls), and erratic behavior (random movement), adding variety to gameplay. The player, represented by '@', navigates the dungeon, while an event-driven system dictates turn order based on entity speed. The game supports saving and loading dungeons using ./dungeon --save "filename" and ./dungeon --load "filename", and running ./dungeon "number" spawns monsters, ending when the player is defeated.
+Dungeon Monsters
+Overview:
+- A C++ roguelike dungeon crawler generating randomized dungeons with rooms (.), corridors (#), and staircases (< for upstairs, > for downstairs).
+- Uses Dijkstra’s Algorithm for pathfinding: non-tunneling monsters navigate open spaces, tunneling monsters dig through walls (cost based on hardness).
+- Monsters have AI traits: intelligent (smart pathfinding), telepathic (knows player location), tunneling (breaks walls), erratic (random movement).
+- Player (@) navigates the dungeon; turn order is event-driven based on speed.
+- Supports saving/loading dungeons and spawning monsters; game ends on player defeat or boss victory (SpongeBob SquarePants).
 
-- To start the game, launch ./dungeon "number of monsters" and press any key to begin. Players can toggle Fog of War mode with 'F', restricting visibility to a 3-tile radius around the player, with previously seen terrain remembered for strategic navigation. Pressing 'M' displays a scrollable list of all monsters in the dungeon, detailing their symbol and relative position (e.g., "e, 2 south and 6 east"); use arrow keys to scroll (test with 25+ monsters to verify scrolling) and ESC to return to gameplay. Debugging features enhance testing: 'F' toggles fog, and 'G' activates teleportation mode for quick repositioning. As of version 1.06, these mechanics were introduced alongside a shift to C++ classes for the PC, NPCs, and general characters, ensuring a modular design.
+Prerequisites:
+- C++ compiler (g++ with C++11 support).
+- ncurses library (sudo apt-get install libncurses5-dev on Ubuntu).
+- Linux/Unix system (uses $HOME/.rlg327/ for file storage).
 
-- New to version 1.07, the project includes robust parsing capabilities for monster and item definitions, accessible via ./dungeon --parse-monsters and ./dungeon --parse-objects. These commands read from $HOME/.rlg327/monster_desc.txt and $HOME/.rlg327/object_desc.txt.
-
-Compile the project:
-make
+Compile the Project:
+- Run make to compile into the dungeon executable.
 
 Clean the Project:
-make clean
+- Run make clean to remove compiled files.
 
-Generate a new dungeon:         
-./dungeon
+Generate a New Dungeon:
+- Run ./dungeon to create a new dungeon.
 
-Save the dungeon:
-./dungeon --save "filename"
+Save the Dungeon:
+- Run ./dungeon --save "filename" to save to $HOME/.rlg327/filename.
 
-Load a saved dungeon:
-./dungeon --load "filename"
+Load a Saved Dungeon:
+- Run ./dungeon --load "filename" to load from $HOME/.rlg327/filename.
 
-Populate dungeon with monsters (between 1 and 15):
-./dungeon "number of monsters" (1-15)
+Populate Dungeon with Monsters (1-15):
+- Run ./dungeon "number of monsters" (e.g., ./dungeon 10).
 
-Start the Game with Fog of War:
-- Press any button to start the game.
+Start the Game:
+- After launching, press any key to begin.
+
+Movement:
+- Use y,7 / k,8 / u,9 for up-left / up / up-right.
+- Use h,4 / l,6 for left / right.
+- Use b,1 / j,2 / n,3 for down-left / down / down-right.
+
+Fog of War:
+- Press 'F' to toggle Fog of War (3-tile radius visibility).
+- Previously seen terrain is remembered for navigation.
 
 View Monster List:
-- Press 'M' to display a scrollable list of all monsters. 
-- Scroll through the monster list using the arrow keys.
+- Press 'M' to display a scrollable list of monsters (symbol, name, position, e.g., "p (Junior Barbarian), 2 south, 6 east").
+- Use arrow keys to scroll (test with 25+ monsters).
+- Press ESC to return to gameplay.
 
-Fog and Teleportation:
-- Press 'F' for Fog of War.
-- Press 'G' for Teleportation.
+Teleportation:
+- Press 'G' to enter teleportation mode.
+- Move cursor with movement keys, press 'g' to teleport, 'r' for random, or ESC to cancel.
+- Cannot teleport into immutable walls (hardness = 255).
 
-Parse files:
-- ./dungeon --parse-monsters
-- ./dungeon --parse-objects
+Item Pickup and Auto-Wear:
+- Press 'w' when standing on an item (e.g., sword |, armor [) to pick up and auto-equip to the appropriate slot (e.g., Weapon, Armor, Ring).
+- If slot is occupied, swaps with equipped item (old item moves to inventory if space exists).
+- If no inventory space, item stays on the floor ("Inventory full!").
+
+Wear from Inventory:
+- Press 'w' to equip an item from inventory (slots 0-9).
+- Select a slot (0-9); item equips, swapping with any existing item in the slot.
+- If item can’t be equipped, shows "Item cannot be equipped!".
+- Press ESC to cancel.
+
+Take Off Item:
+- Press 't' to move an equipped item (slots a-l) to an inventory slot (0-9).
+- Select a slot (a-l, e.g., 'a' for Weapon); requires an empty inventory slot.
+- If inventory is full, shows "Inventory full!".
+- Press ESC to cancel.
+
+View Inventory:
+- Press 'i' to list inventory slots (0-9) with item names or "(empty)".
+- Press any key to exit.
+
+View Equipment:
+- Press 'e' to list equipment slots (a-l) with item names and stats (e.g., "+10+15d30 damage").
+- Press any key to exit.
+
+Drop Item:
+- Press 'd' to drop an inventory item to the floor at your position.
+- Select a slot (0-9); press ESC to cancel.
+
+Delete Item:
+- Press 'x' to permanently remove an inventory item.
+- Select a slot (0-9); press ESC to cancel.
+
+Inspect Item:
+- Press 'I' to view an inventory item’s name, type, damage, speed, and description.
+- Select a slot (0-9); press any key to exit; ESC to cancel.
+
+Combat:
+- Forced Combat: Move into a monster’s cell (or vice versa) to start turn-based combat.
+- Attack: Press 'a' to attack, rolling your damage dice (base 0+1d4 if no weapon, plus equipped items’ dice). Damage reduces the monster’s hitpoints.
+- Flee: Press 'f' for a 30% chance to escape combat. If successful, combat ends; if not, the monster attacks.
+- Monster Attack: After your turn, the monster rolls its damage dice (e.g., 0+1d4 for SpongeBob). If your hitpoints reach zero, the game ends (loss).
+- Win Condition: Defeat the boss (SpongeBob SquarePants) to win the game.
+- Combat display shows player and monster HP, turn status, and messages (e.g., "You deal 15 damage!").
+
+Monster Inspection:
+- Press 'L' to enter targeting mode. Move the cursor with movement keys, press 't' to select a visible monster, and view its name, symbol, hitpoints, damage, speed, abilities, and description. ESC to exit.
+
+Item Persistence:
+- Inventory (slots 0-9) and equipment (slots a-l) persist when using stairs ('<' or '>'), ensuring items are not lost between levels.
+- Floor objects are remembered per level, so dropped items remain if you return to a level.
+
+Use Stairs:
+- Stand on '<' or '>' and press the corresponding key to move up or down.
+- Regenerates the dungeon for a new level.
+
+Quit:
+- Press 'q' or 'Q' to exit the game.
+
+Parse Files:
+- Run ./dungeon --parse-monsters to read $HOME/.rlg327/monster_desc.txt.
+- Run ./dungeon --parse-objects to read $HOME/.rlg327/object_desc.txt.
