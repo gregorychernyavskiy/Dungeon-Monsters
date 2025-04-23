@@ -4,6 +4,7 @@
 #include <ncurses.h>
 #include <string>
 #include <vector>
+#include <map>
 #include "minheap.h"
 #include "dice.h"
 #include "monster_parsing.h"
@@ -125,6 +126,10 @@ extern std::vector<ObjectDescription> objectDescs;
 // Combat state
 extern NPC* engaged_monster;
 extern bool in_combat;
+
+// Level tracking
+extern int current_level;
+extern std::map<int, std::vector<Object*>> level_objects; // Store objects per level
 
 void printDungeon();
 void emptyDungeon();

@@ -6,6 +6,7 @@
 #include <ctime>
 #include <cstring>
 #include <cstdlib>
+#include <map>
 
 char dungeon[HEIGHT][WIDTH];
 unsigned char hardness[HEIGHT][WIDTH];
@@ -488,8 +489,24 @@ void placePlayer() {
     struct Room playerRoom = rooms[index];
     int px = playerRoom.x + rand() % playerRoom.width;
     int py = playerRoom.y + rand() % playerRoom.height;
-    if (player) delete player;
-    player = new PC(px, py);
+    if (player) {
+        // Preserve inventory and equipment
+        PC* old_player = player;
+        player = new PC(px, py);
+        player->num_carried = old_player->num_carried;
+        player->hitpoints = old_player->hitpoints;
+        for (int i = 0; i < PC::CARRY_SLOTS; i++) {
+            player->carry[i] = old_player->carry[i];
+            old_player->carry[i] = nullptr; // Prevent deletion
+        }
+        for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
+            player->equipment[i] = old_player->equipment[i];
+            old_player->equipment[i] = nullptr; // Prevent deletion
+        }
+        delete old_player;
+    } else {
+        player = new PC(px, py);
+    }
     dungeon[player->y][player->x] = '@';
 }
 
@@ -902,20 +919,8 @@ void regenerate_dungeon(int numMonsters) {
         }
     }
 
-    // Preserve player's inventory and equipment
-    PC* old_player = player;
+    // Place player (preserves inventory and equipment)
     placePlayer();
-    player->num_carried = old_player->num_carried;
-    for (int i = 0; i < PC::CARRY_SLOTS; i++) {
-        player->carry[i] = old_player->carry[i];
-        old_player->carry[i] = nullptr; // Prevent deletion
-    }
-    for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
-        player->equipment[i] = old_player->equipment[i];
-        old_player->equipment[i] = nullptr; // Prevent deletion
-    }
-    player->hitpoints = old_player->hitpoints;
-    delete old_player;
 
     initializeHardness();
     spawnMonsters(numMonsters);
