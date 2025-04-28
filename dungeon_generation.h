@@ -183,8 +183,8 @@ void regenerate_dungeon(int numMonsters);
 int move_player(int dx, int dy, const char** message);
 int use_stairs(char direction, int numMonsters, const char** message);
 int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message);
-int fire_ranged_weapon(WINDOW* win, int target_x, int target_y, const char** message); // New
-int cast_poison_ball(WINDOW* win, int target_x, int target_y, const char** message); // New
+int fire_ranged_weapon(int target_x, int target_y, const char** message);
+int cast_poison_ball(int target_x, int target_y, const char** message);
 
 void placeObjects(int count);
 void cleanupObjects();
