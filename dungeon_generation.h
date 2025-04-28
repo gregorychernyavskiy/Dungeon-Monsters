@@ -71,7 +71,7 @@ public:
 
 class PC : public Character {
 public:
-    static const int CARRY_SLOTS = 10 10;
+    static const int CARRY_SLOTS = 10;
     static const int EQUIPMENT_SLOTS = 13;
     Object* equipment[EQUIPMENT_SLOTS];
     Object* carry[CARRY_SLOTS];
