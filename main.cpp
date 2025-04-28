@@ -155,6 +155,8 @@ int main(int argc, char* argv[]) {
     bool game_running = true;
     bool teleport_mode = false;
     bool look_mode = false;
+    bool targeting_mode = false;
+    enum TargetingAction { NONE, RANGED_ATTACK, POISON_BALL } targeting_action = NONE;
     int target_x = player->x, target_y = player->y;
 
     while (game_running) {
@@ -268,6 +270,44 @@ int main(int argc, char* argv[]) {
                     wrefresh(win);
                 }
             }
+        } else if (targeting_mode) {
+            if (ch == 't') {
+                if (targeting_action == RANGED_ATTACK) {
+                    moved = fire_ranged_weapon(target_x, target_y, &message);
+                } else if (targeting_action == POISON_BALL) {
+                    moved = cast_poison_ball(target_x, target_y, &message);
+                }
+                targeting_mode = false;
+                targeting_action = NONE;
+                if (moved == -1) { // Game win
+                    game_running = false;
+                }
+            } else if (ch == 27) {
+                targeting_mode = false;
+                targeting_action = NONE;
+                message = "Targeting mode cancelled";
+            } else if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
+            else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
+            else if (ch == '9' || ch == 'u') { dx = 1; dy = -1; }
+            else if (ch == '6' || ch == 'l') { dx = 1; dy = 0; }
+            else if (ch == '3' || ch == 'n') { dx = 1; dy = 1; }
+            else if (ch == '2' || ch == 'j') { dx = 0; dy = 1; }
+            else if (ch == '1' || ch == 'b') { dx = -1; dy = 1; }
+            else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
+
+            if (dx != 0 || dy != 0) {
+                int new_tx = target_x + dx, new_ty = target_y + dy;
+                if (new_tx >= 0 && new_tx < WIDTH && new_ty >= 0 && new_ty < HEIGHT) {
+                    target_x = new_tx;
+                    target_y = new_ty;
+                    werase(win);
+                    draw_dungeon(win, targeting_action == RANGED_ATTACK ?
+                        "Ranged attack: Move cursor with movement keys, 't' to fire, ESC to cancel" :
+                        "Poison Ball: Move cursor with movement keys, 't' to cast, ESC to cancel");
+                    mvwprintw(win, target_y + 1, target_x, "*");
+                    wrefresh(win);
+                }
+            }
         } else {
             if (ch == '7' || ch == 'y') { dx = -1; dy = -1; }
             else if (ch == '8' || ch == 'k') { dx = 0; dy = -1; }
@@ -369,6 +409,20 @@ int main(int argc, char* argv[]) {
                         target_y = player->y;
                         message = "Look mode: Move cursor with movement keys, 't' to select monster, ESC to exit";
                         break;
+                    case 'r':
+                        targeting_mode = true;
+                        targeting_action = RANGED_ATTACK;
+                        target_x = player->x;
+                        target_y = player->y;
+                        message = "Ranged attack: Move cursor with movement keys, 't' to fire, ESC to cancel";
+                        break;
+                    case 'p':
+                        targeting_mode = true;
+                        targeting_action = POISON_BALL;
+                        target_x = player->x;
+                        target_y = player->y;
+                        message = "Poison Ball: Move cursor with movement keys, 't' to cast, ESC to cancel";
+                        break;
                     case 'w':
                         wear_item(win, player, &message);
                         ui_action = true;
@@ -417,7 +471,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Process monster events only after a player action, excluding UI interactions
-        if (moved && game_running && !teleport_mode && !look_mode && !in_combat && !ui_action) {
+        if (moved && game_running && !teleport_mode && !look_mode && !targeting_mode && !in_combat && !ui_action) {
             // Advance game_turn by player's turn duration
             int total_speed;
             Dice total_damage;
@@ -453,7 +507,7 @@ int main(int argc, char* argv[]) {
             }
 
             draw_dungeon(win, message);
-        } else if (!moved && !teleport_mode && !look_mode && !in_combat) {
+        } else if (!moved && !teleport_mode && !look_mode && !targeting_mode && !in_combat) {
             // Redraw dungeon for UI actions or invalid commands
             draw_dungeon(win, message);
         }
