@@ -21,12 +21,12 @@ public:
     Dice speed;
     Dice attribute;
     Dice value;
-    Dice heal;
     std::string artifact;
-    int rarity;
-    int range;
-    bool is_artifact;
-    bool is_created;
+    int rarity;        // Moved up
+    int range;         // Moved up
+    bool is_artifact;  // Moved up
+    bool is_created;   // Moved up
+    Dice heal;         // Moved to end of this group
 
     ObjectDescription();
     void print() const;

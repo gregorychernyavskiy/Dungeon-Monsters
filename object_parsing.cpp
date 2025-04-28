@@ -9,7 +9,10 @@
 #include "dungeon_generation.h"
 
 ObjectDescription::ObjectDescription()
-    : rarity(0), range(0), is_artifact(false), is_created(false), heal(0, 0, 0) {}
+    : name(), description(), types(), color(),
+      hit(0, 0, 0), damage(0, 0, 0), dodge(0, 0, 0), defense(0, 0, 0),
+      weight(0, 0, 0), speed(0, 0, 0), attribute(0, 0, 0), value(0, 0, 0),
+      artifact(), rarity(0), range(0), is_artifact(false), is_created(false), heal(0, 0, 0) {}
 
 void ObjectDescription::print() const {
     std::cout << name << "\n";
