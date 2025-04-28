@@ -21,7 +21,7 @@ public:
     Dice speed;
     Dice attribute;
     Dice value;
-    Dice heal; // New field for healing
+    Dice heal;
     std::string artifact;
     int rarity;
     int range;
