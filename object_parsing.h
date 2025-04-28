@@ -1,3 +1,4 @@
+// object_parsing.h
 #ifndef OBJECT_PARSING_H
 #define OBJECT_PARSING_H
 
@@ -24,6 +25,7 @@ public:
     Dice value;
     std::string artifact;
     int rarity;
+    int range; // New field for range
     bool is_artifact;
     bool is_created;
 
@@ -33,6 +35,6 @@ public:
 };
 
 std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filename);
-char getObjectSymbol(const std::string& type); // Declare here
+char getObjectSymbol(const std::string& type);
 
 #endif

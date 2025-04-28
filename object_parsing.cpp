@@ -1,3 +1,4 @@
+// object_parsing.cpp
 #include "object_parsing.h"
 #include <fstream>
 #include <iostream>
@@ -9,7 +10,7 @@
 #include "dungeon_generation.h"
 
 ObjectDescription::ObjectDescription()
-    : rarity(0), is_artifact(false), is_created(false) {}
+    : rarity(0), range(0), is_artifact(false), is_created(false) {} // Initialize range
 
 void ObjectDescription::print() const {
     std::cout << name << "\n";
@@ -32,6 +33,7 @@ void ObjectDescription::print() const {
     std::cout << value.toString() << "\n";
     std::cout << artifact << "\n";
     std::cout << rarity << "\n";
+    std::cout << range << "\n"; // Print range
     std::cout << "\n";
 }
 
@@ -39,11 +41,11 @@ Object* ObjectDescription::createObject(int x, int y) {
     Object* obj = new Object(x, y);
     obj->name = name;
     obj->color = color;
-    obj->damage = damage; // Keep as dice
+    obj->damage = damage;
     obj->types = types;
-    obj->symbol = getObjectSymbol(types.empty() ? "" : types[0]); // Use first type for symbol
+    obj->symbol = getObjectSymbol(types.empty() ? "" : types[0]);
+    obj->range = range; // Set range
 
-    // Roll dice for other attributes
     std::random_device rd;
     std::mt19937 gen(rd());
     auto rollDice = [&](Dice d) -> int {
@@ -92,6 +94,7 @@ char getObjectSymbol(const std::string& type) {
     if (type == "FOOD") return ',';
     if (type == "WAND") return '-';
     if (type == "CONTAINER") return '%';
+    if (type == "SPELLBOOK") return '?'; // Added for Tome of Poison
     return '*';
 }
 
@@ -328,9 +331,9 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
                 continue;
             }
             hasArt = true;
-        } else if (keyword == "RRTY") {
+        } else if (keyword == "RRTY" || keyword == "RARITY") { // Handle both RRTY and RARITY
             if (hasRarity) {
-                std::cerr << "Duplicate RRTY, discarding object\n";
+                std::cerr << "Duplicate RARITY, discarding object\n";
                 inObject = false;
                 continue;
             }
@@ -338,8 +341,15 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             if (current.rarity >= 1 && current.rarity <= 100) {
                 hasRarity = true;
             } else {
-                std::cerr << "RRTY must be between 1 and 100, discarding object\n";
+                std::cerr << "RARITY must be between 1 and 100, discarding object\n";
                 inObject = false;
+            }
+        } else if (keyword == "RANGE") { // New handler for RANGE
+            iss >> current.range;
+            if (current.range < 0) {
+                std::cerr << "RANGE must be non-negative, discarding object\n";
+                inObject = false;
+                continue;
             }
         }
     }
