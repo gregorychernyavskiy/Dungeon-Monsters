@@ -158,9 +158,14 @@ int main(int argc, char* argv[]) {
     int target_x = player->x, target_y = player->y;
 
     while (game_running) {
-        flushinp(); // Clear input buffer at start of loop
         bool ui_action = false; // Track UI actions to skip monster moves
         int ch = getch();
+        // Debug input
+        FILE* debug_file = fopen("main_input_debug.txt", "a");
+        if (debug_file) {
+            fprintf(debug_file, "Main loop: Key pressed: %d ('%c')\n", ch, (char)ch);
+            fclose(debug_file);
+        }
         int moved = 0;
         int dx = 0, dy = 0;
 
@@ -289,6 +294,7 @@ int main(int argc, char* argv[]) {
                     schedule_event(player);
                 }
             } else {
+                flushinp(); // Clear input buffer before UI prompts
                 switch (ch) {
                     case '>':
                     {

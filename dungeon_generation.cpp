@@ -763,7 +763,7 @@ void init_ncurses() {
     noecho();
     keypad(stdscr, TRUE);
     curs_set(0);
-    timeout(100); // Set 100ms timeout for non-blocking input
+    // Removed timeout(100) to use blocking input
     init_pair(COLOR_RED, COLOR_RED, COLOR_BLACK);
     init_pair(COLOR_GREEN, COLOR_GREEN, COLOR_BLACK);
     init_pair(COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK);
