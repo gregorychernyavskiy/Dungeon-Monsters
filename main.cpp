@@ -156,30 +156,6 @@ int main(int argc, char* argv[]) {
     int target_x = player->x, target_y = player->y;
 
     while (game_running) {
-        // Process events up to the current game turn or until player input is needed
-        bool waiting_for_player = false;
-        while (!event_queue.empty() && !waiting_for_player && game_running && !in_combat && !teleport_mode && !look_mode) {
-            Event event = event_queue.top();
-            if (event.character == player) {
-                waiting_for_player = true; // Player’s turn, wait for input
-                break;
-            }
-            event_queue.pop();
-            game_turn = event.time;
-
-            if (event.character->alive) {
-                event.character->move();
-                schedule_event(event.character);
-            }
-
-            if (!player->alive) {
-                message = "You were killed! Game over!";
-                game_running = false;
-            }
-
-            draw_dungeon(win, message);
-        }
-
         int ch = getch();
         int moved = 0;
         int dx = 0, dy = 0;
@@ -215,6 +191,7 @@ int main(int argc, char* argv[]) {
                     message = "Cannot teleport into immutable rock!";
                 }
                 teleport_mode = false;
+                moved = 1; // Treat as a player action to trigger monster moves
             } else if (ch == 'r') {
                 int new_x, new_y;
                 do {
@@ -232,6 +209,7 @@ int main(int argc, char* argv[]) {
                 message = "Teleported to random location!";
                 schedule_event(player); // Reschedule player event
                 teleport_mode = false;
+                moved = 1; // Treat as a player action to trigger monster moves
             } else if (ch == 27) {
                 teleport_mode = false;
                 message = "Teleport mode cancelled";
@@ -420,7 +398,26 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        // Process monster events only after a player action
         if (moved && game_running && !teleport_mode && !look_mode && !in_combat) {
+            // Process all events up to the player's next turn
+            int64_t player_next_time = event_queue.top().time; // Peek at player's next event time
+            while (!event_queue.empty() && event_queue.top().time <= player_next_time) {
+                Event event = event_queue.top();
+                event_queue.pop();
+                game_turn = event.time;
+
+                if (event.character->alive && event.character != player) {
+                    event.character->move();
+                    schedule_event(event.character);
+                }
+
+                if (!player->alive) {
+                    message = "You were killed! Game over!";
+                    game_running = false;
+                    break;
+                }
+            }
             draw_dungeon(win, message);
         }
     }
