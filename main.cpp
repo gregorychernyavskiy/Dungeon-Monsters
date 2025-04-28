@@ -148,6 +148,7 @@ int main(int argc, char* argv[]) {
 
     message = "Welcome to the dungeon! Press ? for help.";
     draw_dungeon(win, message);
+    update_visibility(); // Ensure initial fog state is applied
 
     bool game_running = true;
     bool teleport_mode = false;
@@ -366,6 +367,8 @@ int main(int argc, char* argv[]) {
                     case 'f':
                         fog_enabled = !fog_enabled;
                         message = fog_enabled ? "Fog of War ON" : "Fog of War OFF";
+                        update_visibility(); // Update visibility to reflect new fog state
+                        draw_dungeon(win, message); // Redraw immediately
                         break;
                     case 'g':
                         teleport_mode = true;
