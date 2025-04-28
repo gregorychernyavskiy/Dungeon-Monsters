@@ -1,4 +1,3 @@
-// object_parsing.cpp
 #include "object_parsing.h"
 #include <fstream>
 #include <iostream>
@@ -10,7 +9,7 @@
 #include "dungeon_generation.h"
 
 ObjectDescription::ObjectDescription()
-    : rarity(0), range(0), is_artifact(false), is_created(false) {} // Initialize range
+    : rarity(0), range(0), is_artifact(false), is_created(false) {}
 
 void ObjectDescription::print() const {
     std::cout << name << "\n";
@@ -33,7 +32,7 @@ void ObjectDescription::print() const {
     std::cout << value.toString() << "\n";
     std::cout << artifact << "\n";
     std::cout << rarity << "\n";
-    std::cout << range << "\n"; // Print range
+    std::cout << range << "\n";
     std::cout << "\n";
 }
 
@@ -44,7 +43,7 @@ Object* ObjectDescription::createObject(int x, int y) {
     obj->damage = damage;
     obj->types = types;
     obj->symbol = getObjectSymbol(types.empty() ? "" : types[0]);
-    obj->range = range; // Set range
+    obj->range = range;
 
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -94,7 +93,7 @@ char getObjectSymbol(const std::string& type) {
     if (type == "FOOD") return ',';
     if (type == "WAND") return '-';
     if (type == "CONTAINER") return '%';
-    if (type == "SPELLBOOK") return '?'; // Added for Tome of Poison
+    if (type == "SPELLBOOK") return '?';
     return '*';
 }
 

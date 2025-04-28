@@ -25,7 +25,7 @@ public:
     Dice value;
     std::string artifact;
     int rarity;
-    int range; // New field for range
+    int range;
     bool is_artifact;
     bool is_created;
 
