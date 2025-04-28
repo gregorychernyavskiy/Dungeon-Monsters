@@ -387,7 +387,7 @@ int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
     return 1;
 }
 
-int fire_ranged_weapon(WINDOW* win, int target_x, int target_y, const char** message) {
+int fire_ranged_weapon(int target_x, int target_y, const char** message) {
     if (!player->equipment[SLOT_RANGED]) {
         *message = "No ranged weapon equipped!";
         return 0;
@@ -460,7 +460,7 @@ int fire_ranged_weapon(WINDOW* win, int target_x, int target_y, const char** mes
     return 1;
 }
 
-int cast_poison_ball(WINDOW* win, int target_x, int target_y, const char** message) {
+int cast_poison_ball(int target_x, int target_y, const char** message) {
     // Check for spellbook
     bool has_spellbook = false;
     if (player->equipment[SLOT_SPELLBOOK] && player->equipment[SLOT_SPELLBOOK]->types[0] == "SPELLBOOK") {
