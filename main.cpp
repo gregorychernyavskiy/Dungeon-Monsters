@@ -54,7 +54,9 @@ void display_monster_info(WINDOW* win, NPC* monster, const char** message) {
         }
     }
 
+    keypad(win, TRUE);
     wrefresh(win);
+    flushinp();
     getch();
     *message = "Monster info displayed";
 }
@@ -156,6 +158,7 @@ int main(int argc, char* argv[]) {
     int target_x = player->x, target_y = player->y;
 
     while (game_running) {
+        flushinp(); // Clear input buffer at start of loop
         int ch = getch();
         int moved = 0;
         int dx = 0, dy = 0;
@@ -167,7 +170,6 @@ int main(int argc, char* argv[]) {
             } else if (result == -2) { // Game over
                 game_running = false;
             } else if (!in_combat) { // Combat ended
-                // Reschedule player event after combat
                 schedule_event(player);
                 draw_dungeon(win, message);
             }
@@ -186,12 +188,12 @@ int main(int argc, char* argv[]) {
                     dungeon[player->y][player->x] = '@';
                     update_visibility();
                     message = "Teleported!";
-                    schedule_event(player); // Reschedule player event
+                    schedule_event(player);
                 } else {
                     message = "Cannot teleport into immutable rock!";
                 }
                 teleport_mode = false;
-                moved = 1; // Treat as a player action to trigger monster moves
+                moved = 1;
             } else if (ch == 'r') {
                 int new_x, new_y;
                 do {
@@ -207,9 +209,9 @@ int main(int argc, char* argv[]) {
                 dungeon[player->y][player->x] = '@';
                 update_visibility();
                 message = "Teleported to random location!";
-                schedule_event(player); // Reschedule player event
+                schedule_event(player);
                 teleport_mode = false;
-                moved = 1; // Treat as a player action to trigger monster moves
+                moved = 1;
             } else if (ch == 27) {
                 teleport_mode = false;
                 message = "Teleport mode cancelled";
@@ -271,23 +273,22 @@ int main(int argc, char* argv[]) {
             else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
 
             if (dx != 0 || dy != 0) {
-                {
-                    std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
-                    moved = move_player(dx, dy, &message);
-                    if (moved) {
-                        // Remove player’s current event and schedule a new one
-                        while (!event_queue.empty()) {
-                            Event e = event_queue.top();
-                            event_queue.pop();
-                            if (e.character != player) {
-                                temp_queue.push(e);
-                            }
+                std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
+                moved = move_player(dx, dy, &message);
+                if (moved) {
+                    // Remove player’s current event and schedule a new one
+                    while (!event_queue.empty()) {
+                        Event e = event_queue.top();
+                        event_queue.pop();
+                        if (e.character != player) {
+                            temp_queue.push(e);
                         }
-                        event_queue = temp_queue;
-                        schedule_event(player);
                     }
+                    event_queue = temp_queue;
+                    schedule_event(player);
                 }
             } else {
+                bool ui_action = false; // Track UI actions to skip monster moves
                 switch (ch) {
                     case '>':
                     {
@@ -341,12 +342,14 @@ int main(int argc, char* argv[]) {
                     case 'm':
                         draw_monster_list(win);
                         message = "";
+                        ui_action = true;
                         break;
                     case 'f':
                         fog_enabled = !fog_enabled;
                         message = fog_enabled ? "Fog of War ON" : "Fog of War OFF";
                         update_visibility(); // Update visibility to reflect new fog state
                         draw_dungeon(win, message); // Redraw immediately
+                        ui_action = true;
                         break;
                     case 'g':
                         teleport_mode = true;
@@ -362,30 +365,39 @@ int main(int argc, char* argv[]) {
                         break;
                     case 'w':
                         wear_item(win, player, &message);
+                        ui_action = true;
                         break;
                     case 't':
                         take_off_item(win, player, &message);
+                        ui_action = true;
                         break;
                     case 'd':
                         drop_item(win, player, &message);
+                        ui_action = true;
                         break;
                     case 'x':
                         expunge_item(win, player, &message);
+                        ui_action = true;
                         break;
                     case 'i':
                         display_inventory(win, player, &message);
+                        ui_action = true;
                         break;
                     case 'e':
                         display_equipment(win, player, &message);
+                        ui_action = true;
                         break;
                     case 's':
                         display_stats(win, player, &message);
+                        ui_action = true;
                         break;
                     case '?':
                         display_help(win, &message);
+                        ui_action = true;
                         break;
                     case 'I':
                         inspect_item(win, player, &message);
+                        ui_action = true;
                         break;
                     case 'q': case 'Q':
                         game_running = false;
@@ -398,23 +410,19 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Process monster events only after a player action
-        if (moved && game_running && !teleport_mode && !look_mode && !in_combat) {
-            // CHANGE: Advance game_turn by player's turn duration to ensure turn progression
+        // Process monster events only after a player action, excluding UI interactions
+        if (moved && game_running && !teleport_mode && !look_mode && !in_combat && !ui_action) {
+            // Advance game_turn by player's turn duration
             int64_t player_turn_duration = 1000 / player->speed; // Player speed is 10, so 100 turns
             game_turn += player_turn_duration;
 
-            // CHANGE: Process all events up to the new game_turn, not just player's next event
+            // Process all events up to the new game_turn
             std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
             while (!event_queue.empty() && event_queue.top().time <= game_turn) {
                 Event event = event_queue.top();
                 event_queue.pop();
                 if (event.character->alive && event.character != player) {
-                    // CHANGE: Added debug output (commented) to verify monster movement
-                    // printf("Turn %lld: Moving %s (speed %d, next event every %lld turns)\n", 
-                    //        game_turn, event.character->name.c_str(), event.character->speed, 1000 / event.character->speed);
                     event.character->move();
-                    // CHANGE: Schedule next event based on current game_turn
                     int64_t delay = 1000 / event.character->speed;
                     int64_t next_time = event.time + delay;
                     event_queue.emplace(next_time, event.character, Event::MOVE);
@@ -434,6 +442,9 @@ int main(int argc, char* argv[]) {
                 game_running = false;
             }
 
+            draw_dungeon(win, message);
+        } else if (!moved && !teleport_mode && !look_mode && !in_combat) {
+            // Redraw dungeon for UI actions or invalid commands
             draw_dungeon(win, message);
         }
     }
