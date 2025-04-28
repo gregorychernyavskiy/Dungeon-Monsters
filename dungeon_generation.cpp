@@ -537,8 +537,8 @@ void loadDescriptions() {
 int spawnMonsters(int numMonsters) {
     // Clean up existing monsters
     if (monsters) {
-        for (int i = 0; i < num_monsters; ++i) { // Use num_monsters (current count)
-            if (i < num_monsters && monsters[i]) { // Ensure we don't access out of bounds
+        for (int i = 0; i < num_monsters; ++i) {
+            if (i < num_monsters && monsters[i]) {
                 if (monsterAt[monsters[i]->y][monsters[i]->x]) {
                     monsterAt[monsters[i]->y][monsters[i]->x] = nullptr;
                 }
@@ -556,7 +556,6 @@ int spawnMonsters(int numMonsters) {
         monsters = nullptr;
     }
 
-    // Reset num_monsters before spawning
     num_monsters = 0;
     monsters = (NPC**)malloc(numMonsters * sizeof(NPC*));
     if (!monsters) {
@@ -569,15 +568,14 @@ int spawnMonsters(int numMonsters) {
     std::uniform_int_distribution<> dis(0, 99);
     std::uniform_int_distribution<> desc_dis(0, monsterDescs.size() - 1);
 
-    // Spawn exactly numMonsters monsters
     while (num_monsters < numMonsters) {
         NPC* npc = nullptr;
         int attempts = 100;
         while (attempts--) {
             int idx = desc_dis(gen);
             MonsterDescription& desc = monsterDescs[idx];
-            if (desc.is_unique && desc.is_alive) continue; // Skip if unique and already spawned
-            if (desc.rarity <= dis(gen)) continue; // Skip if rarity check fails
+            if (desc.is_unique && desc.is_alive) continue;
+            if (desc.rarity <= dis(gen)) continue;
 
             int x, y;
             int place_attempts = 100;
@@ -608,9 +606,8 @@ int spawnMonsters(int numMonsters) {
             monsters[num_monsters] = npc;
             monsterAt[npc->y][npc->x] = npc;
             num_monsters++;
-            schedule_event(npc); // Schedule initial event for the monster
+            schedule_event(npc);
         } else {
-            // If we couldn't place a monster after attempts, break to avoid infinite loop
             break;
         }
     }
@@ -668,7 +665,6 @@ void placeObjects(int count) {
 }
 
 void cleanupObjects() {
-    // Store current level's objects before cleanup
     std::vector<Object*> current_objects;
     for (int i = 0; i < num_objects; ++i) {
         if (objects[i]) {
@@ -677,7 +673,6 @@ void cleanupObjects() {
     }
     level_objects[current_level] = current_objects;
 
-    // Clear objectAt array
     for (int i = 0; i < num_objects; ++i) {
         if (objects[i]) {
             objectAt[objects[i]->y][objects[i]->x] = nullptr;
@@ -694,10 +689,8 @@ void runGame(int numMonsters) {
         return;
     }
 
-    // Clear any existing events
     while (!event_queue.empty()) event_queue.pop();
 
-    // Schedule initial events for PC and NPCs
     schedule_event(player);
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i] && monsters[i]->alive) {
@@ -707,26 +700,21 @@ void runGame(int numMonsters) {
 
     int monsters_alive = num_monsters;
     while (monsters_alive > 0 && player->alive) {
-        // Get the next event
         Event event = event_queue.top();
         event_queue.pop();
 
-        // Update game turn to the event's time
         game_turn = event.time;
 
-        // Process the event
         if (event.character->alive) {
             event.character->move();
-            schedule_event(event.character); // Schedule next move
+            schedule_event(event.character);
         }
 
-        // Check for game over
         if (!player->alive) {
             printf("You were killed! Game over!\n");
             break;
         }
 
-        // Count living monsters
         monsters_alive = 0;
         for (int i = 0; i < num_monsters; i++) {
             if (monsters[i] && monsters[i]->alive) {
@@ -734,12 +722,10 @@ void runGame(int numMonsters) {
             }
         }
 
-        // Redraw dungeon
         printDungeon();
-        usleep(250000); // Pause for 250ms as per assignment
+        usleep(250000);
     }
 
-    // Print final state
     printf("\nFinal state:\n");
     printDungeon();
     if (monsters_alive == 0 && player->alive) {
@@ -938,10 +924,8 @@ void draw_monster_list(WINDOW* win) {
 }
 
 void regenerate_dungeon(int numMonsters) {
-    // Save current level's objects
     cleanupObjects();
 
-    // Clear monsters
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i]) {
             if (monsterAt[monsters[i]->y][monsters[i]->x] == monsters[i]) {
@@ -961,37 +945,30 @@ void regenerate_dungeon(int numMonsters) {
     monsters = nullptr;
     num_monsters = 0;
 
-    // Clear event queue
     while (!event_queue.empty()) event_queue.pop();
 
-    // Update level
     current_level++;
 
-    // Clear player's previous position
     if (player->x >= 0 && player->y >= 0 && player->x < WIDTH && player->y < HEIGHT) {
         dungeon[player->y][player->x] = terrain[player->y][player->x] == 0 ? '.' : terrain[player->y][player->x];
     }
 
-    // Generate new dungeon
     emptyDungeon();
     createRooms();
     connectRooms();
     placeStairs();
 
-    // Update terrain
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             terrain[y][x] = dungeon[y][x];
         }
     }
 
-    // Place player (preserves inventory and equipment)
     placePlayer();
 
     initializeHardness();
     spawnMonsters(numMonsters);
 
-    // Schedule events for new level
     schedule_event(player);
     for (int i = 0; i < num_monsters; i++) {
         if (monsters[i] && monsters[i]->alive) {
@@ -999,7 +976,6 @@ void regenerate_dungeon(int numMonsters) {
         }
     }
 
-    // Restore or place new objects
     if (level_objects.find(current_level) != level_objects.end()) {
         objects = (Object**)malloc(level_objects[current_level].size() * sizeof(Object*));
         num_objects = level_objects[current_level].size();
@@ -1190,7 +1166,6 @@ void display_stats(WINDOW* win, PC* pc, const char** message) {
     int total_defense, total_hit, total_dodge;
     pc->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
 
-    // Calculate a sample damage roll for display
     std::random_device rd;
     std::mt19937 gen(rd());
     int sample_damage = total_damage.base;
@@ -1222,10 +1197,23 @@ void wear_item(WINDOW* win, PC* pc, const char** message) {
     for (int i = 0; i < PC::CARRY_SLOTS; i++) {
         if (pc->carry[i]) {
             mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
+        } else {
+            mvwprintw(win, i + 1, 0, "%d: (empty)", i);
         }
     }
     wrefresh(win);
+
+    // CHANGE: Clear input buffer before reading new input to prevent interference
+    flushinp();
+
+    // CHANGE: Read input and add debug output to trace the keypress
     int ch = getch();
+    // FILE* debug_file = fopen("wear_item_debug.txt", "a");
+    // if (debug_file) {
+    //     fprintf(debug_file, "Key pressed: %d ('%c')\n", ch, (char)ch);
+    //     fclose(debug_file);
+    // }
+
     if (ch == 27) {
         *message = "Wear cancelled";
         return;
