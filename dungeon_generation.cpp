@@ -43,8 +43,8 @@ bool in_combat = false;
 std::vector<MonsterDescription> monsterDescs;
 std::vector<ObjectDescription> objectDescs;
 
-int current_level = 1; // Start at level 1
-std::map<int, std::vector<Object*>> level_objects; // Store objects per level
+int current_level = 1;
+std::map<int, std::vector<Object*>> level_objects;
 std::priority_queue<Event, std::vector<Event>, std::greater<Event>> event_queue;
 int64_t game_turn = 0;
 
@@ -55,26 +55,26 @@ Object::~Object() {}
 
 Character::Character(int x_, int y_) : x(x_), y(y_), speed(10), hitpoints(100), alive(1),
     last_seen_x(-1), last_seen_y(-1) {
-    damage = Dice(0, 1, 4); // Default damage: 0+1d4
+    damage = Dice(0, 1, 4);
 }
 
 int Character::takeDamage(int damage) {
     hitpoints -= damage;
     if (hitpoints <= 0) {
         alive = 0;
-        return 1; // Character died
+        return 1;
     }
-    return 0; // Character survived
+    return 0;
 }
 
 PC::PC(int x_, int y_) : Character(x_, y_) {
     symbol = '@';
     color = "WHITE";
-    hitpoints = 100; // Default PC hitpoints
-    speed = 10; // Fixed speed as per assignment
+    hitpoints = 100;
+    speed = 10;
     num_carried = 0;
-    mana = 50; // Starting mana
-    max_mana = 50; // Maximum mana
+    mana = 50;
+    max_mana = 50;
     for (int i = 0; i < EQUIPMENT_SLOTS; i++) equipment[i] = nullptr;
     for (int i = 0; i < CARRY_SLOTS; i++) carry[i] = nullptr;
 }
@@ -88,15 +88,15 @@ int PC::takeDamage(int damage) {
     hitpoints -= damage;
     if (hitpoints <= 0) {
         alive = 0;
-        return 1; // PC died
+        return 1;
     }
-    return 0; // PC survived
+    return 0;
 }
 
 NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(0),
     tunneling(0), telepathic(0), erratic(0),
     pass_wall(0), pickup(0), destroy(0), is_unique(false), is_boss(false) {
-    // Speed is set by MonsterDescription::createNPC
+
 }
 
 bool PC::pickupObject(Object* obj) {
@@ -112,13 +112,12 @@ bool PC::pickupObject(Object* obj) {
 }
 
 void PC::calculateStats(int& total_speed, Dice& total_damage, int& total_defense, int& total_hit, int& total_dodge) {
-    total_speed = speed; // Base speed: 10
-    total_damage = damage; // Base damage: 0+1d4
-    total_defense = 0; // Base defense: 0
-    total_hit = 0; // Base hit: 0
-    total_dodge = 0; // Base dodge: 0
+    total_speed = speed;
+    total_damage = damage; 
+    total_defense = 0;
+    total_hit = 0;
+    total_dodge = 0;
 
-    // Add equipment bonuses
     for (int i = 0; i < EQUIPMENT_SLOTS; i++) {
         if (equipment[i]) {
             total_speed += equipment[i]->speed;
@@ -126,7 +125,7 @@ void PC::calculateStats(int& total_speed, Dice& total_damage, int& total_defense
             total_hit += equipment[i]->hit;
             total_dodge += equipment[i]->dodge;
             if (i == SLOT_WEAPON) {
-                total_damage = Dice(0, 0, 0); // Reset damage if weapon is equipped
+                total_damage = Dice(0, 0, 0);
                 total_damage.base += equipment[i]->damage.base;
                 total_damage.dice += equipment[i]->damage.dice;
                 total_damage.sides = std::max(total_damage.sides, equipment[i]->damage.sides);
@@ -177,14 +176,13 @@ void schedule_event(Character* character) {
     } else {
         total_speed = character->speed;
     }
-    int64_t delay = 1000 / total_speed; // floor(1000/speed) using integer division
+    int64_t delay = 1000 / total_speed;
     int64_t next_time = game_turn + delay;
     event_queue.emplace(next_time, character, Event::MOVE);
 
-    // Regenerate mana for PC
     if (dynamic_cast<PC*>(character)) {
         PC* pc = dynamic_cast<PC*>(character);
-        pc->mana = std::min(pc->mana + 1, pc->max_mana); // Regenerate 1 mana per turn
+        pc->mana = std::min(pc->mana + 1, pc->max_mana);
     }
 }
 
@@ -269,7 +267,7 @@ void NPC::move() {
                     }
                 }
             } else if (pickup) {
-                // Optional: Implement NPC inventory later
+                
             }
         }
         monsterAt[curr_y][curr_x] = nullptr;
@@ -283,7 +281,7 @@ int NPC::takeDamage(int damage) {
     hitpoints -= damage;
     if (hitpoints <= 0) {
         alive = 0;
-        return 1; // NPC died
+        return 1;
     }
     return 0;
 }
@@ -330,7 +328,7 @@ int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
             in_combat = false;
             combat_initialized = false;
             engaged_monster = nullptr;
-            schedule_event(player); // Reschedule player event
+            schedule_event(player);
             if (monster->is_boss) {
                 *message = "You defeated SpongeBob SquarePants! You win!";
                 return -1;
@@ -348,8 +346,8 @@ int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
             in_combat = false;
             combat_initialized = false;
             engaged_monster = nullptr;
-            schedule_event(player); // Reschedule player event
-            schedule_event(monster); // Reschedule monster event
+            schedule_event(player);
+            schedule_event(monster);
             *message = "You fled from the monster!";
             return 0;
         } else {
@@ -409,7 +407,6 @@ int fire_ranged_weapon(int target_x, int target_y, const char** message) {
         return 0;
     }
 
-    // Calculate damage
     std::random_device rd;
     std::mt19937 gen(rd());
     Dice damage = player->equipment[SLOT_RANGED]->damage;
@@ -419,7 +416,6 @@ int fire_ranged_weapon(int target_x, int target_y, const char** message) {
         total_damage += dis(gen);
     }
 
-    // Apply damage
     if (target->takeDamage(total_damage)) {
         monsterAt[target_y][target_x] = nullptr;
         for (int i = 0; i < num_monsters; i++) {
@@ -446,7 +442,6 @@ int fire_ranged_weapon(int target_x, int target_y, const char** message) {
         *message = msg;
     }
 
-    // Consume a turn
     std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
     while (!event_queue.empty()) {
         Event e = event_queue.top();
@@ -461,7 +456,7 @@ int fire_ranged_weapon(int target_x, int target_y, const char** message) {
 }
 
 int cast_poison_ball(int target_x, int target_y, const char** message) {
-    // Check for spellbook
+    
     bool has_spellbook = false;
     if (player->equipment[SLOT_SPELLBOOK] && player->equipment[SLOT_SPELLBOOK]->types[0] == "SPELLBOOK") {
         has_spellbook = true;
@@ -478,13 +473,11 @@ int cast_poison_ball(int target_x, int target_y, const char** message) {
         return 0;
     }
 
-    // Check mana
     if (player->mana < POISON_BALL_MANA_COST) {
         *message = "Not enough mana to cast Poison Ball!";
         return 0;
     }
 
-    // Apply poison damage to monsters in radius
     std::random_device rd;
     std::mt19937 gen(rd());
     int affected = 0;
@@ -537,7 +530,6 @@ int cast_poison_ball(int target_x, int target_y, const char** message) {
         *message = msg;
     }
 
-    // Consume mana and a turn
     player->mana -= POISON_BALL_MANA_COST;
     std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
     while (!event_queue.empty()) {
@@ -683,20 +675,19 @@ void placePlayer() {
     int px = playerRoom.x + rand() % playerRoom.width;
     int py = playerRoom.y + rand() % playerRoom.height;
     if (player) {
-        // Preserve inventory and equipment
         PC* old_player = player;
         player = new PC(px, py);
         player->num_carried = old_player->num_carried;
         player->hitpoints = old_player->hitpoints;
-        player->mana = old_player->mana; // Preserve mana
+        player->mana = old_player->mana;
         player->max_mana = old_player->max_mana;
         for (int i = 0; i < PC::CARRY_SLOTS; i++) {
             player->carry[i] = old_player->carry[i];
-            old_player->carry[i] = nullptr; // Prevent deletion
+            old_player->carry[i] = nullptr;
         }
         for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
             player->equipment[i] = old_player->equipment[i];
-            old_player->equipment[i] = nullptr; // Prevent deletion
+            old_player->equipment[i] = nullptr;
         }
         delete old_player;
     } else {
@@ -718,7 +709,6 @@ void loadDescriptions() {
 }
 
 int spawnMonsters(int numMonsters) {
-    // Clean up existing monsters
     if (monsters) {
         for (int i = 0; i < num_monsters; ++i) {
             if (i < num_monsters && monsters[i]) {
