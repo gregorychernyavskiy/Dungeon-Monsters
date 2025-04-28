@@ -292,23 +292,27 @@ int main(int argc, char* argv[]) {
             else if (ch == '4' || ch == 'h') { dx = -1; dy = 0; }
 
             if (dx != 0 || dy != 0) {
-                moved = move_player(dx, dy, &message);
-                if (moved) {
-                    // Remove player’s current event and schedule a new one
+                {
                     std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
-                    while (!event_queue.empty()) {
-                        Event e = event_queue.top();
-                        event_queue.pop();
-                        if (e.character != player) {
-                            temp_queue.push(e);
+                    moved = move_player(dx, dy, &message);
+                    if (moved) {
+                        // Remove player’s current event and schedule a new one
+                        while (!event_queue.empty()) {
+                            Event e = event_queue.top();
+                            event_queue.pop();
+                            if (e.character != player) {
+                                temp_queue.push(e);
+                            }
                         }
+                        event_queue = temp_queue;
+                        schedule_event(player);
                     }
-                    event_queue = temp_queue;
-                    schedule_event(player);
                 }
             } else {
                 switch (ch) {
                     case '>':
+                    {
+                        std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
                         moved = use_stairs('>', numMonsters, &message);
                         if (moved) {
                             // Clear and reschedule events after level change
@@ -321,7 +325,10 @@ int main(int argc, char* argv[]) {
                             }
                         }
                         break;
+                    }
                     case '<':
+                    {
+                        std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
                         moved = use_stairs('<', numMonsters, &message);
                         if (moved) {
                             // Clear and reschedule events after level change
@@ -334,11 +341,13 @@ int main(int argc, char* argv[]) {
                             }
                         }
                         break;
+                    }
                     case '5': case ' ': case '.':
+                    {
+                        std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
                         moved = 1;
                         message = "Resting...";
                         // Treat rest as a move for event scheduling
-                        std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
                         while (!event_queue.empty()) {
                             Event e = event_queue.top();
                             event_queue.pop();
@@ -349,6 +358,7 @@ int main(int argc, char* argv[]) {
                         event_queue = temp_queue;
                         schedule_event(player);
                         break;
+                    }
                     case 'm':
                         draw_monster_list(win);
                         message = "";
