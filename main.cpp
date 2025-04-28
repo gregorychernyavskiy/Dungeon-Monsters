@@ -400,24 +400,33 @@ int main(int argc, char* argv[]) {
 
         // Process monster events only after a player action
         if (moved && game_running && !teleport_mode && !look_mode && !in_combat) {
-            // Process all events up to the player's next turn
+            // Advance game_turn to the player's next event time
             int64_t player_next_time = event_queue.top().time; // Peek at player's next event time
-            while (!event_queue.empty() && event_queue.top().time <= player_next_time) {
+            game_turn = player_next_time;
+
+            // Process all events (including player's) up to the current game_turn
+            std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
+            while (!event_queue.empty() && event_queue.top().time <= game_turn) {
                 Event event = event_queue.top();
                 event_queue.pop();
-                game_turn = event.time;
-
                 if (event.character->alive && event.character != player) {
                     event.character->move();
                     schedule_event(event.character);
                 }
-
-                if (!player->alive) {
-                    message = "You were killed! Game over!";
-                    game_running = false;
-                    break;
-                }
             }
+
+            // Requeue any events that were not processed
+            while (!event_queue.empty()) {
+                temp_queue.push(event_queue.top());
+                event_queue.pop();
+            }
+            event_queue = temp_queue;
+
+            if (!player->alive) {
+                message = "You were killed! Game over!";
+                game_running = false;
+            }
+
             draw_dungeon(win, message);
         }
     }
