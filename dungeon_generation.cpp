@@ -759,12 +759,11 @@ void init_ncurses() {
         fprintf(stderr, "Error: Failed to start color mode!\n");
         exit(EXIT_FAILURE);
     }
-
     raw();
     noecho();
     keypad(stdscr, TRUE);
     curs_set(0);
-
+    timeout(100); // Set 100ms timeout for non-blocking input
     init_pair(COLOR_RED, COLOR_RED, COLOR_BLACK);
     init_pair(COLOR_GREEN, COLOR_GREEN, COLOR_BLACK);
     init_pair(COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK);
@@ -914,8 +913,9 @@ void draw_monster_list(WINDOW* win) {
                           monsters[i]->symbol, monsters[i]->name.c_str(), abs(dy), ns, abs(dx), ew);
             }
         }
+        keypad(win, TRUE);
         wrefresh(win);
-
+        flushinp();
         ch = getch();
         if (ch == 27) break;
         else if (ch == KEY_UP && start > 0) start--;
@@ -1018,7 +1018,9 @@ void display_help(WINDOW* win, const char** message) {
     mvwprintw(win, 21, 0, "  L: Look mode (t to inspect monster, ESC to cancel)");
     mvwprintw(win, 22, 0, "  >/ <: Use stairs");
     mvwprintw(win, 23, 0, "  s: View stats  q/Q: Quit");
+    keypad(win, TRUE);
     wrefresh(win);
+    flushinp();
     getch();
     *message = "Help displayed";
 }
@@ -1104,7 +1106,9 @@ void display_inventory(WINDOW* win, PC* pc, const char** message) {
             mvwprintw(win, i + 1, 0, "%d: (empty)", i);
         }
     }
+    keypad(win, TRUE);
     wrefresh(win);
+    flushinp(); // Clear input buffer
     getch();
     *message = "Inventory displayed";
 }
@@ -1152,7 +1156,9 @@ void display_equipment(WINDOW* win, PC* pc, const char** message) {
             mvwprintw(win, i + 1, 0, "%c: %s (empty)", 'a' + i, slot_names[i]);
         }
     }
+    keypad(win, TRUE);
     wrefresh(win);
+    flushinp(); // Clear input buffer
     getch();
     *message = "Equipment displayed";
 }
@@ -1186,7 +1192,9 @@ void display_stats(WINDOW* win, PC* pc, const char** message) {
     mvwprintw(win, 6, 0, "Dodge: %d", total_dodge);
     mvwprintw(win, 7, 0, "Position: (%d, %d)", pc->x, pc->y);
 
+    keypad(win, TRUE);
     wrefresh(win);
+    flushinp();
     getch();
     *message = "Stats displayed";
 }
@@ -1201,19 +1209,16 @@ void wear_item(WINDOW* win, PC* pc, const char** message) {
             mvwprintw(win, i + 1, 0, "%d: (empty)", i);
         }
     }
+    keypad(win, TRUE);
     wrefresh(win);
-
-    // CHANGE: Clear input buffer before reading new input to prevent interference
-    flushinp();
-
-    // CHANGE: Read input and add debug output to trace the keypress
+    flushinp(); // Clear input buffer
     int ch = getch();
-    // FILE* debug_file = fopen("wear_item_debug.txt", "a");
-    // if (debug_file) {
-    //     fprintf(debug_file, "Key pressed: %d ('%c')\n", ch, (char)ch);
-    //     fclose(debug_file);
-    // }
-
+    // Debug input
+    FILE* debug_file = fopen("input_debug.txt", "a");
+    if (debug_file) {
+        fprintf(debug_file, "wear_item: Key pressed: %d ('%c')\n", ch, (char)ch);
+        fclose(debug_file);
+    }
     if (ch == 27) {
         *message = "Wear cancelled";
         return;
@@ -1303,7 +1308,9 @@ void take_off_item(WINDOW* win, PC* pc, const char** message) {
             mvwprintw(win, i + 1, 0, "%c: %s (empty)", 'a' + i, slot_names[i]);
         }
     }
+    keypad(win, TRUE);
     wrefresh(win);
+    flushinp();
     int ch = getch();
     if (ch == 27) {
         *message = "Take off cancelled";
@@ -1341,7 +1348,9 @@ void drop_item(WINDOW* win, PC* pc, const char** message) {
             mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
         }
     }
+    keypad(win, TRUE);
     wrefresh(win);
+    flushinp();
     int ch = getch();
     if (ch == 27) {
         *message = "Drop cancelled";
@@ -1379,7 +1388,9 @@ void expunge_item(WINDOW* win, PC* pc, const char** message) {
             mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
         }
     }
+    keypad(win, TRUE);
     wrefresh(win);
+    flushinp();
     int ch = getch();
     if (ch == 27) {
         *message = "Expunge cancelled";
@@ -1408,7 +1419,9 @@ void inspect_item(WINDOW* win, PC* pc, const char** message) {
             mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
         }
     }
+    keypad(win, TRUE);
     wrefresh(win);
+    flushinp();
     int ch = getch();
     if (ch == 27) {
         *message = "Inspect cancelled";
@@ -1441,7 +1454,9 @@ void inspect_item(WINDOW* win, PC* pc, const char** message) {
             break;
         }
     }
+    keypad(win, TRUE);
     wrefresh(win);
+    flushinp();
     getch();
     *message = "Item inspected";
 }
