@@ -400,25 +400,32 @@ int main(int argc, char* argv[]) {
 
         // Process monster events only after a player action
         if (moved && game_running && !teleport_mode && !look_mode && !in_combat) {
-            // Advance game_turn to the player's next event time
-            int64_t player_next_time = event_queue.top().time; // Peek at player's next event time
-            game_turn = player_next_time;
+            // CHANGE: Advance game_turn by player's turn duration to ensure turn progression
+            int64_t player_turn_duration = 1000 / player->speed; // Player speed is 10, so 100 turns
+            game_turn += player_turn_duration;
 
-            // Process all events (including player's) up to the current game_turn
+            // CHANGE: Process all events up to the new game_turn, not just player's next event
             std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
             while (!event_queue.empty() && event_queue.top().time <= game_turn) {
                 Event event = event_queue.top();
                 event_queue.pop();
                 if (event.character->alive && event.character != player) {
+                    // CHANGE: Added debug output (commented) to verify monster movement
+                    // printf("Turn %lld: Moving %s (speed %d, next event every %lld turns)\n", 
+                    //        game_turn, event.character->name.c_str(), event.character->speed, 1000 / event.character->speed);
                     event.character->move();
-                    schedule_event(event.character);
+                    // CHANGE: Schedule next event based on current game_turn
+                    int64_t delay = 1000 / event.character->speed;
+                    int64_t next_time = event.time + delay;
+                    event_queue.emplace(next_time, event.character, Event::MOVE);
                 }
             }
 
             // Requeue any events that were not processed
             while (!event_queue.empty()) {
-                temp_queue.push(event_queue.top());
+                Event e = event_queue.top();
                 event_queue.pop();
+                temp_queue.push(e);
             }
             event_queue = temp_queue;
 

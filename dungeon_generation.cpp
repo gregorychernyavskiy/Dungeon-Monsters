@@ -535,23 +535,28 @@ void loadDescriptions() {
 }
 
 int spawnMonsters(int numMonsters) {
+    // Clean up existing monsters
     if (monsters) {
-        for (int i = 0; i < num_monsters; ++i) {
-            if (monsters[i] && monsterAt[monsters[i]->y][monsters[i]->x]) {
-                monsterAt[monsters[i]->y][monsters[i]->x] = nullptr;
-            }
-            if (monsters[i]->is_unique && !monsters[i]->alive) {
-                for (auto& desc : monsterDescs) {
-                    if (desc.name == monsters[i]->name) {
-                        desc.is_alive = false;
+        for (int i = 0; i < num_monsters; ++i) { // Use num_monsters (current count)
+            if (i < num_monsters && monsters[i]) { // Ensure we don't access out of bounds
+                if (monsterAt[monsters[i]->y][monsters[i]->x]) {
+                    monsterAt[monsters[i]->y][monsters[i]->x] = nullptr;
+                }
+                if (monsters[i]->is_unique && !monsters[i]->alive) {
+                    for (auto& desc : monsterDescs) {
+                        if (desc.name == monsters[i]->name) {
+                            desc.is_alive = false;
+                        }
                     }
                 }
+                delete monsters[i];
             }
-            delete monsters[i];
         }
         free(monsters);
         monsters = nullptr;
     }
+
+    // Reset num_monsters before spawning
     num_monsters = 0;
     monsters = (NPC**)malloc(numMonsters * sizeof(NPC*));
     if (!monsters) {
@@ -564,14 +569,15 @@ int spawnMonsters(int numMonsters) {
     std::uniform_int_distribution<> dis(0, 99);
     std::uniform_int_distribution<> desc_dis(0, monsterDescs.size() - 1);
 
-    for (int i = 0; i < numMonsters; ++i) {
+    // Spawn exactly numMonsters monsters
+    while (num_monsters < numMonsters) {
         NPC* npc = nullptr;
         int attempts = 100;
         while (attempts--) {
             int idx = desc_dis(gen);
             MonsterDescription& desc = monsterDescs[idx];
-            if (desc.is_unique && desc.is_alive) continue;
-            if (desc.rarity <= dis(gen)) continue;
+            if (desc.is_unique && desc.is_alive) continue; // Skip if unique and already spawned
+            if (desc.rarity <= dis(gen)) continue; // Skip if rarity check fails
 
             int x, y;
             int place_attempts = 100;
@@ -581,7 +587,7 @@ int spawnMonsters(int numMonsters) {
                 y = rand() % HEIGHT;
                 struct Room playerRoom = rooms[player_room_index];
                 bool in_player_room = (x >= playerRoom.x && x < playerRoom.x + playerRoom.width &&
-                                      y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
+                                       y >= playerRoom.y && y < playerRoom.y + playerRoom.height);
                 if (dungeon[y][x] == '.' && !(x == player->x && y == player->y) && !monsterAt[y][x] && !in_player_room) {
                     npc = desc.createNPC(x, y);
                     npc->is_boss = (desc.name == "SpongeBob SquarePants");
@@ -593,15 +599,22 @@ int spawnMonsters(int numMonsters) {
         }
         if (npc) {
             NPC** temp = (NPC**)realloc(monsters, (num_monsters + 1) * sizeof(NPC*));
-            if (temp) {
-                monsters = temp;
-                monsters[num_monsters] = npc;
-                monsterAt[npc->y][npc->x] = npc;
-                num_monsters++;
-                schedule_event(npc); // Schedule initial event for the monster
+            if (!temp) {
+                fprintf(stderr, "Error: Failed to reallocate memory for monsters\n");
+                delete npc;
+                continue;
             }
+            monsters = temp;
+            monsters[num_monsters] = npc;
+            monsterAt[npc->y][npc->x] = npc;
+            num_monsters++;
+            schedule_event(npc); // Schedule initial event for the monster
+        } else {
+            // If we couldn't place a monster after attempts, break to avoid infinite loop
+            break;
         }
     }
+
     return num_monsters < numMonsters;
 }
 
