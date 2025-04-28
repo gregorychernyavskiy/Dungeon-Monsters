@@ -21,6 +21,10 @@
 #define MAX_ROOM_WIDTH 12
 #define MAX_HARDNESS 255
 #define MIN_HARDNESS 1
+#define POISON_BALL_RADIUS 2
+#define POISON_BALL_MANA_COST 20
+#define POISON_BALL_DAMAGE Dice(0, 1, 6)
+#define RANGED_ATTACK_RANGE 5
 
 struct Room {
     int x, y, height, width;
@@ -39,6 +43,7 @@ public:
     char symbol;
     Dice damage;
     int hit, dodge, defense, weight, speed, attribute, value;
+    int range; // New for ranged weapons
     bool is_artifact;
 
     Object(int x_, int y_);
@@ -66,10 +71,12 @@ public:
 class PC : public Character {
 public:
     static const int CARRY_SLOTS = 10;
-    static const int EQUIPMENT_SLOTS = 12;
+    static const int EQUIPMENT_SLOTS = 13; // Increased for SPELLBOOK
     Object* equipment[EQUIPMENT_SLOTS];
     Object* carry[CARRY_SLOTS];
     int num_carried;
+    int mana; // New for spells
+    int max_mana; // New for spells
 
     PC(int x_, int y_);
     ~PC();
@@ -176,6 +183,8 @@ void regenerate_dungeon(int numMonsters);
 int move_player(int dx, int dy, const char** message);
 int use_stairs(char direction, int numMonsters, const char** message);
 int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message);
+int fire_ranged_weapon(WINDOW* win, int target_x, int target_y, const char** message); // New
+int cast_poison_ball(WINDOW* win, int target_x, int target_y, const char** message); // New
 
 void placeObjects(int count);
 void cleanupObjects();
@@ -183,7 +192,7 @@ void loadDescriptions();
 
 enum EquipmentSlot {
     SLOT_WEAPON, SLOT_OFFHAND, SLOT_RANGED, SLOT_ARMOR, SLOT_HELMET, SLOT_CLOAK,
-    SLOT_GLOVES, SLOT_BOOTS, SLOT_AMULET, SLOT_LIGHT, SLOT_RING1, SLOT_RING2
+    SLOT_GLOVES, SLOT_BOOTS, SLOT_AMULET, SLOT_LIGHT, SLOT_RING1, SLOT_RING2, SLOT_SPELLBOOK
 };
 
 void display_inventory(WINDOW* win, PC* pc, const char** message);

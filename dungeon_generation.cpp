@@ -49,7 +49,7 @@ std::priority_queue<Event, std::vector<Event>, std::greater<Event>> event_queue;
 int64_t game_turn = 0;
 
 Object::Object(int x_, int y_) : x(x_), y(y_), hit(0), dodge(0), defense(0),
-    weight(0), speed(0), attribute(0), value(0), is_artifact(false) {}
+    weight(0), speed(0), attribute(0), value(0), range(0), is_artifact(false) {}
 
 Object::~Object() {}
 
@@ -73,6 +73,8 @@ PC::PC(int x_, int y_) : Character(x_, y_) {
     hitpoints = 100; // Default PC hitpoints
     speed = 10; // Fixed speed as per assignment
     num_carried = 0;
+    mana = 50; // Starting mana
+    max_mana = 50; // Maximum mana
     for (int i = 0; i < EQUIPMENT_SLOTS; i++) equipment[i] = nullptr;
     for (int i = 0; i < CARRY_SLOTS; i++) carry[i] = nullptr;
 }
@@ -167,9 +169,23 @@ bool NPC::displace(int& new_x, int& new_y) {
 void PC::move() {}
 
 void schedule_event(Character* character) {
-    int64_t delay = 1000 / character->speed; // floor(1000/speed) using integer division
+    int total_speed;
+    Dice total_damage;
+    int total_defense, total_hit, total_dodge;
+    if (dynamic_cast<PC*>(character)) {
+        dynamic_cast<PC*>(character)->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
+    } else {
+        total_speed = character->speed;
+    }
+    int64_t delay = 1000 / total_speed; // floor(1000/speed) using integer division
     int64_t next_time = game_turn + delay;
     event_queue.emplace(next_time, character, Event::MOVE);
+
+    // Regenerate mana for PC
+    if (dynamic_cast<PC*>(character)) {
+        PC* pc = dynamic_cast<PC*>(character);
+        pc->mana = std::min(pc->mana + 1, pc->max_mana); // Regenerate 1 mana per turn
+    }
 }
 
 void compactMonsters() {
@@ -371,6 +387,171 @@ int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
     return 1;
 }
 
+int fire_ranged_weapon(WINDOW* win, int target_x, int target_y, const char** message) {
+    if (!player->equipment[SLOT_RANGED]) {
+        *message = "No ranged weapon equipped!";
+        return 0;
+    }
+    int dx = target_x - player->x;
+    int dy = target_y - player->y;
+    int distance = dx * dx + dy * dy;
+    if (distance > RANGED_ATTACK_RANGE * RANGED_ATTACK_RANGE) {
+        *message = "Target is out of range!";
+        return 0;
+    }
+    NPC* target = monsterAt[target_y][target_x];
+    if (!target || !target->alive) {
+        *message = "No monster at target location!";
+        return 0;
+    }
+    if (fog_enabled && !visible[target_y][target_x]) {
+        *message = "Target is not visible!";
+        return 0;
+    }
+
+    // Calculate damage
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    Dice damage = player->equipment[SLOT_RANGED]->damage;
+    int total_damage = damage.base;
+    for (int i = 0; i < damage.dice; i++) {
+        std::uniform_int_distribution<> dis(1, damage.sides);
+        total_damage += dis(gen);
+    }
+
+    // Apply damage
+    if (target->takeDamage(total_damage)) {
+        monsterAt[target_y][target_x] = nullptr;
+        for (int i = 0; i < num_monsters; i++) {
+            if (monsters[i] == target) {
+                if (target->is_unique) {
+                    for (auto& desc : monsterDescs) {
+                        if (desc.name == target->name) desc.is_alive = false;
+                    }
+                }
+                delete monsters[i];
+                monsters[i] = nullptr;
+                break;
+            }
+        }
+        compactMonsters();
+        if (target->is_boss) {
+            *message = "You defeated SpongeBob SquarePants with a ranged attack! You win!";
+            return -1;
+        }
+        *message = "You killed the monster with a ranged attack!";
+    } else {
+        char msg[80];
+        snprintf(msg, sizeof(msg), "You deal %d damage to %s with a ranged attack!", total_damage, target->name.c_str());
+        *message = msg;
+    }
+
+    // Consume a turn
+    std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
+    while (!event_queue.empty()) {
+        Event e = event_queue.top();
+        event_queue.pop();
+        if (e.character != player) {
+            temp_queue.push(e);
+        }
+    }
+    event_queue = temp_queue;
+    schedule_event(player);
+    return 1;
+}
+
+int cast_poison_ball(WINDOW* win, int target_x, int target_y, const char** message) {
+    // Check for spellbook
+    bool has_spellbook = false;
+    if (player->equipment[SLOT_SPELLBOOK] && player->equipment[SLOT_SPELLBOOK]->types[0] == "SPELLBOOK") {
+        has_spellbook = true;
+    } else {
+        for (int i = 0; i < PC::CARRY_SLOTS; i++) {
+            if (player->carry[i] && player->carry[i]->types[0] == "SPELLBOOK") {
+                has_spellbook = true;
+                break;
+            }
+        }
+    }
+    if (!has_spellbook) {
+        *message = "You need a spellbook to cast Poison Ball!";
+        return 0;
+    }
+
+    // Check mana
+    if (player->mana < POISON_BALL_MANA_COST) {
+        *message = "Not enough mana to cast Poison Ball!";
+        return 0;
+    }
+
+    // Apply poison damage to monsters in radius
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    int affected = 0;
+    char msg[80] = "Poison Ball hits: ";
+    for (int y = target_y - POISON_BALL_RADIUS; y <= target_y + POISON_BALL_RADIUS; y++) {
+        for (int x = target_x - POISON_BALL_RADIUS; x <= target_x + POISON_BALL_RADIUS; x++) {
+            if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
+                int dx = x - target_x;
+                int dy = y - target_y;
+                if (dx * dx + dy * dy <= POISON_BALL_RADIUS * POISON_BALL_RADIUS) {
+                    NPC* target = monsterAt[y][x];
+                    if (target && target->alive && (!fog_enabled || visible[y][x])) {
+                        int damage = POISON_BALL_DAMAGE.base;
+                        for (int i = 0; i < POISON_BALL_DAMAGE.dice; i++) {
+                            std::uniform_int_distribution<> dis(1, POISON_BALL_DAMAGE.sides);
+                            damage += dis(gen);
+                        }
+                        if (target->takeDamage(damage)) {
+                            monsterAt[y][x] = nullptr;
+                            for (int i = 0; i < num_monsters; i++) {
+                                if (monsters[i] == target) {
+                                    if (target->is_unique) {
+                                        for (auto& desc : monsterDescs) {
+                                            if (desc.name == target->name) desc.is_alive = false;
+                                        }
+                                    }
+                                    delete monsters[i];
+                                    monsters[i] = nullptr;
+                                    break;
+                                }
+                            }
+                            if (target->is_boss) {
+                                *message = "You defeated SpongeBob SquarePants with Poison Ball! You win!";
+                                compactMonsters();
+                                return -1;
+                            }
+                        }
+                        affected++;
+                    }
+                }
+            }
+        }
+    }
+    compactMonsters();
+
+    if (affected == 0) {
+        *message = "Poison Ball hits no monsters!";
+    } else {
+        snprintf(msg, sizeof(msg), "Poison Ball hits %d monsters!", affected);
+        *message = msg;
+    }
+
+    // Consume mana and a turn
+    player->mana -= POISON_BALL_MANA_COST;
+    std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
+    while (!event_queue.empty()) {
+        Event e = event_queue.top();
+        event_queue.pop();
+        if (e.character != player) {
+            temp_queue.push(e);
+        }
+    }
+    event_queue = temp_queue;
+    schedule_event(player);
+    return 1;
+}
+
 void printDungeon() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -507,6 +688,8 @@ void placePlayer() {
         player = new PC(px, py);
         player->num_carried = old_player->num_carried;
         player->hitpoints = old_player->hitpoints;
+        player->mana = old_player->mana; // Preserve mana
+        player->max_mana = old_player->max_mana;
         for (int i = 0; i < PC::CARRY_SLOTS; i++) {
             player->carry[i] = old_player->carry[i];
             old_player->carry[i] = nullptr; // Prevent deletion
@@ -763,7 +946,6 @@ void init_ncurses() {
     noecho();
     keypad(stdscr, TRUE);
     curs_set(0);
-    // Removed timeout(100) to use blocking input
     init_pair(COLOR_RED, COLOR_RED, COLOR_BLACK);
     init_pair(COLOR_GREEN, COLOR_GREEN, COLOR_BLACK);
     init_pair(COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK);
@@ -888,8 +1070,8 @@ void draw_dungeon(WINDOW* win, const char* message) {
     Dice total_damage;
     int total_defense, total_hit, total_dodge;
     player->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
-    mvwprintw(win, 22, 0, "HP:%d SPD:%d DEF:%d HIT:%d DGE:%d", 
-              player->hitpoints, total_speed, total_defense, total_hit, total_dodge);
+    mvwprintw(win, 22, 0, "HP:%d MP:%d SPD:%d DEF:%d HIT:%d DGE:%d", 
+              player->hitpoints, player->mana, total_speed, total_defense, total_hit, total_dodge);
     mvwprintw(win, 23, 0, "Fog of War: %s", fog_enabled ? "ON" : "OFF");
     wrefresh(win);
 }
@@ -1002,22 +1184,26 @@ void display_help(WINDOW* win, const char** message) {
     mvwprintw(win, 5, 0, "Combat:");
     mvwprintw(win, 6, 0, "  a: Attack (when in combat)");
     mvwprintw(win, 7, 0, "  f: Flee (when in combat, 30%% chance)");
-    mvwprintw(win, 8, 0, "Inventory & Equipment:");
-    mvwprintw(win, 9, 0, "  i: View inventory");
-    mvwprintw(win, 10, 0, "  w: Wear item from inventory");
-    mvwprintw(win, 11, 0, "  d: Drop item from inventory");
-    mvwprintw(win, 12, 0, "  x: Expunge item from inventory");
-    mvwprintw(win, 13, 0, "  I: Inspect item in inventory");
-    mvwprintw(win, 14, 0, "  e: View equipment");
-    mvwprintw(win, 15, 0, "  t: Take off equipped item");
-    mvwprintw(win, 16, 0, "Other Actions:");
-    mvwprintw(win, 17, 0, "  5/space/.: Rest");
-    mvwprintw(win, 18, 0, "  m: View monster list");
-    mvwprintw(win, 19, 0, "  f: Toggle fog of war");
-    mvwprintw(win, 20, 0, "  g: Teleport (g to confirm, r for random, ESC to cancel)");
-    mvwprintw(win, 21, 0, "  L: Look mode (t to inspect monster, ESC to cancel)");
-    mvwprintw(win, 22, 0, "  >/ <: Use stairs");
-    mvwprintw(win, 23, 0, "  s: View stats  q/Q: Quit");
+    mvwprintw(win, 8, 0, "Ranged Combat & Spells:");
+    mvwprintw(win, 9, 0, "  r: Enter ranged attack mode (needs ranged weapon)");
+    mvwprintw(win, 10, 0, "  p: Cast Poison Ball spell (needs spellbook, 20 mana)");
+    mvwprintw(win, 11, 0, "  t: Select target in targeting mode, ESC to cancel");
+    mvwprintw(win, 12, 0, "Inventory & Equipment:");
+    mvwprintw(win, 13, 0, "  i: View inventory");
+    mvwprintw(win, 14, 0, "  w: Wear item from inventory");
+    mvwprintw(win, 15, 0, "  d: Drop item from inventory");
+    mvwprintw(win, 16, 0, "  x: Expunge item from inventory");
+    mvwprintw(win, 17, 0, "  I: Inspect item in inventory");
+    mvwprintw(win, 18, 0, "  e: View equipment");
+    mvwprintw(win, 19, 0, "  t: Take off equipped item");
+    mvwprintw(win, 20, 0, "Other Actions:");
+    mvwprintw(win, 21, 0, "  5/space/.: Rest");
+    mvwprintw(win, 22, 0, "  m: View monster list");
+    mvwprintw(win, 23, 0, "  f: Toggle fog of war");
+    mvwprintw(win, 24, 0, "  g: Teleport (g to confirm, r for random, ESC to cancel)");
+    mvwprintw(win, 25, 0, "  L: Look mode (t to inspect monster, ESC to cancel)");
+    mvwprintw(win, 26, 0, "  >/ <: Use stairs");
+    mvwprintw(win, 27, 0, "  s: View stats  q/Q: Quit");
     keypad(win, TRUE);
     wrefresh(win);
     flushinp();
@@ -1118,7 +1304,7 @@ void display_equipment(WINDOW* win, PC* pc, const char** message) {
     mvwprintw(win, 0, 0, "Equipment (Press any key to exit):");
     const char* slot_names[] = {
         "Weapon", "Offhand", "Ranged", "Armor", "Helmet", "Cloak",
-        "Gloves", "Boots", "Amulet", "Light", "Ring1", "Ring2"
+        "Gloves", "Boots", "Amulet", "Light", "Ring1", "Ring2", "Spellbook"
     };
     for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
         if (pc->equipment[i]) {
@@ -1144,6 +1330,10 @@ void display_equipment(WINDOW* win, PC* pc, const char** message) {
             }
             if (item->dodge != 0) {
                 stats += (has_stats ? ", " : "") + std::string(item->dodge > 0 ? "+" : "") + std::to_string(item->dodge) + " dodge";
+                has_stats = true;
+            }
+            if (item->range != 0) {
+                stats += (has_stats ? ", " : "") + std::string("+") + std::to_string(item->range) + " range";
                 has_stats = true;
             }
 
@@ -1181,16 +1371,17 @@ void display_stats(WINDOW* win, PC* pc, const char** message) {
     }
 
     mvwprintw(win, 1, 0, "Hitpoints: %d", pc->hitpoints);
-    mvwprintw(win, 2, 0, "Speed: %d", total_speed);
+    mvwprintw(win, 2, 0, "Mana: %d/%d", pc->mana, pc->max_mana);
+    mvwprintw(win, 3, 0, "Speed: %d", total_speed);
     if (total_damage.base == 0 && total_damage.dice == 0) {
-        mvwprintw(win, 3, 0, "Damage: No damage");
+        mvwprintw(win, 4, 0, "Damage: No damage");
     } else {
-        mvwprintw(win, 3, 0, "Damage: %s (e.g., %d)", total_damage.toString().c_str(), sample_damage);
+        mvwprintw(win, 4, 0, "Damage: %s (e.g., %d)", total_damage.toString().c_str(), sample_damage);
     }
-    mvwprintw(win, 4, 0, "Defense: %d", total_defense);
-    mvwprintw(win, 5, 0, "Hit: %d", total_hit);
-    mvwprintw(win, 6, 0, "Dodge: %d", total_dodge);
-    mvwprintw(win, 7, 0, "Position: (%d, %d)", pc->x, pc->y);
+    mvwprintw(win, 5, 0, "Defense: %d", total_defense);
+    mvwprintw(win, 6, 0, "Hit: %d", total_hit);
+    mvwprintw(win, 7, 0, "Dodge: %d", total_dodge);
+    mvwprintw(win, 8, 0, "Position: (%d, %d)", pc->x, pc->y);
 
     keypad(win, TRUE);
     wrefresh(win);
@@ -1247,7 +1438,7 @@ void wear_item(WINDOW* win, PC* pc, const char** message) {
         else if (type == "LIGHT") equip_slot = SLOT_LIGHT;
         else if (type == "RING") {
             equip_slot = pc->equipment[SLOT_RING1] ? SLOT_RING2 : SLOT_RING1;
-        }
+        } else if (type == "SPELLBOOK") equip_slot = SLOT_SPELLBOOK;
     }
     if (equip_slot == -1) {
         *message = "Item cannot be equipped!";
@@ -1267,10 +1458,10 @@ void wear_item(WINDOW* win, PC* pc, const char** message) {
 
 void take_off_item(WINDOW* win, PC* pc, const char** message) {
     werase(win);
-    mvwprintw(win, 0, 0, "Select equipment slot (a-l, ESC to cancel):");
+    mvwprintw(win, 0, 0, "Select equipment slot (a-m, ESC to cancel):");
     const char* slot_names[] = {
         "Weapon", "Offhand", "Ranged", "Armor", "Helmet", "Cloak",
-        "Gloves", "Boots", "Amulet", "Light", "Ring1", "Ring2"
+        "Gloves", "Boots", "Amulet", "Light", "Ring1", "Ring2", "Spellbook"
     };
     for (int i = 0; i < PC::EQUIPMENT_SLOTS; i++) {
         if (pc->equipment[i]) {
@@ -1298,6 +1489,10 @@ void take_off_item(WINDOW* win, PC* pc, const char** message) {
                 stats += (has_stats ? ", " : "") + std::string(item->dodge > 0 ? "+" : "") + std::to_string(item->dodge) + " dodge";
                 has_stats = true;
             }
+            if (item->range != 0) {
+                stats += (has_stats ? ", " : "") + std::string("+") + std::to_string(item->range) + " range";
+                has_stats = true;
+            }
 
             if (has_stats) {
                 mvwprintw(win, i + 1, 0, "%c: %s (%s) (%s)", 'a' + i, slot_names[i], item->name.c_str(), stats.c_str());
@@ -1316,7 +1511,7 @@ void take_off_item(WINDOW* win, PC* pc, const char** message) {
         *message = "Take off cancelled";
         return;
     }
-    if (ch < 'a' || ch > 'l') {
+    if (ch < 'a' || ch > 'm') {
         *message = "Invalid slot!";
         return;
     }
@@ -1346,6 +1541,8 @@ void drop_item(WINDOW* win, PC* pc, const char** message) {
     for (int i = 0; i < PC::CARRY_SLOTS; i++) {
         if (pc->carry[i]) {
             mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
+        } else {
+            mvwprintw(win, i + 1, 0, "%d: (empty)", i);
         }
     }
     keypad(win, TRUE);
@@ -1386,6 +1583,8 @@ void expunge_item(WINDOW* win, PC* pc, const char** message) {
     for (int i = 0; i < PC::CARRY_SLOTS; i++) {
         if (pc->carry[i]) {
             mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
+        } else {
+            mvwprintw(win, i + 1, 0, "%d: (empty)", i);
         }
     }
     keypad(win, TRUE);
@@ -1417,6 +1616,8 @@ void inspect_item(WINDOW* win, PC* pc, const char** message) {
     for (int i = 0; i < PC::CARRY_SLOTS; i++) {
         if (pc->carry[i]) {
             mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
+        } else {
+            mvwprintw(win, i + 1, 0, "%d: (empty)", i);
         }
     }
     keypad(win, TRUE);
@@ -1443,7 +1644,11 @@ void inspect_item(WINDOW* win, PC* pc, const char** message) {
     mvwprintw(win, 2, 0, "Type: %s", item->types[0].c_str());
     mvwprintw(win, 3, 0, "Damage: %s", item->damage.toString().c_str());
     mvwprintw(win, 4, 0, "Speed: %d", item->speed);
-    int line = 5;
+    mvwprintw(win, 5, 0, "Defense: %d", item->defense);
+    mvwprintw(win, 6, 0, "Hit: %d", item->hit);
+    mvwprintw(win, 7, 0, "Dodge: %d", item->dodge);
+    mvwprintw(win, 8, 0, "Range: %d", item->range);
+    int line = 9;
     for (const auto& desc : objectDescs) {
         if (desc.name == item->name) {
             for (const auto& line_text : desc.description) {
