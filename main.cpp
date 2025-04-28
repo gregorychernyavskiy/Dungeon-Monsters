@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
     placePlayer();
     initializeHardness();
     if (numMonsters > 0) spawnMonsters(numMonsters);
-    placeObjects(50);
+    placeObjects(10);
     update_visibility();
 
     // Schedule initial events
