@@ -334,14 +334,13 @@ int main(int argc, char* argv[]) {
                     schedule_event(player);
                 }
             } else {
-                flushinp(); // Clear input buffer before UI prompts
+                flushinp();
                 switch (ch) {
                     case '>':
                     {
                         std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
                         moved = use_stairs('>', numMonsters, &message);
                         if (moved) {
-                            // Clear and reschedule events after level change
                             while (!event_queue.empty()) event_queue.pop();
                             schedule_event(player);
                             for (int i = 0; i < num_monsters; i++) {
@@ -357,7 +356,6 @@ int main(int argc, char* argv[]) {
                         std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
                         moved = use_stairs('<', numMonsters, &message);
                         if (moved) {
-                            // Clear and reschedule events after level change
                             while (!event_queue.empty()) event_queue.pop();
                             schedule_event(player);
                             for (int i = 0; i < num_monsters; i++) {
@@ -373,7 +371,6 @@ int main(int argc, char* argv[]) {
                         std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
                         moved = 1;
                         message = "Resting...";
-                        // Treat rest as a move for event scheduling
                         while (!event_queue.empty()) {
                             Event e = event_queue.top();
                             event_queue.pop();
@@ -393,8 +390,8 @@ int main(int argc, char* argv[]) {
                     case 'f':
                         fog_enabled = !fog_enabled;
                         message = fog_enabled ? "Fog of War ON" : "Fog of War OFF";
-                        update_visibility(); // Update visibility to reflect new fog state
-                        draw_dungeon(win, message); // Redraw immediately
+                        update_visibility();
+                        draw_dungeon(win, message);
                         ui_action = true;
                         break;
                     case 'g':
@@ -422,6 +419,10 @@ int main(int argc, char* argv[]) {
                         target_x = player->x;
                         target_y = player->y;
                         message = "Poison Ball: Move cursor with movement keys, 't' to cast, ESC to cancel";
+                        break;
+                    case 'U':
+                        use_item(win, player, &message);
+                        ui_action = true;
                         break;
                     case 'w':
                         wear_item(win, player, &message);
@@ -470,17 +471,15 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Process monster events only after a player action, excluding UI interactions
         if (moved && game_running && !teleport_mode && !look_mode && !targeting_mode && !in_combat && !ui_action) {
-            // Advance game_turn by player's turn duration
+            
             int total_speed;
             Dice total_damage;
             int total_defense, total_hit, total_dodge;
             player->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
-            int64_t player_turn_duration = 1000 / total_speed; // Use total speed including equipment
+            int64_t player_turn_duration = 1000 / total_speed;
             game_turn += player_turn_duration;
 
-            // Process all events up to the new game_turn
             std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
             while (!event_queue.empty() && event_queue.top().time <= game_turn) {
                 Event event = event_queue.top();
@@ -493,7 +492,6 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            // Requeue any events that were not processed
             while (!event_queue.empty()) {
                 Event e = event_queue.top();
                 event_queue.pop();
@@ -508,18 +506,16 @@ int main(int argc, char* argv[]) {
 
             draw_dungeon(win, message);
         } else if (!moved && !teleport_mode && !look_mode && !targeting_mode && !in_combat) {
-            // Redraw dungeon for UI actions or invalid commands
+            
             draw_dungeon(win, message);
         }
     }
 
-    // Display final message before exiting
     if (!in_combat) {
         draw_dungeon(win, message);
     }
     sleep(2);
 
-    // Cleanup
     if (save && saveFileName) {
         saveDungeon(saveFileName);
     }
