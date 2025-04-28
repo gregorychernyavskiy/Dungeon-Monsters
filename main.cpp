@@ -159,6 +159,7 @@ int main(int argc, char* argv[]) {
 
     while (game_running) {
         flushinp(); // Clear input buffer at start of loop
+        bool ui_action = false; // Track UI actions to skip monster moves
         int ch = getch();
         int moved = 0;
         int dx = 0, dy = 0;
@@ -288,7 +289,6 @@ int main(int argc, char* argv[]) {
                     schedule_event(player);
                 }
             } else {
-                bool ui_action = false; // Track UI actions to skip monster moves
                 switch (ch) {
                     case '>':
                     {
@@ -413,7 +413,11 @@ int main(int argc, char* argv[]) {
         // Process monster events only after a player action, excluding UI interactions
         if (moved && game_running && !teleport_mode && !look_mode && !in_combat && !ui_action) {
             // Advance game_turn by player's turn duration
-            int64_t player_turn_duration = 1000 / player->speed; // Player speed is 10, so 100 turns
+            int total_speed;
+            Dice total_damage;
+            int total_defense, total_hit, total_dodge;
+            player->calculateStats(total_speed, total_damage, total_defense, total_hit, total_dodge);
+            int64_t player_turn_duration = 1000 / total_speed; // Use total speed including equipment
             game_turn += player_turn_duration;
 
             // Process all events up to the new game_turn
