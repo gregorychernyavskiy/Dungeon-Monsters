@@ -61,7 +61,7 @@ void display_monster_info(WINDOW* win, NPC* monster, const char** message) {
 
 int main(int argc, char* argv[]) {
     srand(time(NULL));
-    int numMonsters = 0;
+    int numMonsters = 10; // Default number of monsters as per assignment
     char* saveFileName = nullptr;
     int save = 0;
     bool parseMonstersOnly = false;
@@ -75,20 +75,20 @@ int main(int argc, char* argv[]) {
             parseMonstersOnly = true;
         } else if (strcmp(argv[i], "--parse-objects") == 0) {
             parseObjectsOnly = true;
-        } else {
-            numMonsters = atoi(argv[i]);
+        } else if (strcmp(argv[i], "--nummon") == 0) {
+            if (i + 1 < argc) numMonsters = atoi(argv[++i]);
         }
     }
 
     loadDescriptions();
 
-    if (argc == 1 || parseMonstersOnly || parseObjectsOnly) {
+    if (parseMonstersOnly || parseObjectsOnly) {
         char* home = getenv("HOME");
         if (!home) {
             fprintf(stderr, "Error: HOME environment variable not set\n");
             return 1;
         }
-        if (parseMonstersOnly || (argc == 1 && !parseObjectsOnly)) {
+        if (parseMonstersOnly) {
             std::string filename = std::string(home) + "/.rlg327/monster_desc.txt";
             std::vector<MonsterDescription> monsters = parseMonsterDescriptions(filename);
             for (const auto& monster : monsters) {
@@ -115,6 +115,15 @@ int main(int argc, char* argv[]) {
     if (numMonsters > 0) spawnMonsters(numMonsters);
     placeObjects(10);
     update_visibility();
+
+    // Schedule initial events
+    while (!event_queue.empty()) event_queue.pop();
+    schedule_event(player);
+    for (int i = 0; i < num_monsters; i++) {
+        if (monsters[i] && monsters[i]->alive) {
+            schedule_event(monsters[i]);
+        }
+    }
 
     if (save && saveFileName && numMonsters == 0 && argc == 3) {
         saveDungeon(saveFileName);
@@ -146,6 +155,30 @@ int main(int argc, char* argv[]) {
     int target_x = player->x, target_y = player->y;
 
     while (game_running) {
+        // Process events up to the current game turn or until player input is needed
+        bool waiting_for_player = false;
+        while (!event_queue.empty() && !waiting_for_player && game_running && !in_combat && !teleport_mode && !look_mode) {
+            Event event = event_queue.top();
+            if (event.character == player) {
+                waiting_for_player = true; // Player’s turn, wait for input
+                break;
+            }
+            event_queue.pop();
+            game_turn = event.time;
+
+            if (event.character->alive) {
+                event.character->move();
+                schedule_event(event.character);
+            }
+
+            if (!player->alive) {
+                message = "You were killed! Game over!";
+                game_running = false;
+            }
+
+            draw_dungeon(win, message);
+        }
+
         int ch = getch();
         int moved = 0;
         int dx = 0, dy = 0;
@@ -157,6 +190,8 @@ int main(int argc, char* argv[]) {
             } else if (result == -2) { // Game over
                 game_running = false;
             } else if (!in_combat) { // Combat ended
+                // Reschedule player event after combat
+                schedule_event(player);
                 draw_dungeon(win, message);
             }
             continue;
@@ -174,6 +209,7 @@ int main(int argc, char* argv[]) {
                     dungeon[player->y][player->x] = '@';
                     update_visibility();
                     message = "Teleported!";
+                    schedule_event(player); // Reschedule player event
                 } else {
                     message = "Cannot teleport into immutable rock!";
                 }
@@ -193,6 +229,7 @@ int main(int argc, char* argv[]) {
                 dungeon[player->y][player->x] = '@';
                 update_visibility();
                 message = "Teleported to random location!";
+                schedule_event(player); // Reschedule player event
                 teleport_mode = false;
             } else if (ch == 27) {
                 teleport_mode = false;
@@ -256,21 +293,61 @@ int main(int argc, char* argv[]) {
 
             if (dx != 0 || dy != 0) {
                 moved = move_player(dx, dy, &message);
-                if (moved == -1) {
-                    game_running = false;
-                    continue;
+                if (moved) {
+                    // Remove player’s current event and schedule a new one
+                    std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
+                    while (!event_queue.empty()) {
+                        Event e = event_queue.top();
+                        event_queue.pop();
+                        if (e.character != player) {
+                            temp_queue.push(e);
+                        }
+                    }
+                    event_queue = temp_queue;
+                    schedule_event(player);
                 }
             } else {
                 switch (ch) {
                     case '>':
                         moved = use_stairs('>', numMonsters, &message);
+                        if (moved) {
+                            // Clear and reschedule events after level change
+                            while (!event_queue.empty()) event_queue.pop();
+                            schedule_event(player);
+                            for (int i = 0; i < num_monsters; i++) {
+                                if (monsters[i] && monsters[i]->alive) {
+                                    schedule_event(monsters[i]);
+                                }
+                            }
+                        }
                         break;
                     case '<':
                         moved = use_stairs('<', numMonsters, &message);
+                        if (moved) {
+                            // Clear and reschedule events after level change
+                            while (!event_queue.empty()) event_queue.pop();
+                            schedule_event(player);
+                            for (int i = 0; i < num_monsters; i++) {
+                                if (monsters[i] && monsters[i]->alive) {
+                                    schedule_event(monsters[i]);
+                                }
+                            }
+                        }
                         break;
                     case '5': case ' ': case '.':
                         moved = 1;
                         message = "Resting...";
+                        // Treat rest as a move for event scheduling
+                        std::priority_queue<Event, std::vector<Event>, std::greater<Event>> temp_queue;
+                        while (!event_queue.empty()) {
+                            Event e = event_queue.top();
+                            event_queue.pop();
+                            if (e.character != player) {
+                                temp_queue.push(e);
+                            }
+                        }
+                        event_queue = temp_queue;
+                        schedule_event(player);
                         break;
                     case 'm':
                         draw_monster_list(win);
@@ -313,7 +390,7 @@ int main(int argc, char* argv[]) {
                     case 's':
                         display_stats(win, player, &message);
                         break;
-                    case '?': // New keybinding for help screen
+                    case '?':
                         display_help(win, &message);
                         break;
                     case 'I':
@@ -331,18 +408,6 @@ int main(int argc, char* argv[]) {
         }
 
         if (moved && game_running && !teleport_mode && !look_mode && !in_combat) {
-            for (int i = 0; i < num_monsters; i++) {
-                if (monsters[i] && monsters[i]->alive) {
-                    monsters[i]->move();
-                }
-            }
-            if (!player->alive) {
-                message = "You were killed! Game over!";
-                game_running = false;
-            }
-        }
-
-        if (!teleport_mode && !look_mode && !in_combat) {
             draw_dungeon(win, message);
         }
     }
@@ -351,7 +416,7 @@ int main(int argc, char* argv[]) {
     if (!in_combat) {
         draw_dungeon(win, message);
     }
-    sleep(2); // Show the final message for 2 seconds
+    sleep(2);
 
     // Cleanup
     if (save && saveFileName) {

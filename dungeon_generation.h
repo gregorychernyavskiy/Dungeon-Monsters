@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <queue>
 #include "minheap.h"
 #include "dice.h"
 #include "monster_parsing.h"
@@ -91,6 +92,15 @@ public:
     bool displace(int& new_x, int& new_y);
 };
 
+struct Event {
+    int64_t time; // Timestamp for the event
+    Character* character; // PC or NPC
+    enum EventType { MOVE } type; // For future expansion
+    Event(int64_t t, Character* c, EventType et = MOVE) : time(t), character(c), type(et) {}
+    // For priority queue (min-heap, so reverse comparison for earliest time)
+    bool operator>(const Event& other) const { return time > other.time; }
+};
+
 extern char dungeon[HEIGHT][WIDTH];
 extern unsigned char hardness[HEIGHT][WIDTH];
 extern struct Room rooms[MAX_ROOMS];
@@ -131,6 +141,10 @@ extern bool in_combat;
 extern int current_level;
 extern std::map<int, std::vector<Object*>> level_objects; // Store objects per level
 
+// Event system
+extern std::priority_queue<Event, std::vector<Event>, std::greater<Event>> event_queue;
+extern int64_t game_turn;
+
 void printDungeon();
 void emptyDungeon();
 int overlapCheck(struct Room r1, struct Room r2);
@@ -150,6 +164,7 @@ void printTunnelingMap();
 
 int spawnMonsters(int count);
 void runGame(int numMonsters);
+void schedule_event(Character* character);
 
 int gameOver(NPC** culprit);
 

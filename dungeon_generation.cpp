@@ -45,6 +45,8 @@ std::vector<ObjectDescription> objectDescs;
 
 int current_level = 1; // Start at level 1
 std::map<int, std::vector<Object*>> level_objects; // Store objects per level
+std::priority_queue<Event, std::vector<Event>, std::greater<Event>> event_queue;
+int64_t game_turn = 0;
 
 Object::Object(int x_, int y_) : x(x_), y(y_), hit(0), dodge(0), defense(0),
     weight(0), speed(0), attribute(0), value(0), is_artifact(false) {}
@@ -69,6 +71,7 @@ PC::PC(int x_, int y_) : Character(x_, y_) {
     symbol = '@';
     color = "WHITE";
     hitpoints = 100; // Default PC hitpoints
+    speed = 10; // Fixed speed as per assignment
     num_carried = 0;
     for (int i = 0; i < EQUIPMENT_SLOTS; i++) equipment[i] = nullptr;
     for (int i = 0; i < CARRY_SLOTS; i++) carry[i] = nullptr;
@@ -91,7 +94,7 @@ int PC::takeDamage(int damage) {
 NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(0),
     tunneling(0), telepathic(0), erratic(0),
     pass_wall(0), pickup(0), destroy(0), is_unique(false), is_boss(false) {
-    speed = rand() % 16 + 5;
+    // Speed is set by MonsterDescription::createNPC
 }
 
 bool PC::pickupObject(Object* obj) {
@@ -121,7 +124,7 @@ void PC::calculateStats(int& total_speed, Dice& total_damage, int& total_defense
             total_hit += equipment[i]->hit;
             total_dodge += equipment[i]->dodge;
             if (i == SLOT_WEAPON) {
-                total_damage = Dice(0, 0, 0); // Reset damage if weapon is equipped, then add weapon damage
+                total_damage = Dice(0, 0, 0); // Reset damage if weapon is equipped
                 total_damage.base += equipment[i]->damage.base;
                 total_damage.dice += equipment[i]->damage.dice;
                 total_damage.sides = std::max(total_damage.sides, equipment[i]->damage.sides);
@@ -162,6 +165,12 @@ bool NPC::displace(int& new_x, int& new_y) {
 }
 
 void PC::move() {}
+
+void schedule_event(Character* character) {
+    int64_t delay = 1000 / character->speed; // floor(1000/speed) using integer division
+    int64_t next_time = game_turn + delay;
+    event_queue.emplace(next_time, character, Event::MOVE);
+}
 
 void compactMonsters() {
     int write_idx = 0;
@@ -305,6 +314,7 @@ int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
             in_combat = false;
             combat_initialized = false;
             engaged_monster = nullptr;
+            schedule_event(player); // Reschedule player event
             if (monster->is_boss) {
                 *message = "You defeated SpongeBob SquarePants! You win!";
                 return -1;
@@ -322,6 +332,8 @@ int fight_monster(WINDOW* win, NPC* monster, int ch, const char** message) {
             in_combat = false;
             combat_initialized = false;
             engaged_monster = nullptr;
+            schedule_event(player); // Reschedule player event
+            schedule_event(monster); // Reschedule monster event
             *message = "You fled from the monster!";
             return 0;
         } else {
@@ -586,6 +598,7 @@ int spawnMonsters(int numMonsters) {
                 monsters[num_monsters] = npc;
                 monsterAt[npc->y][npc->x] = npc;
                 num_monsters++;
+                schedule_event(npc); // Schedule initial event for the monster
             }
         }
     }
@@ -667,23 +680,60 @@ void runGame(int numMonsters) {
         printf("Failed to spawn monsters\n");
         return;
     }
-    int turns = 0;
-    int monsters_alive = num_monsters;
 
-    while (monsters_alive > 0) {
-        printf("\nTurn %d:\n", turns++);
-        printDungeon();
+    // Clear any existing events
+    while (!event_queue.empty()) event_queue.pop();
+
+    // Schedule initial events for PC and NPCs
+    schedule_event(player);
+    for (int i = 0; i < num_monsters; i++) {
+        if (monsters[i] && monsters[i]->alive) {
+            schedule_event(monsters[i]);
+        }
+    }
+
+    int monsters_alive = num_monsters;
+    while (monsters_alive > 0 && player->alive) {
+        // Get the next event
+        Event event = event_queue.top();
+        event_queue.pop();
+
+        // Update game turn to the event's time
+        game_turn = event.time;
+
+        // Process the event
+        if (event.character->alive) {
+            event.character->move();
+            schedule_event(event.character); // Schedule next move
+        }
+
+        // Check for game over
+        if (!player->alive) {
+            printf("You were killed! Game over!\n");
+            break;
+        }
+
+        // Count living monsters
         monsters_alive = 0;
         for (int i = 0; i < num_monsters; i++) {
-            if (monsters[i]->alive) {
-                monsters[i]->move();
-                if (monsters[i]->alive) monsters_alive++;
+            if (monsters[i] && monsters[i]->alive) {
+                monsters_alive++;
             }
         }
-        sleep(1);
+
+        // Redraw dungeon
+        printDungeon();
+        usleep(250000); // Pause for 250ms as per assignment
     }
+
+    // Print final state
     printf("\nFinal state:\n");
     printDungeon();
+    if (monsters_alive == 0 && player->alive) {
+        printf("You win!\n");
+    } else {
+        printf("Game over!\n");
+    }
 }
 
 int gameOver(NPC** culprit) {
@@ -898,6 +948,9 @@ void regenerate_dungeon(int numMonsters) {
     monsters = nullptr;
     num_monsters = 0;
 
+    // Clear event queue
+    while (!event_queue.empty()) event_queue.pop();
+
     // Update level
     current_level++;
 
@@ -925,9 +978,16 @@ void regenerate_dungeon(int numMonsters) {
     initializeHardness();
     spawnMonsters(numMonsters);
 
+    // Schedule events for new level
+    schedule_event(player);
+    for (int i = 0; i < num_monsters; i++) {
+        if (monsters[i] && monsters[i]->alive) {
+            schedule_event(monsters[i]);
+        }
+    }
+
     // Restore or place new objects
     if (level_objects.find(current_level) != level_objects.end()) {
-        // Restore objects from previous visit to this level
         objects = (Object**)malloc(level_objects[current_level].size() * sizeof(Object*));
         num_objects = level_objects[current_level].size();
         for (size_t i = 0; i < level_objects[current_level].size(); ++i) {
@@ -935,7 +995,6 @@ void regenerate_dungeon(int numMonsters) {
             objectAt[objects[i]->y][objects[i]->x] = objects[i];
         }
     } else {
-        // Place new objects for a new level
         placeObjects(10);
     }
 
