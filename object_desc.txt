@@ -405,3 +405,42 @@ ART FALSE
 RARITY 30
 RANGE 0
 END
+
+BEGIN OBJECT
+NAME Tome of Poison
+DESC A mystical book containing the Poison Ball spell.
+.
+TYPE SPELLBOOK
+COLOR GREEN
+HIT 0+0d1
+DAM 0+0d1
+DODGE 0+0d1
+DEF 0+0d1
+WEIGHT 3+0d1
+SPEED 0+0d1
+ATTR 0+0d1
+VAL 200+0d1
+ART FALSE
+RARITY 30
+RANGE 0
+END
+
+BEGIN OBJECT
+NAME Flask of Vitality
+DESC A small glass bottle filled with a restorative elixir.
+.
+TYPE FLASK
+COLOR BLUE
+HIT 0+0d1
+DAM 0+0d1
+DODGE 0+0d1
+DEF 0+0d1
+WEIGHT 1+0d1
+SPEED 0+0d1
+ATTR 0+0d1
+VAL 50+0d1
+HEAL 0+1d8
+ART FALSE
+RARITY 90
+RANGE 0
+END

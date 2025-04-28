@@ -9,7 +9,7 @@
 #include "dungeon_generation.h"
 
 ObjectDescription::ObjectDescription()
-    : rarity(0), range(0), is_artifact(false), is_created(false) {}
+    : rarity(0), range(0), is_artifact(false), is_created(false), heal(0, 0, 0) {}
 
 void ObjectDescription::print() const {
     std::cout << name << "\n";
@@ -30,6 +30,7 @@ void ObjectDescription::print() const {
     std::cout << speed.toString() << "\n";
     std::cout << attribute.toString() << "\n";
     std::cout << value.toString() << "\n";
+    std::cout << heal.toString() << "\n";
     std::cout << artifact << "\n";
     std::cout << rarity << "\n";
     std::cout << range << "\n";
@@ -41,6 +42,7 @@ Object* ObjectDescription::createObject(int x, int y) {
     obj->name = name;
     obj->color = color;
     obj->damage = damage;
+    obj->heal = heal;
     obj->types = types;
     obj->symbol = getObjectSymbol(types.empty() ? "" : types[0]);
     obj->range = range;
@@ -118,7 +120,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
     bool hasName = false, hasDesc = false, hasType = false, hasColor = false;
     bool hasHit = false, hasDam = false, hasDodge = false, hasDef = false;
     bool hasWeight = false, hasSpeed = false, hasAttr = false, hasVal = false;
-    bool hasArt = false, hasRarity = false;
+    bool hasArt = false, hasRarity = false, hasHeal = false;
 
     while (std::getline(file, line)) {
         if (line.empty()) continue;
@@ -130,7 +132,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
             current = ObjectDescription();
             inObject = true;
             hasName = hasDesc = hasType = hasColor = hasHit = hasDam = hasDodge = hasDef = false;
-            hasWeight = hasSpeed = hasAttr = hasVal = hasArt = hasRarity = false;
+            hasWeight = hasSpeed = hasAttr = hasVal = hasArt = hasRarity = hasHeal = false;
             continue;
         }
 
@@ -317,6 +319,20 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
                 continue;
             }
             hasVal = true;
+        } else if (keyword == "HEAL") {
+            if (hasHeal) {
+                std::cerr << "Duplicate HEAL, discarding object\n";
+                inObject = false;
+                continue;
+            }
+            std::string diceStr;
+            std::getline(iss, diceStr);
+            if (sscanf(diceStr.c_str(), "%d+%dd%d", &current.heal.base, &current.heal.dice, &current.heal.sides) != 3) {
+                std::cerr << "Invalid HEAL format, discarding object\n";
+                inObject = false;
+                continue;
+            }
+            hasHeal = true;
         } else if (keyword == "ART") {
             if (hasArt) {
                 std::cerr << "Duplicate ART, discarding object\n";
@@ -330,7 +346,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
                 continue;
             }
             hasArt = true;
-        } else if (keyword == "RRTY" || keyword == "RARITY") { // Handle both RRTY and RARITY
+        } else if (keyword == "RRTY" || keyword == "RARITY") {
             if (hasRarity) {
                 std::cerr << "Duplicate RARITY, discarding object\n";
                 inObject = false;
@@ -343,7 +359,7 @@ std::vector<ObjectDescription> parseObjectDescriptions(const std::string& filena
                 std::cerr << "RARITY must be between 1 and 100, discarding object\n";
                 inObject = false;
             }
-        } else if (keyword == "RANGE") { // New handler for RANGE
+        } else if (keyword == "RANGE") {
             iss >> current.range;
             if (current.range < 0) {
                 std::cerr << "RANGE must be non-negative, discarding object\n";

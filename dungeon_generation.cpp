@@ -1181,19 +1181,20 @@ void display_help(WINDOW* win, const char** message) {
     mvwprintw(win, 12, 0, "Inventory & Equipment:");
     mvwprintw(win, 13, 0, "  i: View inventory");
     mvwprintw(win, 14, 0, "  w: Wear item from inventory");
-    mvwprintw(win, 15, 0, "  d: Drop item from inventory");
-    mvwprintw(win, 16, 0, "  x: Expunge item from inventory");
-    mvwprintw(win, 17, 0, "  I: Inspect item in inventory");
-    mvwprintw(win, 18, 0, "  e: View equipment");
-    mvwprintw(win, 19, 0, "  t: Take off equipped item");
-    mvwprintw(win, 20, 0, "Other Actions:");
-    mvwprintw(win, 21, 0, "  5/space/.: Rest");
-    mvwprintw(win, 22, 0, "  m: View monster list");
-    mvwprintw(win, 23, 0, "  f: Toggle fog of war");
-    mvwprintw(win, 24, 0, "  g: Teleport (g to confirm, r for random, ESC to cancel)");
-    mvwprintw(win, 25, 0, "  L: Look mode (t to inspect monster, ESC to cancel)");
-    mvwprintw(win, 26, 0, "  >/ <: Use stairs");
-    mvwprintw(win, 27, 0, "  s: View stats  q/Q: Quit");
+    mvwprintw(win, 15, 0, "  u: Use item from inventory (e.g., flasks)");
+    mvwprintw(win, 16, 0, "  d: Drop item from inventory");
+    mvwprintw(win, 17, 0, "  x: Expunge item from inventory");
+    mvwprintw(win, 18, 0, "  I: Inspect item in inventory");
+    mvwprintw(win, 19, 0, "  e: View equipment");
+    mvwprintw(win, 20, 0, "  t: Take off equipped item");
+    mvwprintw(win, 21, 0, "Other Actions:");
+    mvwprintw(win, 22, 0, "  5/space/.: Rest");
+    mvwprintw(win, 23, 0, "  m: View monster list");
+    mvwprintw(win, 24, 0, "  f: Toggle fog of war");
+    mvwprintw(win, 25, 0, "  g: Teleport (g to confirm, r for random, ESC to cancel)");
+    mvwprintw(win, 26, 0, "  L: Look mode (t to inspect monster, ESC to cancel)");
+    mvwprintw(win, 27, 0, "  >/ <: Use stairs");
+    mvwprintw(win, 28, 0, "  s: View stats  q/Q: Quit");
     keypad(win, TRUE);
     wrefresh(win);
     flushinp();
@@ -1446,6 +1447,69 @@ void wear_item(WINDOW* win, PC* pc, const char** message) {
     *message = "Item equipped!";
 }
 
+void PC::heal(int amount) {
+    hitpoints += amount;
+    if (hitpoints > 100) hitpoints = 100;
+}
+void use_item(WINDOW* win, PC* pc, const char** message) {
+    werase(win);
+    mvwprintw(win, 0, 0, "Select carry slot to use (0-9, ESC to cancel):");
+    for (int i = 0; i < PC::CARRY_SLOTS; i++) {
+        if (pc->carry[i]) {
+            mvwprintw(win, i + 1, 0, "%d: %s", i, pc->carry[i]->name.c_str());
+        } else {
+            mvwprintw(win, i + 1, 0, "%d: (empty)", i);
+        }
+    }
+    keypad(win, TRUE);
+    wrefresh(win);
+    flushinp();
+    int ch = getch();
+    FILE* debug_file = fopen("input_debug.txt", "a");
+    if (debug_file) {
+        fprintf(debug_file, "use_item: Key pressed: %d ('%c')\n", ch, (char)ch);
+        fclose(debug_file);
+    }
+    if (ch == 27) {
+        *message = "Use cancelled";
+        return;
+    }
+    if (ch < '0' || ch > '9') {
+        *message = "Invalid slot!";
+        return;
+    }
+    int slot = ch - '0';
+    if (!pc->carry[slot]) {
+        *message = "No item in that slot!";
+        return;
+    }
+    Object* item = pc->carry[slot];
+    if (item->types[0] != "FLASK") {
+        *message = "Only flasks can be used!";
+        return;
+    }
+    if (item->heal.dice == 0 && item->heal.base == 0) {
+        *message = "This flask has no healing effect!";
+        return;
+    }
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    int healing = item->heal.base;
+    for (int i = 0; i < item->heal.dice; ++i) {
+        std::uniform_int_distribution<> dis(1, item->heal.sides);
+        healing += dis(gen);
+    }
+    pc->heal(healing);
+    delete pc->carry[slot];
+    pc->carry[slot] = nullptr;
+    pc->num_carried--;
+    char msg[80];
+    snprintf(msg, sizeof(msg), "Used %s and restored %d HP!", item->name.c_str(), healing);
+    *message = msg;
+}
+
+
+
 void take_off_item(WINDOW* win, PC* pc, const char** message) {
     werase(win);
     mvwprintw(win, 0, 0, "Select equipment slot (a-m, ESC to cancel):");
@@ -1599,6 +1663,7 @@ void expunge_item(WINDOW* win, PC* pc, const char** message) {
     pc->num_carried--;
     *message = "Item expunged!";
 }
+
 
 void inspect_item(WINDOW* win, PC* pc, const char** message) {
     werase(win);

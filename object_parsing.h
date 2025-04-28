@@ -1,10 +1,8 @@
-// object_parsing.h
 #ifndef OBJECT_PARSING_H
 #define OBJECT_PARSING_H
 
 #include <string>
 #include <vector>
-#include <stdint.h>
 #include "dice.h"
 
 class Object;
@@ -23,6 +21,7 @@ public:
     Dice speed;
     Dice attribute;
     Dice value;
+    Dice heal; // New field for healing
     std::string artifact;
     int rarity;
     int range;

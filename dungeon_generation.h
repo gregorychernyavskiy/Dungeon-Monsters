@@ -42,8 +42,9 @@ public:
     std::string color;
     char symbol;
     Dice damage;
+    Dice heal;
     int hit, dodge, defense, weight, speed, attribute, value;
-    int range; // New for ranged weapons
+    int range;
     bool is_artifact;
 
     Object(int x_, int y_);
@@ -70,13 +71,13 @@ public:
 
 class PC : public Character {
 public:
-    static const int CARRY_SLOTS = 10;
-    static const int EQUIPMENT_SLOTS = 13; // Increased for SPELLBOOK
+    static const int CARRY_SLOTS = 10 10;
+    static const int EQUIPMENT_SLOTS = 13;
     Object* equipment[EQUIPMENT_SLOTS];
     Object* carry[CARRY_SLOTS];
     int num_carried;
-    int mana; // New for spells
-    int max_mana; // New for spells
+    int mana;
+    int max_mana;
 
     PC(int x_, int y_);
     ~PC();
@@ -84,6 +85,7 @@ public:
     int takeDamage(int damage) override;
     bool pickupObject(Object* obj);
     void calculateStats(int& total_speed, Dice& total_damage, int& total_defense, int& total_hit, int& total_dodge);
+    void heal(int amount);
 };
 
 class NPC : public Character {
@@ -100,11 +102,10 @@ public:
 };
 
 struct Event {
-    int64_t time; // Timestamp for the event
-    Character* character; // PC or NPC
-    enum EventType { MOVE } type; // For future expansion
+    int64_t time;
+    Character* character;
+    enum EventType { MOVE } type;
     Event(int64_t t, Character* c, EventType et = MOVE) : time(t), character(c), type(et) {}
-    // For priority queue (min-heap, so reverse comparison for earliest time)
     bool operator>(const Event& other) const { return time > other.time; }
 };
 
@@ -140,15 +141,12 @@ extern char remembered[HEIGHT][WIDTH];
 extern std::vector<MonsterDescription> monsterDescs;
 extern std::vector<ObjectDescription> objectDescs;
 
-// Combat state
 extern NPC* engaged_monster;
 extern bool in_combat;
 
-// Level tracking
 extern int current_level;
-extern std::map<int, std::vector<Object*>> level_objects; // Store objects per level
+extern std::map<int, std::vector<Object*>> level_objects;
 
-// Event system
 extern std::priority_queue<Event, std::vector<Event>, std::greater<Event>> event_queue;
 extern int64_t game_turn;
 
@@ -204,5 +202,6 @@ void take_off_item(WINDOW* win, PC* pc, const char** message);
 void drop_item(WINDOW* win, PC* pc, const char** message);
 void expunge_item(WINDOW* win, PC* pc, const char** message);
 void inspect_item(WINDOW* win, PC* pc, const char** message);
+void use_item(WINDOW* win, PC* pc, const char** message);
 
 #endif
