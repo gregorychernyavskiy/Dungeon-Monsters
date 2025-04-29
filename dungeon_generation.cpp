@@ -856,8 +856,35 @@ void runGame(int numMonsters) {
         game_turn = event.time;
 
         if (event.character->alive) {
-            event.character->move();
-            schedule_event(event.character);
+            if (event.type == Event::MOVE) {
+                event.character->move();
+                schedule_event(event.character);
+            } else if (event.type == Event::POISON) {
+                NPC* npc = dynamic_cast<NPC*>(event.character);
+                if (npc) {
+                    npc->applyPoisonDamage();
+                    if (npc->alive && npc->poisoned && npc->poison_duration > 0) {
+                        int64_t next_time = game_turn + (1000 / npc->speed);
+                        event_queue.emplace(next_time, npc, Event::POISON);
+                    }
+                    if (!npc->alive) {
+                        monsterAt[npc->y][npc->x] = nullptr;
+                        for (int i = 0; i < num_monsters; i++) {
+                            if (monsters[i] == npc) {
+                                if (npc->is_unique) {
+                                    for (auto& desc : monsterDescs) {
+                                        if (desc.name == npc->name) desc.is_alive = false;
+                                    }
+                                }
+                                delete monsters[i];
+                                monsters[i] = nullptr;
+                                break;
+                            }
+                        }
+                        compactMonsters();
+                    }
+                }
+            }
         }
 
         if (!player->alive) {
