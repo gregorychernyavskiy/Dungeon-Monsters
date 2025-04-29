@@ -95,8 +95,15 @@ int PC::takeDamage(int damage) {
 
 NPC::NPC(int x_, int y_) : Character(x_, y_), intelligent(0),
     tunneling(0), telepathic(0), erratic(0),
-    pass_wall(0), pickup(0), destroy(0), is_unique(false), is_boss(false) {
+    pass_wall(0), pickup(0), destroy(0), is_unique(false), is_boss(false),
+    is_poisoned(false), poison_turns_remaining(0) {
+    poison_damage = Dice(0, 0, 0);
+}
 
+void NPC::applyPoison(Dice poison_dmg, int duration) {
+    is_poisoned = true;
+    poison_turns_remaining = duration;
+    poison_damage = poison_dmg;
 }
 
 bool PC::pickupObject(Object* obj) {
@@ -183,6 +190,11 @@ void schedule_event(Character* character) {
     if (dynamic_cast<PC*>(character)) {
         PC* pc = dynamic_cast<PC*>(character);
         pc->mana = std::min(pc->mana + 1, pc->max_mana);
+        for (int i = 0; i < num_monsters; i++) {
+            if (monsters[i] && monsters[i]->alive && monsters[i]->is_poisoned) {
+                event_queue.emplace(next_time, monsters[i], Event::POISON_TICK);
+            }
+        }
     }
 }
 
@@ -281,6 +293,8 @@ int NPC::takeDamage(int damage) {
     hitpoints -= damage;
     if (hitpoints <= 0) {
         alive = 0;
+        is_poisoned = false;
+        poison_turns_remaining = 0;
         return 1;
     }
     return 0;
@@ -456,7 +470,6 @@ int fire_ranged_weapon(int target_x, int target_y, const char** message) {
 }
 
 int cast_poison_ball(int target_x, int target_y, const char** message) {
-    
     bool has_spellbook = false;
     if (player->equipment[SLOT_SPELLBOOK] && player->equipment[SLOT_SPELLBOOK]->types[0] == "SPELLBOOK") {
         has_spellbook = true;
@@ -495,6 +508,7 @@ int cast_poison_ball(int target_x, int target_y, const char** message) {
                             std::uniform_int_distribution<> dis(1, POISON_BALL_DAMAGE.sides);
                             damage += dis(gen);
                         }
+                        target->applyPoison(POISON_TICK_DAMAGE, POISON_DURATION);
                         if (target->takeDamage(damage)) {
                             monsterAt[y][x] = nullptr;
                             for (int i = 0; i < num_monsters; i++) {
@@ -542,6 +556,52 @@ int cast_poison_ball(int target_x, int target_y, const char** message) {
     event_queue = temp_queue;
     schedule_event(player);
     return 1;
+}
+
+void apply_poison_tick(NPC* monster, const char** message) {
+    if (!monster->is_poisoned || !monster->alive) return;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    int damage = monster->poison_damage.base;
+    for (int i = 0; i < monster->poison_damage.dice; i++) {
+        std::uniform_int_distribution<> dis(1, monster->poison_damage.sides);
+        damage += dis(gen);
+    }
+
+    monster->poison_turns_remaining--;
+    if (monster->takeDamage(damage)) {
+        monsterAt[monster->y][monster->x] = nullptr;
+        for (int i = 0; i < num_monsters; i++) {
+            if (monsters[i] == monster) {
+                if (monster->is_unique) {
+                    for (auto& desc : monsterDescs) {
+                        if (desc.name == monster->name) desc.is_alive = false;
+                    }
+                }
+                delete monsters[i];
+                monsters[i] = nullptr;
+                break;
+            }
+        }
+        compactMonsters();
+        if (monster->is_boss) {
+            *message = "SpongeBob SquarePants succumbed to poison! You win!";
+            return;
+        }
+        static char msg[80];
+        snprintf(msg, sizeof(msg), "%s was killed by poison!", monster->name.c_str());
+        *message = msg;
+    } else {
+        static char msg[80];
+        snprintf(msg, sizeof(msg), "%s takes %d poison damage!", monster->name.c_str(), damage);
+        *message = msg;
+    }
+
+    if (monster->poison_turns_remaining <= 0) {
+        monster->is_poisoned = false;
+        monster->poison_turns_remaining = 0;
+    }
 }
 
 void printDungeon() {

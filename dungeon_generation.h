@@ -25,6 +25,8 @@
 #define POISON_BALL_MANA_COST 20
 #define POISON_BALL_DAMAGE Dice(0, 1, 6)
 #define RANGED_ATTACK_RANGE 5
+#define POISON_DURATION 10
+#define POISON_TICK_DAMAGE Dice(0, 1, 4)
 
 struct Room {
     int x, y, height, width;
@@ -90,23 +92,27 @@ public:
 
 class NPC : public Character {
 public:
-    int intelligent, tunneling, telepathic, erratic;
-    int pass_wall, pickup, destroy;
-    bool is_unique;
-    bool is_boss;
-
-    NPC(int x_, int y_);
-    void move() override;
-    int takeDamage(int damage) override;
-    bool displace(int& new_x, int& new_y);
+        int intelligent, tunneling, telepathic, erratic;
+        int pass_wall, pickup, destroy;
+        bool is_unique;
+        bool is_boss;
+        bool is_poisoned;
+        int poison_turns_remaining;
+        Dice poison_damage;
+    
+        NPC(int x_, int y_);
+        void move() override;
+        int takeDamage(int damage) override;
+        bool displace(int& new_x, int& new_y);
+        void applyPoison(Dice poison_dmg, int duration);
 };
-
+    
 struct Event {
-    int64_t time;
-    Character* character;
-    enum EventType { MOVE } type;
-    Event(int64_t t, Character* c, EventType et = MOVE) : time(t), character(c), type(et) {}
-    bool operator>(const Event& other) const { return time > other.time; }
+        int64_t time;
+        Character* character;
+        enum EventType { MOVE, POISON_TICK } type;
+        Event(int64_t t, Character* c, EventType et = MOVE) : time(t), character(c), type(et) {}
+        bool operator>(const Event& other) const { return time > other.time; }
 };
 
 extern char dungeon[HEIGHT][WIDTH];
@@ -206,5 +212,6 @@ void drop_item(WINDOW* win, PC* pc, const char** message);
 void expunge_item(WINDOW* win, PC* pc, const char** message);
 void inspect_item(WINDOW* win, PC* pc, const char** message);
 void use_item(WINDOW* win, PC* pc, const char** message);
+void apply_poison_tick(NPC* monster, const char** message);
 
 #endif

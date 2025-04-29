@@ -419,7 +419,6 @@ int main(int argc, char* argv[]) {
         }
 
         if (moved && game_running && !teleport_mode && !look_mode && !targeting_mode && !in_combat && !ui_action) {
-            
             int total_speed;
             Dice total_damage;
             int total_defense, total_hit, total_dodge;
@@ -431,11 +430,15 @@ int main(int argc, char* argv[]) {
             while (!event_queue.empty() && event_queue.top().time <= game_turn) {
                 Event event = event_queue.top();
                 event_queue.pop();
-                if (event.character->alive && event.character != player) {
-                    event.character->move();
-                    int64_t delay = 1000 / event.character->speed;
-                    int64_t next_time = event.time + delay;
-                    event_queue.emplace(next_time, event.character, Event::MOVE);
+                if (event.character->alive) {
+                    if (event.type == Event::MOVE && event.character != player) {
+                        event.character->move();
+                        int64_t delay = 1000 / event.character->speed;
+                        int64_t next_time = event.time + delay;
+                        event_queue.emplace(next_time, event.character, Event::MOVE);
+                    } else if (event.type == Event::POISON_TICK) {
+                        apply_poison_tick(dynamic_cast<NPC*>(event.character), &message);
+                    }
                 }
             }
 
@@ -453,7 +456,6 @@ int main(int argc, char* argv[]) {
 
             draw_dungeon(win, message);
         } else if (!moved && !teleport_mode && !look_mode && !targeting_mode && !in_combat) {
-            
             draw_dungeon(win, message);
         }
     }
