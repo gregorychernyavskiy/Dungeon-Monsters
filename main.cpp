@@ -63,7 +63,7 @@ void display_monster_info(WINDOW* win, NPC* monster, const char** message) {
 
 int main(int argc, char* argv[]) {
     srand(time(NULL));
-    int numMonsters = 10; // Default number of monsters as per assignment
+    int numMonsters = 10;
     char* saveFileName = nullptr;
     int save = 0;
     bool parseMonstersOnly = false;
