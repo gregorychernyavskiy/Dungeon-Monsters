@@ -456,6 +456,7 @@ int fire_ranged_weapon(int target_x, int target_y, const char** message) {
 }
 
 int cast_poison_ball(int target_x, int target_y, const char** message) {
+    
     bool has_spellbook = false;
     if (player->equipment[SLOT_SPELLBOOK] && player->equipment[SLOT_SPELLBOOK]->types[0] == "SPELLBOOK") {
         has_spellbook = true;
@@ -477,8 +478,10 @@ int cast_poison_ball(int target_x, int target_y, const char** message) {
         return 0;
     }
 
+    std::random_device rd;
+    std::mt19937 gen(rd());
     int affected = 0;
-    static char msg[80];
+    char msg[80] = "Poison Ball hits: ";
     for (int y = target_y - POISON_BALL_RADIUS; y <= target_y + POISON_BALL_RADIUS; y++) {
         for (int x = target_x - POISON_BALL_RADIUS; x <= target_x + POISON_BALL_RADIUS; x++) {
             if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
@@ -487,23 +490,43 @@ int cast_poison_ball(int target_x, int target_y, const char** message) {
                 if (dx * dx + dy * dy <= POISON_BALL_RADIUS * POISON_BALL_RADIUS) {
                     NPC* target = monsterAt[y][x];
                     if (target && target->alive && (!fog_enabled || visible[y][x])) {
-                        target->poisoned = true;
-                        target->poison_damage = POISON_BALL_DOT_PER_TURN; // 10 damage per turn
-                        target->poison_duration = POISON_BALL_DOT_DURATION; // 5 turns
-                        // Schedule first poison damage event for the next turn
-                        int64_t next_time = game_turn + (1000 / target->speed);
-                        event_queue.emplace(next_time, target, Event::POISON);
+                        int damage = POISON_BALL_DAMAGE.base;
+                        for (int i = 0; i < POISON_BALL_DAMAGE.dice; i++) {
+                            std::uniform_int_distribution<> dis(1, POISON_BALL_DAMAGE.sides);
+                            damage += dis(gen);
+                        }
+                        if (target->takeDamage(damage)) {
+                            monsterAt[y][x] = nullptr;
+                            for (int i = 0; i < num_monsters; i++) {
+                                if (monsters[i] == target) {
+                                    if (target->is_unique) {
+                                        for (auto& desc : monsterDescs) {
+                                            if (desc.name == target->name) desc.is_alive = false;
+                                        }
+                                    }
+                                    delete monsters[i];
+                                    monsters[i] = nullptr;
+                                    break;
+                                }
+                            }
+                            if (target->is_boss) {
+                                *message = "You defeated SpongeBob SquarePants with Poison Ball! You win!";
+                                compactMonsters();
+                                return -1;
+                            }
+                        }
                         affected++;
                     }
                 }
             }
         }
     }
+    compactMonsters();
 
     if (affected == 0) {
         *message = "Poison Ball hits no monsters!";
     } else {
-        snprintf(msg, sizeof(msg), "Poison Ball poisons %d monsters!", affected);
+        snprintf(msg, sizeof(msg), "Poison Ball hits %d monsters!", affected);
         *message = msg;
     }
 
@@ -856,35 +879,8 @@ void runGame(int numMonsters) {
         game_turn = event.time;
 
         if (event.character->alive) {
-            if (event.type == Event::MOVE) {
-                event.character->move();
-                schedule_event(event.character);
-            } else if (event.type == Event::POISON) {
-                NPC* npc = dynamic_cast<NPC*>(event.character);
-                if (npc) {
-                    npc->applyPoisonDamage();
-                    if (npc->alive && npc->poisoned && npc->poison_duration > 0) {
-                        int64_t next_time = game_turn + (1000 / npc->speed);
-                        event_queue.emplace(next_time, npc, Event::POISON);
-                    }
-                    if (!npc->alive) {
-                        monsterAt[npc->y][npc->x] = nullptr;
-                        for (int i = 0; i < num_monsters; i++) {
-                            if (monsters[i] == npc) {
-                                if (npc->is_unique) {
-                                    for (auto& desc : monsterDescs) {
-                                        if (desc.name == npc->name) desc.is_alive = false;
-                                    }
-                                }
-                                delete monsters[i];
-                                monsters[i] = nullptr;
-                                break;
-                            }
-                        }
-                        compactMonsters();
-                    }
-                }
-            }
+            event.character->move();
+            schedule_event(event.character);
         }
 
         if (!player->alive) {
@@ -1492,9 +1488,19 @@ void use_item(WINDOW* win, PC* pc, const char** message) {
         *message = "Only flasks can be used!";
         return;
     }
-    int healing = 20;
+    if (item->heal.dice == 0 && item->heal.base == 0) {
+        *message = "This flask has no healing effect!";
+        return;
+    }
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    int healing = item->heal.base;
+    for (int i = 0; i < item->heal.dice; ++i) {
+        std::uniform_int_distribution<> dis(1, item->heal.sides);
+        healing += dis(gen);
+    }
     pc->heal(healing);
-    std::string item_name = item->name;
+    std::string item_name = item->name; // Store name before deletion
     delete pc->carry[slot];
     pc->carry[slot] = nullptr;
     pc->num_carried--;
