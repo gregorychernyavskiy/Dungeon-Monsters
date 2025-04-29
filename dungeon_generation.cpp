@@ -1451,6 +1451,7 @@ void PC::heal(int amount) {
     hitpoints += amount;
     if (hitpoints > 100) hitpoints = 100;
 }
+
 void use_item(WINDOW* win, PC* pc, const char** message) {
     werase(win);
     mvwprintw(win, 0, 0, "Select carry slot to use (0-9, ESC to cancel):");
@@ -1503,12 +1504,10 @@ void use_item(WINDOW* win, PC* pc, const char** message) {
     delete pc->carry[slot];
     pc->carry[slot] = nullptr;
     pc->num_carried--;
-    char msg[80];
+    static char msg[80];
     snprintf(msg, sizeof(msg), "Used %s and restored %d HP!", item->name.c_str(), healing);
     *message = msg;
 }
-
-
 
 void take_off_item(WINDOW* win, PC* pc, const char** message) {
     werase(win);
