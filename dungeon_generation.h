@@ -199,6 +199,7 @@ void display_inventory(WINDOW* win, PC* pc, const char** message);
 void display_equipment(WINDOW* win, PC* pc, const char** message);
 void display_stats(WINDOW* win, PC* pc, const char** message);
 void display_help(WINDOW* win, const char** message);
+void display_monster_info(WINDOW* win, NPC* monster, const char** message);
 void wear_item(WINDOW* win, PC* pc, const char** message);
 void take_off_item(WINDOW* win, PC* pc, const char** message);
 void drop_item(WINDOW* win, PC* pc, const char** message);
