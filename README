@@ -27,7 +27,7 @@ Load a Saved Dungeon:
 - Run ./dungeon --load "filename" to load from $HOME/.rlg327/filename.
 
 Populate Dungeon with Monsters (1-15):
-- Run ./dungeon "number of monsters" (e.g., ./dungeon 10).
+- Run ./dungeon --nummon "number of monsters" (Example: ./dungeon --nummon 5, just ./dungeon will put 10 monsters automatically).
 
 Start the Game:
 - After launching, press any key to begin.

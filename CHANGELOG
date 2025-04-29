@@ -75,7 +75,6 @@
 1. Implemented monster parsing with --parse-monsters, reading definitions from $HOME/.rlg327/monster_desc.txt and ensuring proper validation of fields like hitpoints and abilities.
 2. Added optional object parsing via --parse-objects, processing item data from $HOME/.rlg327/object_desc.txt with support for attributes like type and weight.
 3. Fixed Dice struct redefinition by moving it to separate dice.h and dice.cpp files for shared use.
-4. Updated main.cpp to handle new parsing flags, printing results and exiting cleanly.
 
 04/22/2025
 1. Added monster inspection with 'L', allowing players to target and view monster details (name, hitpoints, damage, etc.) in a targeting mode.
@@ -87,4 +86,20 @@
 3. Enabled equipping items from inventory using 'w', with slot selection and swapping if the equipment slot is occupied.
 4. Introduced forced combat by moving into a monster’s cell, with 'a' to attack (rolling damage dice) and 'f' to flee (30% chance).
 5. Added win condition by defeating the boss (SpongeBob SquarePants) and loss condition if player hitpoints reach zero.
-6. Ensured item persistence across stairs, preserving inventory and equipment, with floor objects remembered per level.
+
+04/28/2025
+1. Fixed the movement bug, took a few hours.
+2. Implemented ranged 'longbow' item to shoot monsters when equipped.
+3. Ensured item persistence across stairs, preserving inventory and equipment, with floor objects remembered per level.
+
+04/29/2025
+1. Added Poison Ball to cast poison when carrying a Tome of Poison and having sufficient mana.
+2. Implemented Flask of Vitality (caused a few segment faults...) to heal, used a Flask of Vitality to recover hitpoints (HP has to be below 100).
+3. Implemented '?' button, which allows users to see all of the commands in order to play the game.
+
+
+
+
+
+
+
