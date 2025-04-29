@@ -22,11 +22,11 @@ public:
     Dice attribute;
     Dice value;
     std::string artifact;
-    int rarity;        // Moved up
-    int range;         // Moved up
-    bool is_artifact;  // Moved up
-    bool is_created;   // Moved up
-    Dice heal;         // Moved to end of this group
+    int rarity;
+    int range;
+    bool is_artifact;
+    bool is_created;
+    Dice heal;
 
     ObjectDescription();
     void print() const;

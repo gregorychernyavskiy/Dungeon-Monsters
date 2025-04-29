@@ -96,10 +96,3 @@
 1. Added Poison Ball to cast poison when carrying a Tome of Poison and having sufficient mana.
 2. Implemented Flask of Vitality (caused a few segment faults...) to heal, used a Flask of Vitality to recover hitpoints (HP has to be below 100).
 3. Implemented '?' button, which allows users to see all of the commands in order to play the game.
-
-
-
-
-
-
-

@@ -8,59 +8,6 @@
 #include "dungeon_generation.h"
 #include "minheap.h"
 
-void display_monster_info(WINDOW* win, NPC* monster, const char** message) {
-    if (!monster) {
-        *message = "No monster at this location!";
-        return;
-    }
-    if (fog_enabled && !visible[monster->y][monster->x]) {
-        *message = "Monster is not visible!";
-        return;
-    }
-
-    werase(win);
-    mvwprintw(win, 0, 0, "Monster Information (Press any key to exit):");
-    mvwprintw(win, 1, 0, "Name: %s", monster->name.c_str());
-    mvwprintw(win, 2, 0, "Symbol: %c", monster->symbol);
-    mvwprintw(win, 3, 0, "Position: (%d, %d)", monster->x, monster->y);
-    mvwprintw(win, 4, 0, "Hitpoints: %d", monster->hitpoints);
-    if (monster->damage.base == 0 && monster->damage.dice == 0) {
-        mvwprintw(win, 5, 0, "Damage: No damage");
-    } else {
-        mvwprintw(win, 5, 0, "Damage: %s", monster->damage.toString().c_str());
-    }
-    mvwprintw(win, 6, 0, "Speed: %d", monster->speed);
-    mvwprintw(win, 7, 0, "Abilities:");
-    int line = 8;
-    if (monster->intelligent) mvwprintw(win, line++, 2, "- Intelligent");
-    if (monster->telepathic) mvwprintw(win, line++, 2, "- Telepathic");
-    if (monster->tunneling) mvwprintw(win, line++, 2, "- Tunneling");
-    if (monster->erratic) mvwprintw(win, line++, 2, "- Erratic");
-    if (monster->pass_wall) mvwprintw(win, line++, 2, "- Pass Wall");
-    if (monster->pickup) mvwprintw(win, line++, 2, "- Pickup");
-    if (monster->destroy) mvwprintw(win, line++, 2, "- Destroy");
-    if (monster->is_unique) mvwprintw(win, line++, 2, "- Unique");
-    if (monster->is_boss) mvwprintw(win, line++, 2, "- Boss");
-
-    mvwprintw(win, line++, 0, "Description:");
-    for (const auto& desc_line : monsterDescs) {
-        if (desc_line.name == monster->name) {
-            for (const auto& line_text : desc_line.description) {
-                if (line < 23) {
-                    mvwprintw(win, line++, 2, "%s", line_text.c_str());
-                }
-            }
-            break;
-        }
-    }
-
-    keypad(win, TRUE);
-    wrefresh(win);
-    flushinp();
-    getch();
-    *message = "Monster info displayed";
-}
-
 int main(int argc, char* argv[]) {
     srand(time(NULL));
     int numMonsters = 10;

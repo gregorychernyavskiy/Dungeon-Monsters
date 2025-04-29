@@ -186,16 +186,13 @@ void loadDungeon(char* nameOfFile) {
         terrain[downStairs[i].y][downStairs[i].x] = '>';
     }
 
-    // Place player and reset visibility
     dungeon[player->y][player->x] = '@';
     terrain[player->y][player->x] = '@';
 
-    // Clear and update visibility and remembered maps
     memset(visible, 0, sizeof(visible));
     memset(remembered, 0, sizeof(remembered));
     update_visibility();
 
-    // Reset monsters (not saved in this version)
     if (monsters) {
         for (int i = 0; i < num_monsters; i++) {
             if (monsters[i] && monsterAt[monsters[i]->y][monsters[i]->x]) {

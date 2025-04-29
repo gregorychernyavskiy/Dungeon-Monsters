@@ -147,6 +147,8 @@ extern bool in_combat;
 extern int current_level;
 extern std::map<int, std::vector<Object*>> level_objects;
 
+extern std::vector<MonsterDescription> monsterDescs;
+
 extern std::priority_queue<Event, std::vector<Event>, std::greater<Event>> event_queue;
 extern int64_t game_turn;
 
