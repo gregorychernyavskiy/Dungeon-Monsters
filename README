@@ -99,6 +99,11 @@ Combat:
 Monster Inspection:
 - Press 'L' to enter targeting mode. Move the cursor with movement keys, press 't' to select a visible monster, and view its name, symbol, hitpoints, damage, speed, abilities, and description. ESC to exit.
 
+Ranged Attacks & Spells & Heal:
+- Press 'r' to shoot with an equipped longbow.
+- Press 'p' to cast Poison Ball (requires Tome of Poison and sufficient mana).
+- Press 'U' to use a Flask of Vitality for health recovery (health needs to be below 100 in order to heal).
+
 Item Persistence:
 - Inventory (slots 0-9) and equipment (slots a-l) persist when using stairs ('<' or '>'), ensuring items are not lost between levels.
 - Floor objects are remembered per level, so dropped items remain if you return to a level.
