@@ -1181,7 +1181,7 @@ void display_help(WINDOW* win, const char** message) {
     mvwprintw(win, 12, 0, "Inventory & Equipment:");
     mvwprintw(win, 13, 0, "  i: View inventory");
     mvwprintw(win, 14, 0, "  w: Wear item from inventory");
-    mvwprintw(win, 15, 0, "  u: Use item from inventory (e.g., flasks)");
+    mvwprintw(win, 15, 0, "  U: Use item from inventory (e.g., flasks)");
     mvwprintw(win, 16, 0, "  d: Drop item from inventory");
     mvwprintw(win, 17, 0, "  x: Expunge item from inventory");
     mvwprintw(win, 18, 0, "  I: Inspect item in inventory");
