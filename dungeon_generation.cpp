@@ -1501,11 +1501,12 @@ void use_item(WINDOW* win, PC* pc, const char** message) {
         healing += dis(gen);
     }
     pc->heal(healing);
+    std::string item_name = item->name; // Store name before deletion
     delete pc->carry[slot];
     pc->carry[slot] = nullptr;
     pc->num_carried--;
     static char msg[80];
-    snprintf(msg, sizeof(msg), "Used %s and restored %d HP!", item->name.c_str(), healing);
+    snprintf(msg, sizeof(msg), "Used %s and restored %d HP!", item_name.c_str(), healing);
     *message = msg;
 }
 
