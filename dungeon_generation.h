@@ -21,12 +21,12 @@
 #define MAX_ROOM_WIDTH 12
 #define MAX_HARDNESS 255
 #define MIN_HARDNESS 1
-#define POISON_BALL_RADIUS 2
+#define POISON_BALL_RADIUS 3
 #define POISON_BALL_MANA_COST 20
-#define POISON_BALL_DAMAGE Dice(0, 1, 6)
+#define POISON_BALL_DAMAGE Dice(0, 1, 20)
 #define RANGED_ATTACK_RANGE 5
 #define POISON_DURATION 10
-#define POISON_TICK_DAMAGE Dice(0, 1, 4)
+#define POISON_TICK_DAMAGE Dice(0, 1, 12)
 
 struct Room {
     int x, y, height, width;

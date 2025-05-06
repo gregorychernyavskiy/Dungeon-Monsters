@@ -1613,7 +1613,7 @@ void use_item(WINDOW* win, PC* pc, const char** message) {
         healing += dis(gen);
     }
     pc->heal(healing);
-    std::string item_name = item->name; // Store name before deletion
+    std::string item_name = item->name;
     delete pc->carry[slot];
     pc->carry[slot] = nullptr;
     pc->num_carried--;
